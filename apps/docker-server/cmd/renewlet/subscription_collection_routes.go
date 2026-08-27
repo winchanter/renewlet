@@ -56,6 +56,7 @@ type subscriptionCollectionItemResponse struct {
 	TrialEndDate                 *string                `json:"trialEndDate,omitempty"`
 	ReminderDays                 int                    `json:"reminderDays"`
 	CostSharing                  map[string]interface{} `json:"costSharing,omitempty"`
+	Tags                         []string               `json:"tags"`
 }
 
 type subscriptionFacetsResponse struct {
@@ -269,6 +270,7 @@ func subscriptionCollectionAPIFromRecord(record *core.Record) subscriptionCollec
 	if costSharing := subscriptionRecordJSONMap(record, "costSharing"); len(costSharing) > 0 {
 		out.CostSharing = costSharing
 	}
+	out.Tags = subscriptionRecordStringSlice(record, "tags")
 	return out
 }
 

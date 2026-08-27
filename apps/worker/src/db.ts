@@ -360,6 +360,7 @@ export function toApiSubscriptionCollectionItem(row: SubscriptionCollectionRow):
     ...(row.trial_end_date ? { trialEndDate: row.trial_end_date } : {}),
     reminderDays: row.reminder_days,
     ...(Object.keys(costSharing).length > 0 ? { costSharing } : {}),
+    tags: parseStringArray(row.tags_json),
   };
   return apiSubscriptionCollectionItemSchema.parse(normalized);
 }

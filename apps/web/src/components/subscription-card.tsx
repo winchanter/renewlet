@@ -493,16 +493,33 @@ function SubscriptionCardComponent({
           <div className="grid min-w-0 gap-y-1.5 text-sm">
             <SubscriptionCardMetaFlow items={metaItems} />
 
-            {viewMode === 'list' && !isBuyout && (
-              <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-                <Bell className="h-3.5 w-3.5 shrink-0" />
-                <span className="max-w-36 truncate text-xs">
-                  {subscription.reminderDays === DISABLED_REMINDER_DAYS
-                    ? t("subscription.card.reminderDisabled")
-                    : subscription.reminderDays === INHERIT_REMINDER_DAYS
-                    ? t("subscription.card.reminderInherit", { days: inheritedReminderDays })
-                    : t("subscription.card.reminderDays", { days: subscription.reminderDays })}
-                </span>
+            {viewMode === 'list' && (!isBuyout || (subscription.tags?.length ?? 0) > 0) && (
+              <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                {!isBuyout && (
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <Bell className="h-3.5 w-3.5 shrink-0" />
+                    <span className="max-w-36 truncate text-xs">
+                      {subscription.reminderDays === DISABLED_REMINDER_DAYS
+                        ? t("subscription.card.reminderDisabled")
+                        : subscription.reminderDays === INHERIT_REMINDER_DAYS
+                        ? t("subscription.card.reminderInherit", { days: inheritedReminderDays })
+                        : t("subscription.card.reminderDays", { days: subscription.reminderDays })}
+                    </span>
+                  </div>
+                )}
+                {(subscription.tags?.length ?? 0) > 0 && (
+                  <div className="flex shrink-0 flex-wrap items-center gap-1">
+                    {subscription.tags?.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="shrink-0 whitespace-nowrap px-1.5 py-0 text-[10px] text-muted-foreground"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

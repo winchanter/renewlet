@@ -164,6 +164,7 @@ type SubscriptionCollectionDomainFields = {
   startDate: DateOnly | null;
   nextBillingDate: DateOnly;
   trialEndDate: DateOnly | undefined;
+  tags: string[];
 };
 
 type SubscriptionCollectionItemFromApi<T> =

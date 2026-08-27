@@ -21,7 +21,6 @@ type subscriptionDetailResponse struct {
 	subscriptionCollectionItemResponse
 	Website                *string                `json:"website,omitempty"`
 	Notes                  *string                `json:"notes,omitempty"`
-	Tags                   []string               `json:"tags"`
 	RepeatReminderEnabled  bool                   `json:"repeatReminderEnabled"`
 	RepeatReminderInterval string                 `json:"repeatReminderInterval"`
 	RepeatReminderWindow   string                 `json:"repeatReminderWindow"`
@@ -85,7 +84,6 @@ func subscriptionAPIFromRecord(record *core.Record) subscriptionDetailResponse {
 		subscriptionCollectionItemResponse: subscriptionCollectionAPIFromRecord(record),
 		Website:                            trimmedSubscriptionString(record.GetString("website")),
 		Notes:                              trimmedSubscriptionString(record.GetString("notes")),
-		Tags:                               subscriptionRecordStringSlice(record, "tags"),
 		RepeatReminderEnabled:              record.GetBool("repeatReminderEnabled"),
 		RepeatReminderInterval:             normalizeRepeatReminderInterval(record.GetString("repeatReminderInterval")),
 		RepeatReminderWindow:               normalizeRepeatReminderWindow(record.GetString("repeatReminderWindow")),

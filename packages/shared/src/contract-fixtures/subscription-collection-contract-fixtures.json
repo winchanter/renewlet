@@ -30,7 +30,6 @@
   "detailOnlyFields": [
     "website",
     "notes",
-    "tags",
     "repeatReminderEnabled",
     "repeatReminderInterval",
     "repeatReminderWindow",
@@ -53,7 +52,8 @@
       "nextBillingDate": "2026-02-01",
       "autoRenew": true,
       "autoCalculateNextBillingDate": true,
-      "reminderDays": 3
+      "reminderDays": 3,
+      "tags": []
     },
     {
       "id": "sub_collection_custom",
@@ -71,7 +71,8 @@
       "nextBillingDate": "2026-03-01",
       "autoRenew": true,
       "autoCalculateNextBillingDate": true,
-      "reminderDays": 3
+      "reminderDays": 3,
+      "tags": []
     },
     {
       "id": "sub_collection_buyout",
@@ -87,7 +88,8 @@
       "nextBillingDate": "2026-01-01",
       "autoRenew": false,
       "autoCalculateNextBillingDate": false,
-      "reminderDays": -2
+      "reminderDays": -2,
+      "tags": []
     },
     {
       "id": "sub_collection_fixed_term",
@@ -105,7 +107,8 @@
       "nextBillingDate": "2026-07-01",
       "autoRenew": false,
       "autoCalculateNextBillingDate": false,
-      "reminderDays": 3
+      "reminderDays": 3,
+      "tags": []
     }
   ],
   "completeSubscription": {

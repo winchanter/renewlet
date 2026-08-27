@@ -339,6 +339,7 @@ const apiSubscriptionCollectionItemShape = {
   trialEndDate: dateInputSchema.optional(),
   reminderDays: reminderDaysSchema,
   costSharing: costSharingSchema.optional(),
+  tags: z.array(z.string()).optional(),
 } satisfies z.ZodRawShape;
 
 const recurringBillingCycles = ["weekly", "monthly", "quarterly", "semi-annual", "annual"] as const;
@@ -374,7 +375,7 @@ const apiOneTimeFixedTermCycleShape = {
 const apiSubscriptionDetailShape = {
   website: z.string().optional(),
   notes: z.string().optional(),
-  tags: z.array(z.string()),
+  tags: z.array(z.string()).optional(),
   repeatReminderEnabled: z.boolean(),
   repeatReminderInterval: z.enum(REPEAT_REMINDER_INTERVALS),
   repeatReminderWindow: z.enum(REPEAT_REMINDER_WINDOWS),

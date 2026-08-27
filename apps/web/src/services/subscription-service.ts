@@ -49,6 +49,7 @@ type SubscriptionCollectionBaseForService = Pick<
   | "trialEndDate"
   | "reminderDays"
   | "costSharing"
+  | "tags"
 >;
 
 type SubscriptionDetailFieldsForService = Pick<
@@ -122,6 +123,7 @@ function fromApiSubscriptionCollectionBase(
     trialEndDate: parsedRow.trialEndDate ? assertDateOnly(parsedRow.trialEndDate) : undefined,
     reminderDays: parsedRow.reminderDays,
     costSharing: parsedRow.costSharing,
+    tags: parsedRow.tags ?? [],
   };
 }
 
@@ -129,7 +131,7 @@ function fromApiSubscriptionDetailFields(parsedRow: ApiSubscription): Subscripti
   return {
     website: parsedRow.website,
     notes: parsedRow.notes,
-    tags: parsedRow.tags,
+    tags: parsedRow.tags ?? [],
     repeatReminderEnabled: parsedRow.repeatReminderEnabled,
     repeatReminderInterval: parsedRow.repeatReminderInterval,
     repeatReminderWindow: parsedRow.repeatReminderWindow,

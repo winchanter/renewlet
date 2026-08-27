@@ -25,6 +25,9 @@ export function SubscriptionFormDateFields({ id, formData, update, errors }: Sub
   const nextBillingDateLabelId = id("nextBillingDate-label");
   const nextBillingDateValueId = id("nextBillingDate-value");
   const nextBillingDateHelpId = id("nextBillingDate-help");
+  const trialEndDateId = id("trialEndDate");
+  const trialEndDateLabelId = id("trialEndDate-label");
+  const trialEndDateValueId = id("trialEndDate-value");
   const startDateErrorId = id("startDate-error");
   const nextBillingDateErrorId = id("nextBillingDate-error");
   // 当非法到期日被清空后，打开到期日历应落在开始日所在月份，让下一个合法选择直接可见。
@@ -61,6 +64,8 @@ export function SubscriptionFormDateFields({ id, formData, update, errors }: Sub
       : formData.autoCalculate
         ? t("subscription.autoCalculateHelp")
         : null;
+  const isTrial = formData.status === "trial";
+  const trialEndDateCalendarMonth = formData.trialEndDate ?? formData.nextBillingDate ?? formData.startDate;
   return (
     <div className="grid gap-4 rounded-lg border border-border bg-secondary/30 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -140,6 +145,29 @@ export function SubscriptionFormDateFields({ id, formData, update, errors }: Sub
           </FormField>
         ) : null}
       </FormFieldRow>
+
+      {isTrial ? (
+        <FormField
+          id={trialEndDateId}
+          label={t("subscription.field.trialEndDate")}
+          labelId={trialEndDateLabelId}
+        >
+          {(field) => (
+            <DateOnlyPickerField
+              id={field.id}
+              labelId={trialEndDateLabelId}
+              valueId={trialEndDateValueId}
+              value={formData.trialEndDate}
+              onChange={(value) => update("trialEndDate", value)}
+              placeholder={t("subscription.placeholder.date")}
+              invalid={field.invalid}
+              describedBy={field.describedBy}
+              {...(formData.startDate ? { minDate: formData.startDate } : {})}
+              {...(trialEndDateCalendarMonth ? { defaultMonth: trialEndDateCalendarMonth } : {})}
+            />
+          )}
+        </FormField>
+      ) : null}
     </div>
   );
 }

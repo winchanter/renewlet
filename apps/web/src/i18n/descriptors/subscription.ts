@@ -101,6 +101,7 @@ export const messages = [
   msg({ id: "subscription.field.purchaseDate", message: "购买日期" }),
   msg({ id: "subscription.field.expiryDate", message: "到期日期" }),
   msg({ id: "subscription.field.nextBillingDate", message: "到期日期" }),
+  msg({ id: "subscription.field.trialEndDate", message: "试用到期日期" }),
   msg({ id: "subscription.field.reminder", message: "到期提醒" }),
   msg({ id: "subscription.field.website", message: "网站" }),
   msg({ id: "subscription.field.notes", message: "备注" }),

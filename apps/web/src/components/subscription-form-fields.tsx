@@ -123,6 +123,26 @@ export const SubscriptionFormFields = memo(function SubscriptionFormFields({
           ...(nextOneTimeMode === "buyout" ? disabledReminderFields() : inheritedReminderFields()),
         };
       }
+      if (key === "status") {
+        const nextStatus = value as SubscriptionStatus;
+        // 切到“试用中”时自动用当前到期日回填试用到期日，方便用户基于此微调；切离开试用态时清空，避免误存。
+        return {
+          ...prev,
+          status: nextStatus,
+          trialEndDate: nextStatus === "trial" ? (prev.trialEndDate ?? prev.nextBillingDate) : undefined,
+        };
+      }
+      if (key === "nextBillingDate") {
+        const nextNextBillingDate = value as SubscriptionFormState["nextBillingDate"];
+        // 试用态下编辑到期日期时同步试用到期日期，保持两者一致；
+        // 单独编辑试用到期日期不会反向同步，保留用户对试用边界的独立控制。
+        // startDate 联动清空 nextBillingDate 走 startDate 分支，不会触发此同步。
+        return {
+          ...prev,
+          nextBillingDate: nextNextBillingDate,
+          trialEndDate: prev.status === "trial" ? nextNextBillingDate : prev.trialEndDate,
+        };
+      }
       if (key === "startDate") {
         const nextStartDate = value as SubscriptionFormState["startDate"];
         return {

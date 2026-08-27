@@ -431,6 +431,8 @@ export function toSubscriptionFormSubmission(formData: SubscriptionFormState): S
     website: formData.website || undefined,
     notes: formData.notes || undefined,
     tags: normalizeTagsArray(formData.tags),
+    // 试用到期日期仅在试用态下提交；非试用态显式置 undefined 以清除历史值，保持状态与字段一致。
+    trialEndDate: formData.status === "trial" ? formData.trialEndDate : undefined,
   } satisfies SubscriptionFormSubmissionBase;
   if (formData.billingCycle === "custom") {
     if (typeof customDays !== "number") return null;

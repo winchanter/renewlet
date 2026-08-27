@@ -217,7 +217,7 @@ export type OneTimeBuyoutSubscription = Exclude<OneTimeSubscription, OneTimeFixe
 export type FixedCycleSubscription = RecurringCycleSubscription | OneTimeSubscription;
 
 type SubscriptionFormSubmissionFrom<T extends Subscription> = T extends Subscription
-  ? Omit<T, "id" | "pinned" | "extra" | "trialEndDate">
+  ? Omit<T, "id" | "pinned" | "extra">
   : never;
 export type SubscriptionFormSubmission = SubscriptionFormSubmissionFrom<Subscription>;
 type SubscriptionDraftFrom<T extends SubscriptionFormSubmission> = T extends SubscriptionFormSubmission

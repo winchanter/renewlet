@@ -54,6 +54,8 @@ export type SubscriptionFormState = {
   /** date-only 在表单内保持字符串，只有日历控件边界才临时转 Date。 */
   startDate: DateOnly | undefined;
   nextBillingDate: DateOnly | undefined;
+  /** 试用到期日期；仅在 status === "trial" 时由 UI 暴露编辑，非试用态提交时清空。 */
+  trialEndDate: DateOnly | undefined;
   autoRenew: boolean;
   autoCalculate: boolean;
   reminderType: SubscriptionFormReminderType;
@@ -89,6 +91,7 @@ export function createSubscriptionFormState(
     paymentMethod: "",
     startDate: undefined,
     nextBillingDate: undefined,
+    trialEndDate: undefined,
     autoRenew: false,
     autoCalculate: false,
     reminderType: "inherit",

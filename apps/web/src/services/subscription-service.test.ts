@@ -293,23 +293,31 @@ describe("subscription service API calls", () => {
     const updatePayload = subscriptionUpdateBodySchema.parse(updateBody);
     expect(updatePayload).not.toHaveProperty("pinned");
     expect(updatePayload).not.toHaveProperty("extra");
-    expect(updatePayload).not.toHaveProperty("trialEndDate");
+    // 非试用态默认草稿显式清空试用到期日，保持状态与字段一致。
+    expect(updatePayload.trialEndDate).toBeNull();
   });
 
-  it("keeps server-owned trial dates out of ordinary create and update payloads", () => {
+  it("sends form-owned trial end date in create and update payloads", () => {
     const subscription = fromApiSubscription({
       ...apiSubscription,
       status: "trial",
       trialEndDate: "2026-01-20",
     });
-    const changes = formSubmission({ status: "trial" });
-
-    const createPayload = subscriptionCreateBodySchema.parse(toSubscriptionCreatePayload({ ...changes, pinned: false }));
-    const updatePayload = subscriptionUpdateBodySchema.parse(toSubscriptionUpdatePayload(changes));
+    // 试用态携带试用到期日：提交后应原样写入 create/update 载荷。
+    const trialChanges = formSubmission({ status: "trial", trialEndDate: "2026-01-20" });
+    const trialCreatePayload = subscriptionCreateBodySchema.parse(
+      toSubscriptionCreatePayload({ ...trialChanges, pinned: false }),
+    );
+    const trialUpdatePayload = subscriptionUpdateBodySchema.parse(toSubscriptionUpdatePayload(trialChanges));
 
     expect(subscription.trialEndDate).toBe("2026-01-20");
-    expect(createPayload).not.toHaveProperty("trialEndDate");
-    expect(updatePayload).not.toHaveProperty("trialEndDate");
+    expect(trialCreatePayload.trialEndDate).toBe("2026-01-20");
+    expect(trialUpdatePayload.trialEndDate).toBe("2026-01-20");
+
+    // 试用态但未填试用到期日：载荷以 null 显式清空，避免后端保留陈旧试用日期。
+    const blankTrialChanges = formSubmission({ status: "trial" });
+    const blankUpdatePayload = subscriptionUpdateBodySchema.parse(toSubscriptionUpdatePayload(blankTrialChanges));
+    expect(blankUpdatePayload.trialEndDate).toBeNull();
   });
 
   it("patches quick-action fields without sending a full subscription snapshot", async () => {

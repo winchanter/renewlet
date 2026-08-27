@@ -1951,6 +1951,7 @@ export const MESSAGE_KEYS = [
   "subscription.field.startDateOptional",
   "subscription.field.status",
   "subscription.field.tags",
+  "subscription.field.trialEndDate",
   "subscription.field.website",
   "subscription.formIncomplete",
   "subscription.moreActions",

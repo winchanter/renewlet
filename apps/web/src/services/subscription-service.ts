@@ -224,6 +224,8 @@ function toSubscriptionFormPayload(submission: SubscriptionFormSubmission) {
     repeatReminderInterval: submission.repeatReminderInterval,
     repeatReminderWindow: submission.repeatReminderWindow,
     costSharing: submission.costSharing ?? null,
+    // trialEndDate 现归表单所有；null 显式清空（非试用态或试用未填），日期字符串写入试用到期日。
+    trialEndDate: submission.trialEndDate ?? null,
   };
 }
 
@@ -236,7 +238,7 @@ export function toSubscriptionCreatePayload(draft: SubscriptionDraft) {
 }
 
 export function toSubscriptionUpdatePayload(changes: SubscriptionFormSubmission) {
-  // 表单更新刻意省略 pinned、extra 与 trialEndDate；它们不归普通表单所有，PATCH 必须保留服务端当前值。
+  // 表单更新刻意省略 pinned、extra；它们不归普通表单所有，PATCH 必须保留服务端当前值。
   return toSubscriptionFormPayload(changes);
 }
 

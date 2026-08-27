@@ -200,6 +200,7 @@ function isCreateFormPristine(formData: SubscriptionFormState): boolean {
     formData.paymentMethod === baseline.paymentMethod &&
     formData.startDate === baseline.startDate &&
     formData.nextBillingDate === baseline.nextBillingDate &&
+    formData.trialEndDate === baseline.trialEndDate &&
     formData.autoRenew === baseline.autoRenew &&
     formData.autoCalculate === baseline.autoCalculate &&
     formData.reminderType === baseline.reminderType &&
@@ -237,6 +238,7 @@ function subscriptionToFormState(subscription: Subscription): SubscriptionFormSt
     paymentMethod: subscription.paymentMethod || "",
     startDate: subscription.startDate ?? undefined,
     nextBillingDate: subscription.nextBillingDate,
+    trialEndDate: subscription.trialEndDate,
     autoRenew: subscription.billingCycle === "one-time" ? false : subscription.autoRenew,
     autoCalculate: subscription.autoCalculateNextBillingDate,
     reminderType: isDisabledReminder ? "disabled" : isInheritReminder ? "inherit" : isPresetReminder ? "preset" : "custom",

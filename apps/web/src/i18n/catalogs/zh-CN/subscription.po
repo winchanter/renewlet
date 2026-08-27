@@ -914,6 +914,11 @@ msgid "subscription.field.nextBillingDate"
 msgstr "到期日期"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:104
+msgid "subscription.field.trialEndDate"
+msgstr "试用到期日期"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:225
 msgid "subscription.detail.expiryDate"
 msgstr "到期日期"

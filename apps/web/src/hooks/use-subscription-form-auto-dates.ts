@@ -4,7 +4,7 @@ import { parsePositiveIntegerInput } from "@/lib/subscription-form";
 import type { DateOnly } from "@/lib/time/date-only";
 import type { SubscriptionFormState } from "@/types/subscription-form";
 
-type SubscriptionFormAutoDatePatch = Pick<Partial<SubscriptionFormState>, "autoCalculate" | "nextBillingDate">;
+type SubscriptionFormAutoDatePatch = Pick<Partial<SubscriptionFormState>, "autoCalculate" | "nextBillingDate" | "trialEndDate">;
 type SubscriptionFormAutoDateFields = Pick<
   SubscriptionFormState,
   | "autoCalculate"
@@ -16,6 +16,8 @@ type SubscriptionFormAutoDateFields = Pick<
   | "oneTimeTermCount"
   | "oneTimeTermUnit"
   | "startDate"
+  | "status"
+  | "trialEndDate"
 >;
 
 export function useSubscriptionFormAutoDates(
@@ -34,6 +36,8 @@ export function useSubscriptionFormAutoDates(
     oneTimeTermCount,
     oneTimeTermUnit,
     startDate,
+    status,
+    trialEndDate,
   } = formData;
 
   useEffect(() => {
@@ -48,6 +52,8 @@ export function useSubscriptionFormAutoDates(
       oneTimeTermCount,
       oneTimeTermUnit,
       startDate,
+      status,
+      trialEndDate,
     }, billingReferenceDate);
     if (!patch) return;
     setFormData((prev) => ({ ...prev, ...patch }));
@@ -65,6 +71,8 @@ export function useSubscriptionFormAutoDates(
     oneTimeTermUnit,
     setFormData,
     startDate,
+    status,
+    trialEndDate,
   ]);
 }
 
@@ -78,6 +86,7 @@ export function getSubscriptionFormAutoDatePatch(
     const nextBillingDate = formData.startDate && oneTimeTermCount
       ? calculateOneTimeTermEndDate(formData.startDate, oneTimeTermCount, formData.oneTimeTermUnit)
       : formData.startDate;
+    // 一次性订阅默认走 buyout，没有试用到期日联动；term 模式到期日由 startDate 驱动，与试用语义互斥，这里保持不联动。
     return compactAutoDatePatch(formData, {
       autoCalculate: false,
       nextBillingDate,
@@ -87,8 +96,12 @@ export function getSubscriptionFormAutoDatePatch(
     // 自定义周期缺天数时沿用历史表单默认 30 天，保持手动输入为空时仍能给用户一个可预览日期。
     const customDays = formData.billingCycle === "custom" ? parsePositiveIntegerInput(formData.customDays) ?? 30 : undefined;
     const customCycleUnit = formData.billingCycle === "custom" ? formData.customCycleUnit : "day";
+    const nextBillingDate = calculateNextBillingDate(formData.startDate, formData.billingCycle, customDays, billingReferenceDate, customCycleUnit);
+    // 试用态下自动计算的到期日同步到试用到期日，保持与 update 分支单向同步口径一致；
+    // 用户随后可独立微调试用到期日，反向不会被覆盖（autoCalculate 只跟随 startDate 触发）。
     return compactAutoDatePatch(formData, {
-      nextBillingDate: calculateNextBillingDate(formData.startDate, formData.billingCycle, customDays, billingReferenceDate, customCycleUnit),
+      nextBillingDate,
+      trialEndDate: formData.status === "trial" ? nextBillingDate : formData.trialEndDate,
     });
   }
   return null;
@@ -102,8 +115,11 @@ function compactAutoDatePatch(
   if (patch.autoCalculate !== undefined && patch.autoCalculate !== formData.autoCalculate) {
     compacted.autoCalculate = patch.autoCalculate;
   }
-  if (patch.nextBillingDate !== formData.nextBillingDate) {
+  if (patch.nextBillingDate !== undefined && patch.nextBillingDate !== formData.nextBillingDate) {
     compacted.nextBillingDate = patch.nextBillingDate;
+  }
+  if (patch.trialEndDate !== undefined && patch.trialEndDate !== formData.trialEndDate) {
+    compacted.trialEndDate = patch.trialEndDate;
   }
   return Object.keys(compacted).length > 0 ? compacted : null;
 }

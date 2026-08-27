@@ -177,8 +177,19 @@ export default function Index() {
           />
         </div>
 
+        {/* 即将续费/到期：首页最高优先级，桌面端和移动端均位于订阅列表之上 */}
+        <div className="mb-8 rounded-xl border border-border bg-card p-6 shadow-card">
+          <h3 className="mb-4 text-lg font-semibold text-foreground">{t("dashboard.upcomingRenewals")}</h3>
+          <UpcomingRenewals
+            subscriptions={subscriptions}
+            timeZone={timeZone}
+            notificationReminderDays={inheritedReminderDays}
+            onViewDetails={(id) => handleViewDetails(id)}
+          />
+        </div>
+
         {/* 主内容网格 */}
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid items-start gap-8 lg:grid-cols-3">
           {/* 订阅列表 */}
           <div className="lg:col-span-2">
             <div className="mb-5 flex items-center justify-between">
@@ -241,8 +252,8 @@ export default function Index() {
 
           {/* 侧边栏 */}
           <div className="grid gap-6">
-            {/* 支出图表 */}
-            <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+            {/* 支出图表：h-fit + self-start 双重保险，避免侧栏卡片被外层 items-stretch 拉到与左列等高，造成外框下半大片空白 */}
+            <div className="h-fit self-start rounded-xl border border-border bg-card p-6 shadow-card">
               <h3 className="mb-3 text-lg font-semibold text-foreground">{t("dashboard.spendingDistribution")}</h3>
               <DeferredSpendingChart
                 subscriptions={subscriptions}
@@ -250,16 +261,6 @@ export default function Index() {
                 defaultCurrency={defaultCurrency}
                 timeZone={timeZone}
                 convert={convert}
-              />
-            </div>
-
-            {/* 即将续费 */}
-            <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-              <h3 className="mb-4 text-lg font-semibold text-foreground">{t("dashboard.upcomingRenewals")}</h3>
-              <UpcomingRenewals
-                subscriptions={subscriptions}
-                timeZone={timeZone}
-                notificationReminderDays={inheritedReminderDays}
               />
             </div>
           </div>

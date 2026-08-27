@@ -5,6 +5,8 @@
 FROM --platform=$BUILDPLATFORM node:24.19.0-alpine3.24 AS client-deps
 
 WORKDIR /app
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
+ENV npm_config_registry=https://registry.npmmirror.com
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -13,7 +15,7 @@ COPY packages/shared/package.json packages/shared/package.json
 COPY apps/docker-server/package.json apps/docker-server/package.json
 # workspace 已纳入独立官网；这里只复制 manifest 让 frozen lockfile 可解析，产品镜像仍只构建 web/docker-server。
 COPY apps/website/package.json apps/website/package.json
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --registry=https://registry.npmmirror.com
 
 FROM client-deps AS client-builder
 # Web 自有的产物守卫随 workspace 整体复制，避免 package build 与 Docker builder 的输入清单再次漂移。
@@ -35,7 +37,7 @@ ARG BUILD_TIME=dev
 WORKDIR /src/apps/docker-server
 
 COPY apps/docker-server/go.mod apps/docker-server/go.sum ./
-RUN go mod download
+RUN GOPROXY=https://goproxy.cn,direct go mod download
 
 COPY apps/docker-server ./
 RUN mkdir -p internal/static/public \
@@ -46,7 +48,7 @@ RUN mkdir -p /out \
   && CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-$(go env GOARCH)} go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME} -X main.BuildType=release" -o /out/renewlet ./cmd/renewlet \
   && CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-$(go env GOARCH)} go build -trimpath -ldflags="-s -w" -o /out/container-init ./cmd/container-init
 
-FROM gcr.io/distroless/static-debian13@sha256:9197324ba51d9cd071af8505989365c006adf9d6d2067eada25aef00abbb5278 AS runner
+FROM gcr.m.daocloud.io/distroless/static-debian13@sha256:9197324ba51d9cd071af8505989365c006adf9d6d2067eada25aef00abbb5278 AS runner
 
 ARG VERSION=0.0.0-dev
 ARG COMMIT=dev

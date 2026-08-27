@@ -377,6 +377,9 @@ type subscriptionRenewRequest struct {
 	StartDate                    optionalJSONField[string] `json:"startDate"`
 	NextBillingDate              string                    `json:"nextBillingDate"`
 	AutoCalculateNextBillingDate bool                      `json:"autoCalculateNextBillingDate"`
+	// usage-based 续费即购买新量包：可选同步调整总量与日均消耗（单位沿用原订阅）。
+	UsageTotal     *float64 `json:"usageTotal,omitempty"`
+	UsageDailyRate *float64 `json:"usageDailyRate,omitempty"`
 }
 
 func (r *subscriptionRenewRequest) Validate(locale appLocale) error {
@@ -410,6 +413,12 @@ func (r *subscriptionRenewRequest) Validate(locale appLocale) error {
 		return errors.New(serverText(locale, "common.invalidRequestParameters"))
 	}
 	if r.StartDate.Set && !r.StartDate.Null && r.StartDate.Value != "" && r.NextBillingDate < r.StartDate.Value {
+		return errors.New(serverText(locale, "common.invalidRequestParameters"))
+	}
+	if r.UsageTotal != nil && *r.UsageTotal <= 0 {
+		return errors.New(serverText(locale, "common.invalidRequestParameters"))
+	}
+	if r.UsageDailyRate != nil && *r.UsageDailyRate <= 0 {
 		return errors.New(serverText(locale, "common.invalidRequestParameters"))
 	}
 	return nil

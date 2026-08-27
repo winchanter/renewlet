@@ -252,6 +252,16 @@ func nextCostSharingCollectionTargetDate(anchor string, billing costSharingColle
 	if err != nil {
 		return "", false
 	}
+	if billing.BillingCycle == "usage-based" {
+		// 量包的收款目标日就是预计耗尽日（购买新包时点），没有可循环推进的周期。
+		if !isValidDateOnly(billing.NextBillingDate) {
+			return "", false
+		}
+		if anchor > billing.NextBillingDate || billing.NextBillingDate < referenceDate {
+			return "", false
+		}
+		return billing.NextBillingDate, true
+	}
 	if billing.BillingCycle == "one-time" {
 		if billing.OneTimeTermCount <= 0 || !isValidCustomCycleUnit(billing.OneTimeTermUnit) || !isValidDateOnly(billing.NextBillingDate) {
 			return "", false

@@ -44,6 +44,9 @@ type subscriptionCollectionItemResponse struct {
 	CustomCycleUnit              string                 `json:"customCycleUnit,omitempty"`
 	OneTimeTermCount             int                    `json:"oneTimeTermCount,omitempty"`
 	OneTimeTermUnit              string                 `json:"oneTimeTermUnit,omitempty"`
+	UsageUnit                    string                 `json:"usageUnit,omitempty"`
+	UsageTotal                   float64                `json:"usageTotal,omitempty"`
+	UsageDailyRate               float64                `json:"usageDailyRate,omitempty"`
 	Category                     string                 `json:"category"`
 	Status                       string                 `json:"status"`
 	Pinned                       bool                   `json:"pinned"`
@@ -240,6 +243,7 @@ func subscriptionCollectionItemsFromRecords(records []*core.Record) []subscripti
 
 func subscriptionCollectionAPIFromRecord(record *core.Record) subscriptionCollectionItemResponse {
 	billingCycle := record.GetString("billingCycle")
+	autoRenew := billingCycle != "one-time" && billingCycle != "usage-based" && record.GetBool("autoRenew")
 	out := subscriptionCollectionItemResponse{
 		ID:                           record.Id,
 		Name:                         record.GetString("name"),
@@ -254,7 +258,7 @@ func subscriptionCollectionAPIFromRecord(record *core.Record) subscriptionCollec
 		PaymentMethod:                trimmedSubscriptionString(record.GetString("paymentMethod")),
 		StartDate:                    trimmedSubscriptionString(record.GetString("startDate")),
 		NextBillingDate:              record.GetString("nextBillingDate"),
-		AutoRenew:                    billingCycle != "one-time" && record.GetBool("autoRenew"),
+		AutoRenew:                    autoRenew,
 		AutoCalculateNextBillingDate: billingCycle != "one-time" && record.GetBool("autoCalculateNextBillingDate"),
 		TrialEndDate:                 trimmedSubscriptionString(record.GetString("trialEndDate")),
 		ReminderDays:                 record.GetInt("reminderDays"),
@@ -266,6 +270,11 @@ func subscriptionCollectionAPIFromRecord(record *core.Record) subscriptionCollec
 	if billingCycle == "one-time" && record.GetInt("oneTimeTermCount") > 0 {
 		out.OneTimeTermCount = record.GetInt("oneTimeTermCount")
 		out.OneTimeTermUnit = strings.TrimSpace(record.GetString("oneTimeTermUnit"))
+	}
+	if billingCycle == "usage-based" {
+		out.UsageUnit = strings.TrimSpace(record.GetString("usageUnit"))
+		out.UsageTotal = record.GetFloat("usageTotal")
+		out.UsageDailyRate = record.GetFloat("usageDailyRate")
 	}
 	if costSharing := subscriptionRecordJSONMap(record, "costSharing"); len(costSharing) > 0 {
 		out.CostSharing = costSharing

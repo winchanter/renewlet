@@ -238,6 +238,12 @@ export function nextCostSharingCollectionTargetDate(
 ): DateOnly | null {
   if (!isValidDateOnly(input.anchorDate) || !isValidDateOnly(input.referenceDate)) return null;
   if (isCostSharingCollectionOneTimeBuyout(input)) return null;
+  if (input.billingCycle === "usage-based") {
+    // 量包的收款目标日就是预计耗尽日（购买新包时点），没有可循环推进的周期。
+    if (!input.nextBillingDate || !isValidDateOnly(input.nextBillingDate)) return null;
+    if (compareDateOnly(input.anchorDate, input.nextBillingDate) > 0) return null;
+    return compareDateOnly(input.nextBillingDate, input.referenceDate) >= 0 ? input.nextBillingDate as DateOnly : null;
+  }
   if (input.billingCycle === "one-time") {
     if (!input.oneTimeTermCount || !input.oneTimeTermUnit || !input.nextBillingDate || !isValidDateOnly(input.nextBillingDate)) return null;
     if (compareDateOnly(input.anchorDate, input.nextBillingDate) > 0) return null;

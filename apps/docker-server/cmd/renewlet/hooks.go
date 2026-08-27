@@ -328,6 +328,37 @@ func normalizeSubscriptionRecordWithSettings(record *core.Record, mirrorSettings
 		record.Set("oneTimeTermUnit", "")
 	}
 
+	usageUnit := strings.TrimSpace(record.GetString("usageUnit"))
+	usageTotal := record.GetFloat("usageTotal")
+	usageDailyRate := record.GetFloat("usageDailyRate")
+	if billingCycle == "usage-based" {
+		if usageUnit == "" {
+			return errors.New("USAGE_UNIT_REQUIRED")
+		}
+		if len([]rune(usageUnit)) > 20 {
+			return errors.New("USAGE_UNIT_TOO_LONG")
+		}
+		if usageTotal <= 0 {
+			return errors.New("USAGE_TOTAL_REQUIRED")
+		}
+		if usageDailyRate <= 0 {
+			return errors.New("USAGE_DAILY_RATE_REQUIRED")
+		}
+		if _, err := usageEstimatedDays(usageTotal, usageDailyRate); err != nil {
+			return err
+		}
+		// 量包耗尽必须由用户购买新包推进；耗尽日由购买日 + 总量/日均自动推算，autoRenew 无意义。
+		record.Set("autoRenew", false)
+		record.Set("usageUnit", usageUnit)
+		record.Set("usageTotal", usageTotal)
+		record.Set("usageDailyRate", usageDailyRate)
+	} else if usageUnit != "" || usageTotal > 0 || usageDailyRate > 0 {
+		// 用量字段是 usage-based 专用，切回其他周期必须清空，避免历史总量继续影响耗尽日推算与摊销。
+		record.Set("usageUnit", "")
+		record.Set("usageTotal", 0)
+		record.Set("usageDailyRate", 0)
+	}
+
 	startDate := strings.TrimSpace(record.GetString("startDate"))
 	if startDate != "" {
 		if err := requireDateOnly(startDate, "START_DATE"); err != nil {
@@ -339,8 +370,8 @@ func normalizeSubscriptionRecordWithSettings(record *core.Record, mirrorSettings
 	if err := requireDateOnly(nextBillingDate, "NEXT_BILLING_DATE"); err != nil {
 		return err
 	}
-	// 周期订阅可不知道开始日；只有 one-time 或自动日期锚点需要真实 startDate。
-	if startDate == "" && (billingCycle == "one-time" || record.GetBool("autoCalculateNextBillingDate")) {
+	// 周期订阅可不知道开始日；one-time/usage-based 或自动日期锚点需要真实 startDate。
+	if startDate == "" && (billingCycle == "one-time" || billingCycle == "usage-based" || record.GetBool("autoCalculateNextBillingDate")) {
 		return errors.New("START_DATE_REQUIRED")
 	}
 	// 两端都存在且已通过 requireDateOnly 时，固定宽度 YYYY-MM-DD 的字典序等同于日历顺序。

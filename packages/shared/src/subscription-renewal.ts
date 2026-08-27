@@ -5,6 +5,7 @@ import {
   type DateOnly,
   type SubscriptionStatus,
   isValidDateOnly,
+  MAX_USAGE_ESTIMATED_DAYS,
 } from "./runtime";
 
 /** 续订模式决定推进阈值：自动维护追到 today，手动续订至少推进一期并严格晚于当前边界。 */
@@ -20,6 +21,8 @@ export interface SubscriptionRenewalInput {
   autoCalculateNextBillingDate: boolean;
   customDays?: number | null | undefined;
   customCycleUnit?: CustomCycleUnit | null | undefined;
+  usageTotal?: number | null | undefined;
+  usageDailyRate?: number | null | undefined;
 }
 
 /** 账单日纯计算入口使用同一字段集，避免表单自动日期与后端续订算法分叉。 */
@@ -30,6 +33,8 @@ export interface AdvanceBillingDateInput {
   autoCalculateNextBillingDate: boolean;
   customDays?: number | null | undefined;
   customCycleUnit?: CustomCycleUnit | null | undefined;
+  usageTotal?: number | null | undefined;
+  usageDailyRate?: number | null | undefined;
 }
 
 /** 续订结果只返回 date-only 与状态；不会生成付款记录或通知历史。 */
@@ -50,11 +55,13 @@ function hasRenewalAnchor(input: Pick<AdvanceBillingDateInput, "autoCalculateNex
  * 判断订阅是否可由后台维护任务自动推进。
  *
  * 自动续订只处理已经落后于用户本地 today 的 active/trial 周期订阅；缺省 autoRenew 不能被解释成授权。
+ * one-time 与 usage-based 没有可自动推进的周期：买断不再续费，量包耗尽必须由用户购买新包。
  */
 export function isAutoRenewEligible(subscription: SubscriptionRenewalInput, today: string): boolean {
   return (
     subscription.autoRenew &&
     subscription.billingCycle !== "one-time" &&
+    subscription.billingCycle !== "usage-based" &&
     (subscription.status === "active" || subscription.status === "trial") &&
     isValidDateOnly(subscription.nextBillingDate) &&
     hasRenewalAnchor(subscription) &&
@@ -67,6 +74,7 @@ export function isAutoRenewEligible(subscription: SubscriptionRenewalInput, toda
  * 判断订阅是否可由用户手动续订。
  *
  * 手动续订覆盖 expired 记录，但明确排除 autoRenew=true 的订阅，避免用户和维护 cron 同时推进同一账单日。
+ * usage-based 的手动续订表示购买新量包，重开购买日并按总量/日均重新推算耗尽日。
  */
 export function isManualRenewEligible(subscription: SubscriptionRenewalInput): boolean {
   return (
@@ -102,6 +110,7 @@ export function advanceSubscriptionRenewal(
  *
  * `autoCalculateNextBillingDate=true` 以 startDate 作周期锚点；否则保留用户手动修正过的 nextBillingDate 锚点。
  * 周期订阅允许未知 startDate，因此只有自动锚点模式才需要 startDate。
+ * usage-based 量包没有周期推进：耗尽日 = 锚点 + 预估可用天数，可能已过去（包小耗大）以表达已过期。
  */
 export function advanceBillingDate(
   input: AdvanceBillingDateInput,
@@ -109,6 +118,11 @@ export function advanceBillingDate(
   mode: RenewalMode,
 ): DateOnly {
   assertRenewableBillingCycle(input.billingCycle);
+  if (input.billingCycle === "usage-based") {
+    const anchor = assertDateOnly(input.autoCalculateNextBillingDate ? input.startDate ?? "" : input.nextBillingDate);
+    const days = usageBasedEstimatedDays(input.usageTotal, input.usageDailyRate);
+    return fromPlainDate(toPlainDate(anchor).add({ days }));
+  }
   const original = assertDateOnly(input.nextBillingDate);
   const anchor = assertDateOnly(input.autoCalculateNextBillingDate ? input.startDate ?? "" : input.nextBillingDate);
   const threshold = mode === "manual" && compareDateOnly(original, today) > 0 ? original : assertDateOnly(today);
@@ -124,9 +138,16 @@ export function calculateNextBillingDate(
   customDays?: number | null | undefined,
   referenceDate?: string | null | undefined,
   customCycleUnit?: CustomCycleUnit | null | undefined,
+  usageTotal?: number | null | undefined,
+  usageDailyRate?: number | null | undefined,
 ): DateOnly {
   const anchor = assertDateOnly(startDate);
   if (cycle === "one-time") return anchor;
+  if (cycle === "usage-based") {
+    // 预付量包的“下一账单日”是预计耗尽日 = 购买日 + 预估可用天数。
+    const days = usageBasedEstimatedDays(usageTotal, usageDailyRate);
+    return fromPlainDate(toPlainDate(anchor).add({ days }));
+  }
   const threshold = referenceDate ? assertDateOnly(referenceDate) : anchor;
   return firstCycleDateAfter(anchor, {
     billingCycle: cycle,
@@ -136,6 +157,30 @@ export function calculateNextBillingDate(
     customDays,
     customCycleUnit,
   }, threshold, false);
+}
+
+/** 预付量包的预估可用天数 = ceil(总量 / 日均消耗)，钳制到推算上限；字段缺失或非正数在写入边界拒绝。 */
+export function usageBasedEstimatedDays(
+  usageTotal: number | null | undefined,
+  usageDailyRate: number | null | undefined,
+): number {
+  if (typeof usageTotal !== "number" || !Number.isFinite(usageTotal) || usageTotal <= 0) {
+    throw new Error("SUBSCRIPTION_USAGE_FIELDS_INVALID");
+  }
+  if (typeof usageDailyRate !== "number" || !Number.isFinite(usageDailyRate) || usageDailyRate <= 0) {
+    throw new Error("SUBSCRIPTION_USAGE_FIELDS_INVALID");
+  }
+  return Math.min(Math.ceil(usageTotal / usageDailyRate), MAX_USAGE_ESTIMATED_DAYS);
+}
+
+/** 预付量包的预计耗尽日 = 购买日 + 预估可用天数，作为 nextBillingDate 驱动提醒与过期判定。 */
+export function calculateUsageExhaustionDate(
+  startDate: string,
+  usageTotal: number,
+  usageDailyRate: number,
+): DateOnly {
+  const days = usageBasedEstimatedDays(usageTotal, usageDailyRate);
+  return fromPlainDate(toPlainDate(assertDateOnly(startDate)).add({ days }));
 }
 
 /**
@@ -168,6 +213,9 @@ export function addBillingCycles(
       return addCustomBillingCycles(start, custom.count * count, custom.unit);
     }
     case "one-time":
+      return fromPlainDate(start);
+    case "usage-based":
+      // 量包没有可重复推进的周期；周期语义由耗尽日推算单独处理。
       return fromPlainDate(start);
   }
 }

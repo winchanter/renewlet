@@ -6,6 +6,7 @@ import {
   costSharingMemberJoinedDatesWithinRange,
 } from "../cost-sharing";
 import { moneyStringSchema } from "../money";
+import { usageBasedEstimatedDays } from "../subscription-renewal";
 import { apiSuccessResponseSchema } from "./api";
 import { okResponseSchema } from "./common";
 import {
@@ -140,6 +141,40 @@ export const costSharingSchema = z.object({
 const oneTimeTermCountSchema = z.number().int().positive().max(MAX_REMINDER_DAYS);
 const oneTimeTermUnitSchema = z.enum(CUSTOM_CYCLE_UNITS);
 
+// usage-based 预付量包字段：总量允许小数（GB 场景），日均允许 1 位小数（如 0.5 条/天）。
+const usageUnitSchema = z.string().trim().min(1).max(20);
+const usageTotalSchema = z.number().finite().positive().max(1_000_000_000);
+const usageDailyRateSchema = z.number().finite().positive().max(1_000_000_000);
+
+export function usageBasedFieldsAreConsistent(value: {
+  billingCycle?: BillingCycle | undefined;
+  usageUnit?: string | null | undefined;
+  usageTotal?: number | null | undefined;
+  usageDailyRate?: number | null | undefined;
+}): boolean {
+  const hasUnit = value.usageUnit !== undefined && value.usageUnit !== null;
+  const hasTotal = value.usageTotal !== undefined && value.usageTotal !== null;
+  const hasRate = value.usageDailyRate !== undefined && value.usageDailyRate !== null;
+  // 量包字段必须成组出现或成组缺失；挂在其他周期上会污染统计摊销与耗尽日推算。
+  if (value.billingCycle !== "usage-based") return !hasUnit && !hasTotal && !hasRate;
+  return hasUnit && hasTotal && hasRate;
+}
+
+/** 日均消耗过小导致预估可用天数超限时拒绝写入，与推算函数的钳制上限保持同一契约。 */
+export function usageEstimatedDaysAreWithinLimit(value: {
+  usageTotal?: number | null | undefined;
+  usageDailyRate?: number | null | undefined;
+}): boolean {
+  if (value.usageTotal === undefined || value.usageTotal === null) return true;
+  if (value.usageDailyRate === undefined || value.usageDailyRate === null) return true;
+  try {
+    usageBasedEstimatedDays(value.usageTotal, value.usageDailyRate);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function oneTimeTermFieldsAreConsistent(value: {
   billingCycle: BillingCycle;
   oneTimeTermCount?: number | null | undefined;
@@ -166,8 +201,8 @@ export function startDateRequirementIsSatisfied(value: {
   startDate: string | null;
   autoCalculateNextBillingDate: boolean;
 }): boolean {
-  // 周期订阅允许未知开始日期；one-time 和自动日期锚点仍需要真实 date-only。
-  if (value.billingCycle === "one-time") return value.startDate !== null;
+  // 周期订阅允许未知开始日期；one-time/usage-based 和自动日期锚点仍需要真实 date-only。
+  if (value.billingCycle === "one-time" || value.billingCycle === "usage-based") return value.startDate !== null;
   return !value.autoCalculateNextBillingDate || value.startDate !== null;
 }
 
@@ -221,6 +256,9 @@ const subscriptionWriteFieldShape = {
   customCycleUnit: z.enum(CUSTOM_CYCLE_UNITS).nullable().optional(),
   oneTimeTermCount: oneTimeTermCountSchema.nullable().optional(),
   oneTimeTermUnit: oneTimeTermUnitSchema.nullable().optional(),
+  usageUnit: usageUnitSchema.nullable().optional(),
+  usageTotal: usageTotalSchema.nullable().optional(),
+  usageDailyRate: usageDailyRateSchema.nullable().optional(),
   category: z.string().trim().min(1).max(80),
   status: z.enum(SUBSCRIPTION_STATUSES),
   pinned: z.boolean(),
@@ -261,6 +299,14 @@ export const subscriptionCreateBodySchema = z.object(subscriptionCreateBodyShape
     path: ["oneTimeTermCount"],
     message: "Invalid one-time term",
   })
+  .refine(usageBasedFieldsAreConsistent, {
+    path: ["usageTotal"],
+    message: "Usage-based subscriptions require usage unit, total and daily rate",
+  })
+  .refine(usageEstimatedDaysAreWithinLimit, {
+    path: ["usageDailyRate"],
+    message: "Estimated usage days exceed the limit",
+  })
   .refine(startDateRequirementIsSatisfied, {
     path: ["startDate"],
     message: "Start date is required for one-time subscriptions and automatic billing date calculation",
@@ -300,6 +346,17 @@ export const subscriptionUpdateBodySchema = z.object(subscriptionWriteFieldShape
     path: ["oneTimeTermCount"],
     message: "Invalid one-time term",
   })
+  .refine((value) => {
+    if (value.billingCycle === undefined) return true;
+    return usageBasedFieldsAreConsistent(value);
+  }, {
+    path: ["usageTotal"],
+    message: "Usage-based subscriptions require usage unit, total and daily rate",
+  })
+  .refine(usageEstimatedDaysAreWithinLimit, {
+    path: ["usageDailyRate"],
+    message: "Estimated usage days exceed the limit",
+  })
   .refine((obj) => Object.keys(obj).length > 0, { message: "Empty payload" });
 
 export const subscriptionRenewBodySchema = z.object({
@@ -309,6 +366,9 @@ export const subscriptionRenewBodySchema = z.object({
   startDate: nullableDateInputSchema.optional(),
   nextBillingDate: dateInputSchema,
   autoCalculateNextBillingDate: z.boolean(),
+  // usage-based 续费即购买新量包：允许同步调整总量与日均消耗（单位沿用原订阅）。
+  usageTotal: usageTotalSchema.nullable().optional(),
+  usageDailyRate: usageDailyRateSchema.nullable().optional(),
 }).strict()
   .describe("手动续订请求：显式选择延续原锚点或从新日期重开，并允许同步调整价格/币种。")
   .refine((value) => value.mode !== "restart" || value.startDate !== undefined && value.startDate !== null, {
@@ -371,6 +431,16 @@ const apiOneTimeFixedTermCycleShape = {
   oneTimeTermCount: oneTimeTermCountSchema,
   oneTimeTermUnit: oneTimeTermUnitSchema,
 } satisfies z.ZodRawShape;
+const apiUsageBasedCycleShape = {
+  billingCycle: z.literal("usage-based"),
+  customDays: z.never().optional(),
+  customCycleUnit: z.never().optional(),
+  oneTimeTermCount: z.never().optional(),
+  oneTimeTermUnit: z.never().optional(),
+  usageUnit: usageUnitSchema,
+  usageTotal: usageTotalSchema,
+  usageDailyRate: usageDailyRateSchema,
+} satisfies z.ZodRawShape;
 
 const apiSubscriptionDetailShape = {
   website: z.string().optional(),
@@ -389,6 +459,11 @@ function subscriptionRenewalFieldsAreConsistent(value: {
   autoRenew: boolean;
   autoCalculateNextBillingDate: boolean;
 }): boolean {
+  if (value.billingCycle === "usage-based") {
+    // 量包耗尽必须由用户购买新包推进；autoRenew 会把耗尽日误解成周期锚点。
+    // autoCalculate 保持合法：耗尽日由购买日 + 总量/日均自动推算。
+    return !value.autoRenew;
+  }
   if (value.billingCycle !== "one-time") return true;
   return !value.autoRenew && !value.autoCalculateNextBillingDate;
 }
@@ -448,6 +523,7 @@ function createSubscriptionCycleBranches<TBaseShape extends ApiSubscriptionCycle
     z.object({ ...baseShape, ...apiCustomCycleShape }).strict(),
     z.object({ ...baseShape, ...apiOneTimeBuyoutCycleShape }).strict(),
     z.object({ ...baseShape, ...apiOneTimeFixedTermCycleShape }).strict(),
+    z.object({ ...baseShape, ...apiUsageBasedCycleShape }).strict(),
   ] as const;
 }
 

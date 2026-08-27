@@ -58,7 +58,7 @@ export interface RenewalCalendarEventMapperOptions {
 
 export function buildRenewalCalendarEvent(options: RenewalCalendarEventMapperOptions): RenewalCalendarEvent {
   const { subscription, labels, reminderDays, text } = options;
-  const kind = subscription.billingCycle === "one-time" ? "expiry" : "renewal";
+  const kind = subscription.billingCycle === "one-time" || subscription.billingCycle === "usage-based" ? "expiry" : "renewal";
   const lines = [
     text.amount({ amount: labels.amount, currency: subscription.currency }),
     text.billingCycle(labels.billingCycle),

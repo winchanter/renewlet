@@ -658,7 +658,7 @@ func calendarFeedEventFromSubscription(item calendarFeedSubscription, settings a
 }
 
 func calendarFeedEventKind(item calendarFeedSubscription) string {
-	if item.BillingCycle == "one-time" {
+	if item.BillingCycle == "one-time" || item.BillingCycle == "usage-based" {
 		return "expiry"
 	}
 	return "renewal"

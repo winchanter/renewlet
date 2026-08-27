@@ -13,7 +13,8 @@ export const SUBSCRIPTION_STATUSES = ["trial", "active", "expired", "paused", "c
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 
 /** `one-time` 默认是买断；携带 oneTimeTermCount/unit 时才按固定权益期摊销并提醒到期。 */
-export const BILLING_CYCLES = ["weekly", "monthly", "quarterly", "semi-annual", "annual", "custom", "one-time"] as const;
+/** `usage-based` 是预付量包：price 为本次购买总价，耗尽日由总量/日均消耗推算并作为 nextBillingDate。 */
+export const BILLING_CYCLES = ["weekly", "monthly", "quarterly", "semi-annual", "annual", "custom", "one-time", "usage-based"] as const;
 export type BillingCycle = (typeof BILLING_CYCLES)[number];
 
 /** 自定义扣费周期单位是跨 Go/PocketBase、D1 和前端日期算法的共同契约；产品 API 不允许缺省。 */
@@ -43,6 +44,8 @@ export const DISABLED_REMINDER_DAYS = -2;
 export const INHERIT_REMINDER_DAYS = -1;
 export const DEFAULT_NOTIFICATION_REMINDER_DAYS = 3;
 export const MAX_REMINDER_DAYS = 3650;
+/** usage-based 预付量包的推算天数上限：日均过小导致“可用超 10 年”属于输入错误。 */
+export const MAX_USAGE_ESTIMATED_DAYS = MAX_REMINDER_DAYS;
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const LOCAL_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;

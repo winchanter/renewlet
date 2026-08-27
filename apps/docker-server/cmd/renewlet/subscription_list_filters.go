@@ -350,11 +350,12 @@ func appendSQLPaymentMethodCondition(base *subscriptionProjectionBase, values []
 func appendSQLRenewalCondition(base *subscriptionProjectionBase, renewal string) {
 	switch renewal {
 	case "auto":
-		base.conditions = append(base.conditions, "idx.billing_cycle != 'one-time' AND idx.auto_renew = 1")
+		base.conditions = append(base.conditions, "idx.billing_cycle NOT IN ('one-time', 'usage-based') AND idx.auto_renew = 1")
 	case "manual":
-		base.conditions = append(base.conditions, "idx.billing_cycle != 'one-time' AND idx.auto_renew = 0")
+		base.conditions = append(base.conditions, "idx.billing_cycle NOT IN ('one-time', 'usage-based') AND idx.auto_renew = 0")
 	case "one-time":
-		base.conditions = append(base.conditions, "idx.billing_cycle = 'one-time'")
+		// 一次性购买包含买断与预付量包；两者都没有自动推进的扣费周期。
+		base.conditions = append(base.conditions, "idx.billing_cycle IN ('one-time', 'usage-based')")
 	}
 }
 

@@ -220,7 +220,8 @@ func collectSubscriptionReminderItems(localDate string, settings appSettings, su
 		// one-time 买断记录没有权益到期日；购买日不能被通知系统解释成续费或过期边界。
 		return []notificationContentItem{}
 	}
-	if sub.BillingCycle == "one-time" {
+	if sub.BillingCycle == "one-time" || sub.BillingCycle == "usage-based" {
+		// one-time 服务期与 usage-based 量包的 nextBillingDate 都是到期边界，提醒语义是 expiry 而不是续费。
 		if daysUntilNext == reminderDays {
 			return []notificationContentItem{newNotificationContentItem("expiry", sub, sub.NextBillingDate, daysUntilNext, reminderDays, nil)}
 		}

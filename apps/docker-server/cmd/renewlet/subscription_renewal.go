@@ -30,6 +30,8 @@ type subscriptionRenewalInput struct {
 	AutoCalculateNextBillingDate bool
 	CustomDays                   int
 	CustomCycleUnit              string
+	UsageTotal                   float64
+	UsageDailyRate               float64
 }
 
 type subscriptionRenewalResult struct {
@@ -47,6 +49,8 @@ func subscriptionRenewalInputFromRecord(record subscriptionRecordReader) subscri
 		AutoCalculateNextBillingDate: record.GetBool("autoCalculateNextBillingDate"),
 		CustomDays:                   record.GetInt("customDays"),
 		CustomCycleUnit:              record.GetString("customCycleUnit"),
+		UsageTotal:                   record.GetFloat("usageTotal"),
+		UsageDailyRate:               record.GetFloat("usageDailyRate"),
 	}
 }
 
@@ -54,6 +58,7 @@ type subscriptionRecordReader interface {
 	GetString(string) string
 	GetBool(string) bool
 	GetInt(string) int
+	GetFloat(string) float64
 }
 
 func hasRenewalAnchor(input subscriptionRenewalInput) bool {
@@ -65,8 +70,10 @@ func hasRenewalAnchor(input subscriptionRenewalInput) bool {
 
 func isAutoRenewEligible(input subscriptionRenewalInput, today string) bool {
 	// 自动续订只处理已经落后于用户本地 today 的 active/trial 周期订阅，缺省 false 不能被解释成授权。
+	// one-time 与 usage-based 没有可自动推进的周期：买断不再续费，量包耗尽必须由用户购买新包。
 	return input.AutoRenew &&
 		input.BillingCycle != "one-time" &&
+		input.BillingCycle != "usage-based" &&
 		(input.Status == "active" || input.Status == "trial") &&
 		isValidDateOnly(input.NextBillingDate) &&
 		hasRenewalAnchor(input) &&
@@ -76,6 +83,7 @@ func isAutoRenewEligible(input subscriptionRenewalInput, today string) bool {
 
 func isManualRenewEligible(input subscriptionRenewalInput) bool {
 	// 手动续订允许 expired 重新回到 active，但排除 autoRenew=true，避免和维护 cron 同时推进。
+	// usage-based 的手动续订表示购买新量包，重开购买日并按总量/日均重新推算耗尽日。
 	return !input.AutoRenew &&
 		input.BillingCycle != "one-time" &&
 		(input.Status == "active" || input.Status == "trial" || input.Status == "expired") &&
@@ -112,6 +120,22 @@ func advanceBillingDate(input subscriptionRenewalInput, today string, mode renew
 	if input.BillingCycle == "one-time" {
 		return "", errors.New("SUBSCRIPTION_RENEWAL_ONE_TIME_NOT_RENEWABLE")
 	}
+	anchorValue := input.NextBillingDate
+	if input.AutoCalculateNextBillingDate {
+		anchorValue = input.StartDate
+	}
+	if input.BillingCycle == "usage-based" {
+		// 量包没有周期推进：耗尽日 = 锚点 + 预估可用天数，可能已过去（包小耗大）以表达已过期。
+		days, err := usageEstimatedDays(input.UsageTotal, input.UsageDailyRate)
+		if err != nil {
+			return "", err
+		}
+		anchor, err := parseDateOnly(anchorValue)
+		if err != nil {
+			return "", err
+		}
+		return formatDateOnly(anchor.AddDate(0, 0, days)), nil
+	}
 	original, err := parseDateOnly(input.NextBillingDate)
 	if err != nil {
 		return "", err
@@ -119,10 +143,6 @@ func advanceBillingDate(input subscriptionRenewalInput, today string, mode renew
 	todayDate, err := parseDateOnly(today)
 	if err != nil {
 		return "", err
-	}
-	anchorValue := input.NextBillingDate
-	if input.AutoCalculateNextBillingDate {
-		anchorValue = input.StartDate
 	}
 	anchor, err := parseDateOnly(anchorValue)
 	if err != nil {
@@ -134,6 +154,18 @@ func advanceBillingDate(input subscriptionRenewalInput, today string, mode renew
 	}
 	// 手动续订 strict=true：即使当前日期还没到，也至少推进一期，防止按钮点击后看起来“没有变化”。
 	return firstCycleDateAfter(anchor, input, threshold, mode == renewalModeManual)
+}
+
+// usageEstimatedDays 与 shared usageBasedEstimatedDays 对齐：ceil(总量/日均)，钳制到推算上限。
+func usageEstimatedDays(usageTotal float64, usageDailyRate float64) (int, error) {
+	if usageTotal <= 0 || usageDailyRate <= 0 || math.IsNaN(usageTotal) || math.IsNaN(usageDailyRate) {
+		return 0, errors.New("SUBSCRIPTION_USAGE_FIELDS_INVALID")
+	}
+	days := int(math.Ceil(usageTotal / usageDailyRate))
+	if days > maxReminderDays {
+		return 0, errors.New("USAGE_ESTIMATED_DAYS_TOO_HIGH")
+	}
+	return days, nil
 }
 
 func firstCycleDateAfter(anchor time.Time, input subscriptionRenewalInput, threshold time.Time, strict bool) (string, error) {
@@ -204,6 +236,9 @@ func addBillingCyclesDate(anchor time.Time, cycle string, cycleCount int, custom
 		}
 		return addCustomBillingCyclesDate(anchor, customDays*count, customCycleUnit)
 	case "one-time":
+		return anchor, nil
+	case "usage-based":
+		// 量包没有可重复推进的周期；周期语义由耗尽日推算单独处理。
 		return anchor, nil
 	default:
 		return time.Time{}, errors.New("SUBSCRIPTION_RENEWAL_BILLING_CYCLE_INVALID")

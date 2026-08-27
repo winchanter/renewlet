@@ -59,6 +59,9 @@ type importSubscription struct {
 	CustomCycleUnit              *string                `json:"customCycleUnit,omitempty"`
 	OneTimeTermCount             *int                   `json:"oneTimeTermCount,omitempty"`
 	OneTimeTermUnit              *string                `json:"oneTimeTermUnit,omitempty"`
+	UsageUnit                    *string                `json:"usageUnit,omitempty"`
+	UsageTotal                   *float64               `json:"usageTotal,omitempty"`
+	UsageDailyRate               *float64               `json:"usageDailyRate,omitempty"`
 	Category                     string                 `json:"category"`
 	Status                       string                 `json:"status"`
 	Pinned                       bool                   `json:"pinned"`
@@ -433,6 +436,21 @@ func setImportSubscriptionRecord(record *core.Record, userID string, subscriptio
 	} else {
 		record.Set("oneTimeTermUnit", "")
 	}
+	if subscription.UsageUnit != nil {
+		record.Set("usageUnit", *subscription.UsageUnit)
+	} else {
+		record.Set("usageUnit", "")
+	}
+	if subscription.UsageTotal != nil {
+		record.Set("usageTotal", *subscription.UsageTotal)
+	} else {
+		record.Set("usageTotal", 0)
+	}
+	if subscription.UsageDailyRate != nil {
+		record.Set("usageDailyRate", *subscription.UsageDailyRate)
+	} else {
+		record.Set("usageDailyRate", 0)
+	}
 	record.Set("category", subscription.Category)
 	record.Set("status", subscription.Status)
 	record.Set("pinned", subscription.Pinned)
@@ -440,7 +458,7 @@ func setImportSubscriptionRecord(record *core.Record, userID string, subscriptio
 	record.Set("paymentMethod", optionalString(subscription.PaymentMethod))
 	record.Set("startDate", optionalString(subscription.StartDate))
 	record.Set("nextBillingDate", subscription.NextBillingDate)
-	record.Set("autoRenew", subscription.BillingCycle != "one-time" && subscription.AutoRenew)
+	record.Set("autoRenew", subscription.BillingCycle != "one-time" && subscription.BillingCycle != "usage-based" && subscription.AutoRenew)
 	record.Set("autoCalculateNextBillingDate", subscription.AutoCalculateNextBillingDate)
 	record.Set("trialEndDate", optionalString(subscription.TrialEndDate))
 	record.Set("website", optionalString(subscription.Website))
@@ -655,7 +673,7 @@ func optionalString(value *string) string {
 
 func isValidBillingCycle(value string) bool {
 	switch value {
-	case "weekly", "monthly", "quarterly", "semi-annual", "annual", "custom", "one-time":
+	case "weekly", "monthly", "quarterly", "semi-annual", "annual", "custom", "one-time", "usage-based":
 		return true
 	default:
 		return false

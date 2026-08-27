@@ -3,7 +3,9 @@ import { divideMoney, moneyToNumber, multiplyMoneyRatio, type MoneyString } from
 import {
   addBillingCycles,
   calculateNextBillingDate as calculateRenewalNextBillingDate,
+  calculateUsageExhaustionDate,
   requireCustomBillingCycle,
+  usageBasedEstimatedDays,
 } from "./subscription-renewal";
 
 const AVERAGE_DAYS_PER_MONTH = 30;
@@ -14,7 +16,12 @@ export interface SubscriptionBillingFields {
   customCycleUnit?: CustomCycleUnit | null | undefined;
   oneTimeTermCount?: number | null | undefined;
   oneTimeTermUnit?: CustomCycleUnit | null | undefined;
+  usageTotal?: number | null | undefined;
+  usageDailyRate?: number | null | undefined;
 }
+
+// usage-based 推算函数的事实源在 subscription-renewal；这里 re-export 供统计与表单共用同一实现。
+export { calculateUsageExhaustionDate, usageBasedEstimatedDays };
 
 /**
  * 将单次扣费金额折算成月均金额。
@@ -28,6 +35,8 @@ export function toMonthlyAmount(
   customCycleUnit?: CustomCycleUnit | null | undefined,
   oneTimeTermCount?: number | null | undefined,
   oneTimeTermUnit?: CustomCycleUnit | null | undefined,
+  usageTotal?: number | null | undefined,
+  usageDailyRate?: number | null | undefined,
 ): number {
   switch (cycle) {
     case "weekly":
@@ -50,6 +59,11 @@ export function toMonthlyAmount(
       const term = requireCustomBillingCycle(oneTimeTermCount, oneTimeTermUnit);
       return customCycleToMonthlyAmount(amount, term.count, term.unit);
     }
+    case "usage-based": {
+      // 预付量包按预估可用天数摊销总价，等价于“单价 × 日均 × 30”。
+      const days = usageBasedEstimatedDays(usageTotal, usageDailyRate);
+      return customCycleToMonthlyAmount(amount, days, "day");
+    }
   }
 }
 
@@ -61,6 +75,8 @@ export function toSubscriptionMonthlyAmount(amount: MoneyString | number, subscr
     subscription.customCycleUnit,
     subscription.oneTimeTermCount,
     subscription.oneTimeTermUnit,
+    subscription.usageTotal,
+    subscription.usageDailyRate,
   );
 }
 
@@ -100,8 +116,10 @@ export function calculateNextBillingDate(
   customDays?: number | null | undefined,
   referenceDate?: string | null | undefined,
   customCycleUnit?: CustomCycleUnit | null | undefined,
+  usageTotal?: number | null | undefined,
+  usageDailyRate?: number | null | undefined,
 ): DateOnly {
-  return calculateRenewalNextBillingDate(startDate, cycle, customDays, referenceDate, customCycleUnit);
+  return calculateRenewalNextBillingDate(startDate, cycle, customDays, referenceDate, customCycleUnit, usageTotal, usageDailyRate);
 }
 
 export function calculateOneTimeTermEndDate(

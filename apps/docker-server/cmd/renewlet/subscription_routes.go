@@ -69,6 +69,15 @@ func handleSubscriptionRenew(app core.App, e *core.RequestEvent) error {
 		record.Set("startDate", body.StartDate.Value)
 		record.Set("nextBillingDate", body.NextBillingDate)
 		record.Set("autoCalculateNextBillingDate", body.AutoCalculateNextBillingDate)
+		// usage-based 续费即购买新量包：允许同步调整总量与日均消耗，耗尽日由前端按新值推算并经 hook 校验。
+		if record.GetString("billingCycle") == "usage-based" {
+			if body.UsageTotal != nil {
+				record.Set("usageTotal", *body.UsageTotal)
+			}
+			if body.UsageDailyRate != nil {
+				record.Set("usageDailyRate", *body.UsageDailyRate)
+			}
+		}
 		if record.GetString("status") == "expired" {
 			record.Set("status", "active")
 		}

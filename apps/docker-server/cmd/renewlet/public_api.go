@@ -475,7 +475,7 @@ func publicAPISubscriptionFromRecord(record *core.Record) publicAPISubscriptionR
 		PaymentMethod:                trimmedSubscriptionString(record.GetString("paymentMethod")),
 		StartDate:                    trimmedSubscriptionString(record.GetString("startDate")),
 		NextBillingDate:              record.GetString("nextBillingDate"),
-		AutoRenew:                    billingCycle != "one-time" && record.GetBool("autoRenew"),
+		AutoRenew:                    billingCycle != "one-time" && billingCycle != "usage-based" && record.GetBool("autoRenew"),
 		AutoCalculateNextBillingDate: record.GetBool("autoCalculateNextBillingDate"),
 		TrialEndDate:                 trimmedSubscriptionString(record.GetString("trialEndDate")),
 		Website:                      trimmedSubscriptionString(record.GetString("website")),
@@ -535,6 +535,10 @@ func publicAPIDueType(row *core.Record, today string, through string) string {
 		if row.GetInt("oneTimeTermCount") <= 0 {
 			return ""
 		}
+		return "expiry"
+	}
+	if row.GetString("billingCycle") == "usage-based" {
+		// 量包的耗尽日就是公开页的到期事件。
 		return "expiry"
 	}
 	return "renewal"

@@ -98,10 +98,12 @@ function subscriptionRenewalInputFromRow(row: SubscriptionRow): SubscriptionRene
     status: row.status as SubscriptionRenewalInput["status"],
     startDate: row.start_date,
     nextBillingDate: row.next_billing_date,
-    autoRenew: row.billing_cycle !== "one-time" && row.auto_renew === 1,
+    autoRenew: row.billing_cycle !== "one-time" && row.billing_cycle !== "usage-based" && row.auto_renew === 1,
     autoCalculateNextBillingDate: row.auto_calculate_next_billing_date === 1,
     customDays: row.custom_days,
     customCycleUnit: row.custom_cycle_unit,
+    usageTotal: row.usage_total,
+    usageDailyRate: row.usage_daily_rate,
   };
 }
 

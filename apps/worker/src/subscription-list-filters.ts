@@ -197,13 +197,14 @@ function appendPaymentMethodCondition(conditions: string[], params: unknown[], v
 function appendRenewalCondition(conditions: string[], renewal: SubscriptionsListQuery["renewal"]): void {
   switch (renewal) {
     case "auto":
-      conditions.push("idx.billing_cycle != 'one-time' AND idx.auto_renew = 1");
+      conditions.push("idx.billing_cycle NOT IN ('one-time', 'usage-based') AND idx.auto_renew = 1");
       break;
     case "manual":
-      conditions.push("idx.billing_cycle != 'one-time' AND idx.auto_renew = 0");
+      conditions.push("idx.billing_cycle NOT IN ('one-time', 'usage-based') AND idx.auto_renew = 0");
       break;
     case "one-time":
-      conditions.push("idx.billing_cycle = 'one-time'");
+      // 一次性购买包含买断与预付量包；两者都没有自动推进的扣费周期。
+      conditions.push("idx.billing_cycle IN ('one-time', 'usage-based')");
       break;
   }
 }

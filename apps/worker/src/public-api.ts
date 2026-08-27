@@ -307,6 +307,8 @@ function dueTypeForSubscription(row: SubscriptionRow, today: string, through: st
   if (row.status === "trial" && row.trial_end_date && row.trial_end_date >= today && row.trial_end_date <= through) return "trial";
   if (row.next_billing_date < today || row.next_billing_date > through) return null;
   if (row.billing_cycle === "one-time") return row.one_time_term_count && row.one_time_term_count > 0 ? "expiry" : null;
+  // 量包的耗尽日就是公开 API 的到期事件。
+  if (row.billing_cycle === "usage-based") return "expiry";
   return "renewal";
 }
 

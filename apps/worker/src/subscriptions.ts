@@ -62,11 +62,12 @@ export async function createSubscription(request: Request, env: Env): Promise<Re
   const factStatement = env.DB.prepare(`
     INSERT INTO subscriptions (
       id, user_id, name, logo, price, currency, billing_cycle, custom_days, custom_cycle_unit, one_time_term_count, one_time_term_unit,
+      usage_unit, usage_total, usage_daily_rate,
       category, status, pinned, public_hidden, payment_method,
       start_date, next_billing_date, auto_renew, auto_calculate_next_billing_date, trial_end_date, website, notes, tags_json,
       reminder_days, repeat_reminder_enabled, repeat_reminder_interval, repeat_reminder_window, cost_sharing_json,
       cost_sharing_collection_reminder_enabled, cost_sharing_next_collection_reminder_date, extra_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(...subscriptionRowValues(row));
   const derived = subscriptionDerivedMutationPlan(env, { before: null, after: row, kind: "create" }, settings);
   await env.DB.batch([...derived.beforeFact, factStatement, ...derived.afterFact]);
@@ -88,7 +89,7 @@ export async function updateSubscription(request: Request, env: Env, id: string)
   const factStatement = env.DB.prepare(`
     UPDATE subscriptions SET
       name = ?, logo = ?, price = ?, currency = ?, billing_cycle = ?, custom_days = ?, custom_cycle_unit = ?,
-      one_time_term_count = ?, one_time_term_unit = ?, category = ?, status = ?,
+      one_time_term_count = ?, one_time_term_unit = ?, usage_unit = ?, usage_total = ?, usage_daily_rate = ?, category = ?, status = ?,
       pinned = ?, public_hidden = ?, payment_method = ?, start_date = ?, next_billing_date = ?, auto_renew = ?, auto_calculate_next_billing_date = ?,
       trial_end_date = ?, website = ?, notes = ?, tags_json = ?, reminder_days = ?, repeat_reminder_enabled = ?,
       repeat_reminder_interval = ?, repeat_reminder_window = ?, cost_sharing_json = ?,
@@ -104,6 +105,9 @@ export async function updateSubscription(request: Request, env: Env, id: string)
     merged.custom_cycle_unit,
     merged.one_time_term_count,
     merged.one_time_term_unit,
+    merged.usage_unit,
+    merged.usage_total,
+    merged.usage_daily_rate,
     merged.category,
     merged.status,
     merged.pinned,
@@ -165,6 +169,7 @@ export async function renewSubscription(request: Request, env: Env, id: string):
   const factStatement = env.DB.prepare(`
     UPDATE subscriptions SET
       price = ?, currency = ?, start_date = ?, next_billing_date = ?, auto_calculate_next_billing_date = ?,
+      usage_total = ?, usage_daily_rate = ?,
       cost_sharing_collection_reminder_enabled = ?, cost_sharing_next_collection_reminder_date = ?, status = ?, updated_at = ?
     WHERE user_id = ? AND id = ?
   `).bind(
@@ -173,6 +178,8 @@ export async function renewSubscription(request: Request, env: Env, id: string):
     merged.start_date,
     merged.next_billing_date,
     merged.auto_calculate_next_billing_date,
+    merged.usage_total,
+    merged.usage_daily_rate,
     merged.cost_sharing_collection_reminder_enabled,
     merged.cost_sharing_next_collection_reminder_date,
     merged.status,
@@ -210,6 +217,9 @@ function renewSubscriptionRow(
     autoCalculateNextBillingDate: body.mode === "restart"
       ? body.autoCalculateNextBillingDate
       : existingBody.autoCalculateNextBillingDate,
+    // usage-based 续费即购买新量包：restart 允许同步调整总量与日均消耗，continue 保持原值由耗尽日算法重推。
+    usageTotal: body.mode === "restart" ? body.usageTotal ?? existingBody.usageTotal : existingBody.usageTotal,
+    usageDailyRate: body.mode === "restart" ? body.usageDailyRate ?? existingBody.usageDailyRate : existingBody.usageDailyRate,
     status: body.mode === "restart" && existing.status === "expired" ? "active" : continueResult.status,
   }, locale);
   return toSubscriptionRow(existing.id, existing.user_id, mergedBody, existing.created_at, timestamp, { settings, referenceDate });
@@ -228,6 +238,9 @@ export function normalizeSubscriptionBodyForStorage(body: unknown): Subscription
       customCycleUnit: parsed.customCycleUnit,
       oneTimeTermCount: null,
       oneTimeTermUnit: null,
+      usageUnit: null,
+      usageTotal: null,
+      usageDailyRate: null,
     };
   }
   if (parsed.billingCycle === "one-time") {
@@ -238,8 +251,29 @@ export function normalizeSubscriptionBodyForStorage(body: unknown): Subscription
       customCycleUnit: null,
       oneTimeTermCount: hasTerm ? parsed.oneTimeTermCount : null,
       oneTimeTermUnit: hasTerm ? parsed.oneTimeTermUnit : null,
+      usageUnit: null,
+      usageTotal: null,
+      usageDailyRate: null,
       autoRenew: false,
       autoCalculateNextBillingDate: false,
+    };
+  }
+  if (parsed.billingCycle === "usage-based") {
+    // 量包字段必须成组有效；缺失会在 D1 写入边界拒绝，与 Go hook 的 USAGE_* 错误保持同一契约。
+    if (parsed.usageUnit == null || parsed.usageTotal == null || parsed.usageDailyRate == null) {
+      throw new Error("SUBSCRIPTION_USAGE_INVARIANT_VIOLATION");
+    }
+    return {
+      ...parsed,
+      customDays: null,
+      customCycleUnit: null,
+      oneTimeTermCount: null,
+      oneTimeTermUnit: null,
+      usageUnit: parsed.usageUnit,
+      usageTotal: parsed.usageTotal,
+      usageDailyRate: parsed.usageDailyRate,
+      // 量包耗尽必须由用户购买新包推进；autoRenew 无意义，强制关闭。
+      autoRenew: false,
     };
   }
   return {
@@ -248,6 +282,9 @@ export function normalizeSubscriptionBodyForStorage(body: unknown): Subscription
     customCycleUnit: null,
     oneTimeTermCount: null,
     oneTimeTermUnit: null,
+    usageUnit: null,
+    usageTotal: null,
+    usageDailyRate: null,
   };
 }
 
@@ -276,6 +313,9 @@ function toBody(row: SubscriptionRow): SubscriptionBody {
     customCycleUnit: row.custom_cycle_unit,
     oneTimeTermCount: row.one_time_term_count,
     oneTimeTermUnit: row.one_time_term_unit,
+    usageUnit: row.usage_unit,
+    usageTotal: row.usage_total,
+    usageDailyRate: row.usage_daily_rate,
     category: row.category,
     status: row.status as SubscriptionBody["status"],
     pinned: row.pinned === 1,
@@ -283,7 +323,7 @@ function toBody(row: SubscriptionRow): SubscriptionBody {
     paymentMethod: row.payment_method,
     startDate: row.start_date,
     nextBillingDate: row.next_billing_date,
-    autoRenew: row.billing_cycle === "one-time" ? false : row.auto_renew === 1,
+    autoRenew: row.billing_cycle === "one-time" || row.billing_cycle === "usage-based" ? false : row.auto_renew === 1,
     autoCalculateNextBillingDate: row.auto_calculate_next_billing_date === 1,
     trialEndDate: row.trial_end_date,
     website: row.website,
@@ -324,6 +364,10 @@ export function toSubscriptionRow(
     // one-time 服务期是“预付权益期”契约；非 one-time 清空，避免旧买断字段被周期订阅误用于摊销。
     one_time_term_count: body.billingCycle === "one-time" ? body.oneTimeTermCount ?? null : null,
     one_time_term_unit: body.billingCycle === "one-time" ? body.oneTimeTermUnit ?? null : null,
+    // usage 字段是“预付量包”契约；非 usage-based 清空，避免历史总量继续影响耗尽日推算与摊销。
+    usage_unit: body.billingCycle === "usage-based" ? body.usageUnit ?? null : null,
+    usage_total: body.billingCycle === "usage-based" ? body.usageTotal ?? null : null,
+    usage_daily_rate: body.billingCycle === "usage-based" ? body.usageDailyRate ?? null : null,
     category: body.category,
     status: body.status,
     pinned: boolToInt(body.pinned),
@@ -333,8 +377,8 @@ export function toSubscriptionRow(
     start_date: body.startDate,
     next_billing_date: body.nextBillingDate,
     // auto_renew 与 auto_calculate_next_billing_date 是两个独立契约：前者驱动后台续订，后者只影响日期锚点计算。
-    auto_renew: boolToInt(body.billingCycle === "one-time" ? false : body.autoRenew),
-    // Worker 没有 PocketBase hook；one-time 不自动滚动日期，固定服务期只发到期提醒。
+    auto_renew: boolToInt(body.billingCycle === "one-time" || body.billingCycle === "usage-based" ? false : body.autoRenew),
+    // Worker 没有 PocketBase hook；one-time/usage-based 不自动滚动日期，到期边界只发提醒。
     auto_calculate_next_billing_date: boolToInt(body.billingCycle === "one-time" ? false : body.autoCalculateNextBillingDate),
     trial_end_date: body.trialEndDate ?? null,
     website: body.website ?? null,

@@ -397,7 +397,7 @@ describe("Cloudflare subscription mapper", () => {
     expect(body.subscription.pinned).toBe(true);
     expect(body.subscription.trialEndDate).toBe("2026-06-20");
     expect(body.subscription.extra).toEqual({ import: { source: "wallos", sourceId: "wallos-1" } });
-    expect(updateValues?.[21]).toBe("[]");
+    expect(updateValues?.[24]).toBe("[]");
     expect(schedulerMutationValues.slice(0, 5)).toEqual([0, 0, 0, 0, 0]);
     expect(schedulerMutationValues.at(-1)).toBe(USER_ID);
   });
@@ -499,5 +499,10 @@ describe("Cloudflare subscription mapper", () => {
     expect(cycleFieldsMigration).toContain("SET custom_cycle_unit = 'day'");
     expect(cycleFieldsMigration).toContain("WHERE billing_cycle != 'custom'");
     expect(cycleFieldsMigration).toContain("WHERE billing_cycle != 'one-time'");
+    const usageBasedMigration = readFileSync(resolve("migrations/0040_subscription_usage_based.sql"), "utf8");
+    expect(usageBasedMigration).toContain("ALTER TABLE subscriptions ADD COLUMN usage_unit TEXT;");
+    expect(usageBasedMigration).toContain("ALTER TABLE subscriptions ADD COLUMN usage_total REAL;");
+    expect(usageBasedMigration).toContain("ALTER TABLE subscriptions ADD COLUMN usage_daily_rate REAL;");
+    expect(usageBasedMigration).toContain("WHERE billing_cycle != 'usage-based'");
   });
 });

@@ -64,6 +64,7 @@
   "calendarFeed.billingCycle.one-time": "一次性",
   "calendarFeed.billingCycle.quarterly": "每季度",
   "calendarFeed.billingCycle.semi-annual": "每半年",
+  "calendarFeed.billingCycle.usage-based": "按量",
   "calendarFeed.billingCycle.weekly": "每周",
   "calendarFeed.calendarName": "Renewlet 续费日历",
   "calendarFeed.createFailed": "日历订阅创建失败",

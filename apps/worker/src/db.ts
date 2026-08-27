@@ -53,6 +53,9 @@ export const SUBSCRIPTION_COLUMN_NAMES = [
   "custom_cycle_unit",
   "one_time_term_count",
   "one_time_term_unit",
+  "usage_unit",
+  "usage_total",
+  "usage_daily_rate",
   "category",
   "status",
   "pinned",
@@ -89,6 +92,9 @@ export const SUBSCRIPTION_COLLECTION_COLUMN_NAMES = [
   "custom_cycle_unit",
   "one_time_term_count",
   "one_time_term_unit",
+  "usage_unit",
+  "usage_total",
+  "usage_daily_rate",
   "category",
   "status",
   "pinned",
@@ -346,6 +352,10 @@ export function toApiSubscriptionCollectionItem(row: SubscriptionCollectionRow):
     ...(row.custom_days === null ? {} : { customDays: row.custom_days }),
     ...(row.custom_cycle_unit === null ? {} : { customCycleUnit: row.custom_cycle_unit }),
     ...(row.one_time_term_count && row.one_time_term_unit ? { oneTimeTermCount: row.one_time_term_count, oneTimeTermUnit: row.one_time_term_unit } : {}),
+    // usage-based 量包字段成组出站；非 usage-based 周期保持缺席，避免读取方误用历史总量。
+    ...(row.billing_cycle === "usage-based" && row.usage_unit !== null && row.usage_total !== null && row.usage_daily_rate !== null
+      ? { usageUnit: row.usage_unit, usageTotal: row.usage_total, usageDailyRate: row.usage_daily_rate }
+      : {}),
     category: row.category,
     status: row.status,
     pinned: intToBool(row.pinned),
@@ -353,7 +363,7 @@ export function toApiSubscriptionCollectionItem(row: SubscriptionCollectionRow):
     ...(row.payment_method ? { paymentMethod: row.payment_method } : {}),
     startDate: row.start_date,
     nextBillingDate: row.next_billing_date,
-    autoRenew: row.billing_cycle === "one-time" ? false : intToBool(row.auto_renew),
+    autoRenew: row.billing_cycle === "one-time" || row.billing_cycle === "usage-based" ? false : intToBool(row.auto_renew),
     autoCalculateNextBillingDate: row.billing_cycle === "one-time"
       ? false
       : intToBool(row.auto_calculate_next_billing_date),
@@ -397,6 +407,9 @@ export function toPublicApiSubscription(row: SubscriptionRow) {
     ...(row.one_time_term_count && row.one_time_term_unit
       ? { oneTimeTermCount: row.one_time_term_count, oneTimeTermUnit: row.one_time_term_unit }
       : {}),
+    ...(row.billing_cycle === "usage-based" && row.usage_unit !== null && row.usage_total !== null && row.usage_daily_rate !== null
+      ? { usageUnit: row.usage_unit, usageTotal: row.usage_total, usageDailyRate: row.usage_daily_rate }
+      : {}),
     category: row.category,
     status: row.status,
     pinned: intToBool(row.pinned),
@@ -404,7 +417,7 @@ export function toPublicApiSubscription(row: SubscriptionRow) {
     ...(row.payment_method ? { paymentMethod: row.payment_method } : {}),
     startDate: row.start_date,
     nextBillingDate: row.next_billing_date,
-    autoRenew: row.billing_cycle === "one-time" ? false : intToBool(row.auto_renew),
+    autoRenew: row.billing_cycle === "one-time" || row.billing_cycle === "usage-based" ? false : intToBool(row.auto_renew),
     autoCalculateNextBillingDate: intToBool(row.auto_calculate_next_billing_date),
     ...(row.trial_end_date ? { trialEndDate: row.trial_end_date } : {}),
     ...(row.website ? { website: row.website } : {}),

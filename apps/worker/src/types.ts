@@ -163,6 +163,9 @@ export interface SubscriptionRow {
   custom_cycle_unit: CustomCycleUnit | null;
   one_time_term_count: number | null;
   one_time_term_unit: CustomCycleUnit | null;
+  usage_unit: string | null;
+  usage_total: number | null;
+  usage_daily_rate: number | null;
   category: string;
   status: string;
   pinned: number;
@@ -201,6 +204,9 @@ export type SubscriptionCollectionRow = Pick<SubscriptionRow,
   | "custom_cycle_unit"
   | "one_time_term_count"
   | "one_time_term_unit"
+  | "usage_unit"
+  | "usage_total"
+  | "usage_daily_rate"
   | "category"
   | "status"
   | "pinned"

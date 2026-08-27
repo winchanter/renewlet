@@ -637,7 +637,8 @@ function isFixedBillingCycle(value: string): value is CalendarFixedBillingCycle 
     value === "quarterly" ||
     value === "semi-annual" ||
     value === "annual" ||
-    value === "one-time";
+    value === "one-time" ||
+    value === "usage-based";
 }
 
 function isCustomCycleUnit(value: unknown): value is CalendarCustomCycleUnit {

@@ -273,6 +273,9 @@ function openDerivedStateDatabase(): { db: DatabaseSync; env: Env } {
       custom_cycle_unit TEXT,
       one_time_term_count INTEGER,
       one_time_term_unit TEXT,
+      usage_unit TEXT,
+      usage_total REAL,
+      usage_daily_rate REAL,
       category TEXT NOT NULL,
       status TEXT NOT NULL,
       pinned INTEGER NOT NULL,
@@ -394,6 +397,9 @@ function subscriptionRow(id: string, overrides: Partial<SubscriptionRow> = {}): 
     custom_cycle_unit: null,
     one_time_term_count: null,
     one_time_term_unit: null,
+    usage_unit: null,
+    usage_total: null,
+    usage_daily_rate: null,
     category: "productivity",
     status: "active",
     pinned: 0,
@@ -425,6 +431,7 @@ function insertSubscriptionStatement(env: Env, row: SubscriptionRow): D1Prepared
   return env.DB.prepare(`
     INSERT INTO subscriptions (
       id, user_id, name, logo, price, currency, billing_cycle, custom_days, custom_cycle_unit, one_time_term_count, one_time_term_unit,
+      usage_unit, usage_total, usage_daily_rate,
       category, status, pinned, public_hidden, payment_method, start_date, next_billing_date, auto_renew, auto_calculate_next_billing_date,
       trial_end_date, website, notes, tags_json, reminder_days, repeat_reminder_enabled, repeat_reminder_interval, repeat_reminder_window,
       cost_sharing_json, cost_sharing_collection_reminder_enabled, cost_sharing_next_collection_reminder_date, extra_json, created_at, updated_at

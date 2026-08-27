@@ -64,6 +64,7 @@
   "calendarFeed.billingCycle.one-time": "One-time",
   "calendarFeed.billingCycle.quarterly": "Quarterly",
   "calendarFeed.billingCycle.semi-annual": "Semi-annual",
+  "calendarFeed.billingCycle.usage-based": "Usage-based",
   "calendarFeed.billingCycle.weekly": "Weekly",
   "calendarFeed.calendarName": "Renewlet renewal calendar",
   "calendarFeed.createFailed": "Failed to create calendar feed",

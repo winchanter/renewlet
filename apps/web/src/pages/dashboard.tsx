@@ -27,6 +27,7 @@ import { DashboardPageSkeleton } from "@/components/loading-skeleton";
 import { QueryErrorState } from "@/components/query-error-state";
 import { EditSubscriptionDialog } from "@/components/edit-subscription-dialog";
 import { AddSubscriptionDialog } from "@/components/add-subscription-dialog";
+import { DeferredRenewSubscriptionDialog } from "@/components/renew-subscription-dialog-loader";
 import { CreditCard, TrendingUp, Clock, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useReportExchangeRates } from "@/hooks/use-report-exchange-rates";
@@ -87,12 +88,22 @@ export default function Index() {
     editingCollectionItem,
     editDialogOpen,
     editDetailPending,
+    renewingSubscription,
+    renewingCollectionItem,
+    renewDialogOpen,
+    renewDetailPending,
+    renewError,
+    renewSubmitting,
+    renewRestoreFocusRef,
     handleAddSubscription,
     handleDeleteSubscription,
     handleEditSubscription,
+    handleRenewSubscription,
+    handleSubmitRenewSubscription,
     handleTogglePublicHiddenSubscription,
     handleSaveSubscription,
     handleEditDialogOpenChange,
+    handleRenewDialogOpenChange,
     handlePrefetchSubscription,
   } = useSubscriptionCrud(subscriptions);
   const handleEditFromDetail = useCallback((subscription: Subscription) => {
@@ -282,11 +293,24 @@ export default function Index() {
         subscription={selectedDetailSubscription}
         loadingPreview={selectedDetailCollectionItem}
         onEditSubscription={handleEditFromDetail}
+        onRenewSubscription={handleRenewSubscription}
         today={today}
         currencyConvert={convert}
         currencyRatesReady={currencyRatesReady}
         priceReferenceCurrency={priceReferenceCurrency}
         loading={detailPending}
+      />
+      <DeferredRenewSubscriptionDialog
+        subscription={renewingSubscription}
+        loadingPreview={renewingCollectionItem}
+        open={renewDialogOpen}
+        today={today}
+        submitting={renewSubmitting}
+        error={renewError instanceof Error ? renewError.message : null}
+        restoreFocusRef={renewRestoreFocusRef}
+        onOpenChange={handleRenewDialogOpenChange}
+        onSubmit={handleSubmitRenewSubscription}
+        loading={renewDetailPending}
       />
       <AddToCalendarDialog
         open={calendarDialog.open}

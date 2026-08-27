@@ -37,14 +37,20 @@ ARG BUILD_TIME=dev
 WORKDIR /src/apps/docker-server
 
 COPY apps/docker-server/go.mod apps/docker-server/go.sum ./
-RUN GOPROXY=https://goproxy.cn,direct go mod download
+RUN \
+  --mount=type=cache,target=/go/pkg/mod \
+  GOPROXY=https://goproxy.cn,direct go mod download
 
 COPY apps/docker-server ./
 RUN mkdir -p internal/static/public \
   && find internal/static/public -mindepth 1 ! -name .gitkeep -delete
 COPY --from=client-builder /app/apps/web/dist ./internal/static/public
 
-RUN mkdir -p /out \
+# go build 缓存挂载让增量重建复用编译产物，冷编译动辄数十分钟的问题只发生一次。
+RUN \
+  --mount=type=cache,target=/go/pkg/mod \
+  --mount=type=cache,target=/root/.cache/go-build \
+  mkdir -p /out \
   && CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-$(go env GOARCH)} go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME} -X main.BuildType=release" -o /out/renewlet ./cmd/renewlet \
   && CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-$(go env GOARCH)} go build -trimpath -ldflags="-s -w" -o /out/container-init ./cmd/container-init
 

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRef, useState, type ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,6 +33,20 @@ function RenewSubscriptionDialog(props: RenewSubscriptionDialogProps) {
       </DialogContent>
     </Dialog>
   );
+}
+
+// jsdom 的 DragEvent 默认 dataTransfer 为 null，需手动注入才能在 onDrop 里读到 files。
+function dropFiles(element: Element, files: File[]) {
+  const dropEvent = createEvent.drop(element);
+  Object.defineProperty(dropEvent, "dataTransfer", {
+    value: {
+      files,
+      items: files.map((file) => ({ kind: "file", getAsFile: () => file })),
+      types: ["Files"],
+    },
+    configurable: true,
+  });
+  fireEvent(element, dropEvent);
 }
 
 const mocks = vi.hoisted(() => ({
@@ -73,6 +87,7 @@ vi.mock("@/i18n/I18nProvider", () => ({
         "subscription.billingRecords.receiptRemove": `移除凭证 ${String(values?.["index"] ?? "")}`,
         "subscription.billingRecords.receiptView": `查看凭证 ${String(values?.["index"] ?? "")}`,
         "subscription.billingRecords.receiptEmpty": "暂无凭证",
+        "subscription.billingRecords.receiptDropHint": "拖拽图片到此处，或点击下方按钮添加",
         "subscription.billingRecords.receiptsLabel": `凭证 ${String(values?.["count"] ?? "")}/${String(values?.["max"] ?? "")}`,
         "media.uploadFailed": "上传失败，请重试",
         "subscription.empty.currency": "未找到货币",
@@ -482,5 +497,48 @@ describe("RenewSubscriptionDialog", () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       receiptAssetIds: ["receipt-2"],
     })));
+  });
+
+  it("accepts dragged images and uploads them", async () => {
+    mocks.uploadImageFile
+      .mockResolvedValueOnce({ url: "/api/app/assets/receipt-1" })
+      .mockResolvedValueOnce({ url: "/api/app/assets/receipt-2" });
+
+    renderDialog({ subscription: makeSubscription({ status: "active" }) });
+
+    const dropzone = screen.getByTestId("renew-receipt-uploader");
+    dropFiles(dropzone, [
+      new File(["a"], "receipt-1.png", { type: "image/png" }),
+      new File(["b"], "receipt-2.png", { type: "image/png" }),
+    ]);
+
+    await waitFor(() => expect(mocks.uploadImageFile).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByTestId("authorized-image")).toHaveLength(2);
+    expect(screen.getByText("凭证 2/6")).toBeInTheDocument();
+  });
+
+  it("filters out non-image files dropped onto the uploader", async () => {
+    renderDialog({ subscription: makeSubscription({ status: "active" }) });
+
+    const dropzone = screen.getByTestId("renew-receipt-uploader");
+    dropFiles(dropzone, [
+      new File(["x"], "note.pdf", { type: "application/pdf" }),
+      new File(["y"], "archive.zip", { type: "application/zip" }),
+    ]);
+
+    // 非图片被静默过滤，不触发上传。
+    expect(mocks.uploadImageFile).not.toHaveBeenCalled();
+    expect(screen.queryAllByTestId("authorized-image")).toHaveLength(0);
+  });
+
+  it("shows drag-over feedback while dragging and clears it on leave", () => {
+    renderDialog({ subscription: makeSubscription({ status: "active" }) });
+
+    const dropzone = screen.getByTestId("renew-receipt-uploader");
+    fireEvent.dragOver(dropzone);
+    expect(dropzone).toHaveAttribute("data-drag-over", "true");
+
+    fireEvent.dragLeave(dropzone);
+    expect(dropzone).not.toHaveAttribute("data-drag-over");
   });
 });

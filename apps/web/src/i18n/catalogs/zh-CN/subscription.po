@@ -1050,6 +1050,11 @@ msgstr "暂无凭证"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:83
+msgid "subscription.billingRecords.receiptDropHint"
+msgstr "拖拽图片到此处，或点击下方按钮添加"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:84
 msgid "subscription.billingRecords.receiptsLabel"
 msgstr "凭证 {count}/{max}"
 

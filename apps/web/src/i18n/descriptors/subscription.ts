@@ -80,6 +80,7 @@ export const messages = [
   msg({ id: "subscription.billingRecords.receiptRemove", message: "移除凭证 {index}" }),
   msg({ id: "subscription.billingRecords.receiptView", message: "查看凭证 {index}" }),
   msg({ id: "subscription.billingRecords.receiptEmpty", message: "暂无凭证" }),
+  msg({ id: "subscription.billingRecords.receiptDropHint", message: "拖拽图片到此处，或点击下方按钮添加" }),
   msg({ id: "subscription.billingRecords.receiptsLabel", message: "凭证 {count}/{max}" }),
   msg({ id: "subscription.dialogCreateTitle", message: "添加新订阅" }),
   msg({ id: "subscription.dialogEditTitle", message: "编辑订阅" }),

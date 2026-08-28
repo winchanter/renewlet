@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, RefObject } from "react";
+import type { DragEvent, FormEvent, RefObject } from "react";
 import { Loader2, History, ImagePlus, X } from "lucide-react";
 import {
   createRenewSubscriptionLoadingSlots,
@@ -755,12 +755,16 @@ function ReceiptUploader({ value, onChange, submitting }: ReceiptUploaderProps) 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const remaining = RECEIPT_ASSET_IDS_MAX - value.length;
   const canAddMore = remaining > 0 && uploadingCount === 0 && !submitting;
 
-  const handleFiles = useCallback(async (files: FileList) => {
-    const picked = Array.from(files).slice(0, remaining);
+  const handleFiles = useCallback(async (files: File[]) => {
+    // 只接受图片，非图片（如 PDF/zip）静默过滤；超出 remaining 的部分截断，不报错。
+    const picked = files
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, remaining);
     if (picked.length === 0) return;
     setUploadError(null);
     setUploadingCount((current) => current + picked.length);
@@ -791,6 +795,28 @@ function ReceiptUploader({ value, onChange, submitting }: ReceiptUploaderProps) 
     onChange(next);
   }, [onChange, value]);
 
+  // 整个上传区作为 dropzone：canAddMore=false 时静默忽略，避免提交中/上传中/已满被覆盖。
+  const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (canAddMore && !dragOver) setDragOver(true);
+  }, [canAddMore, dragOver]);
+
+  const handleDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    // relatedTarget 落在 dropzone 内部（如缩略图）时不清除高亮，避免在子元素间移动闪烁。
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragOver(false);
+    if (!canAddMore) return;
+    const dropped = Array.from(event.dataTransfer?.files ?? []);
+    if (dropped.length === 0) return;
+    void handleFiles(dropped);
+  }, [canAddMore, handleFiles]);
+
   return (
     <FormField
       id="renew-receipt"
@@ -798,9 +824,20 @@ function ReceiptUploader({ value, onChange, submitting }: ReceiptUploaderProps) 
       description={t("subscription.billingRecords.receiptHint", { count: RECEIPT_ASSET_IDS_MAX })}
     >
       {() => (
-        <div className="grid gap-2" data-testid="renew-receipt-uploader">
+        <div
+          className={`grid gap-2 rounded-md border border-dashed p-1.5 transition-colors${
+            dragOver
+              ? " border-ring bg-secondary/30 ring-2 ring-ring/50"
+              : " border-transparent"
+          }`}
+          data-testid="renew-receipt-uploader"
+          data-drag-over={dragOver || undefined}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           {value.length === 0 && uploadingCount === 0 ? (
-            <p className="text-xs text-muted-foreground">{t("subscription.billingRecords.receiptEmpty")}</p>
+            <p className="text-xs text-muted-foreground">{t("subscription.billingRecords.receiptDropHint")}</p>
           ) : null}
           {value.length > 0 ? (
             <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6" data-testid="renew-receipt-list">
@@ -859,7 +896,7 @@ function ReceiptUploader({ value, onChange, submitting }: ReceiptUploaderProps) 
                 className="sr-only"
                 onChange={(event) => {
                   if (event.target.files && event.target.files.length > 0) {
-                    void handleFiles(event.target.files);
+                    void handleFiles(Array.from(event.target.files));
                   }
                 }}
                 data-testid="renew-receipt-input"

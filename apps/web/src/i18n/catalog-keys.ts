@@ -1860,6 +1860,7 @@ export const MESSAGE_KEYS = [
   "subscription.billingRecords.periodHint",
   "subscription.billingRecords.receipt",
   "subscription.billingRecords.receiptAdd",
+  "subscription.billingRecords.receiptDropHint",
   "subscription.billingRecords.receiptEmpty",
   "subscription.billingRecords.receiptHint",
   "subscription.billingRecords.receiptRemove",

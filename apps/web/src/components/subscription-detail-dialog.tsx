@@ -33,6 +33,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { cn } from "@/lib/utils";
 import { formatCompactCurrencyAmount } from "@/lib/currency";
 import type { DateOnly } from "@/lib/time/date-only";
+import { daysBetweenDateOnly } from "@/lib/time/date-only";
 import {
   formatBillingCycleLabel,
   isOneTimeBuyout,
@@ -198,6 +199,29 @@ function SubscriptionDetailContent({
     : subscription.reminderDays === INHERIT_REMINDER_DAYS
       ? t("subscription.card.reminderInherit", { days: inheritedReminderDays })
       : t("reminder.days", { days: subscription.reminderDays });
+  // 与卡片 meta 的相对续费口径保持一致：买断和暂停/取消不展示，过期 destructive，7 天内 warning。
+  const daysUntilRenewal = daysBetweenDateOnly(today, subscription.nextBillingDate);
+  const relativeBillingLabel = (() => {
+    if (isBuyout || effectiveStatus === "paused" || effectiveStatus === "cancelled") return null;
+    if (effectiveStatus === "expired") {
+      return daysUntilRenewal < 0
+        ? t("subscription.card.expiredDays", { days: Math.abs(daysUntilRenewal) })
+        : t("subscription.card.expired");
+    }
+    if (isFixedTermOneTime) {
+      return daysUntilRenewal === 0
+        ? t("subscription.card.expiresToday")
+        : t("subscription.card.expiresInDays", { days: daysUntilRenewal });
+    }
+    return daysUntilRenewal === 0
+      ? t("subscription.card.renewsToday")
+      : t("subscription.card.renewsInDays", { days: daysUntilRenewal });
+  })();
+  const relativeBillingToneClass = effectiveStatus === "expired"
+    ? "text-destructive"
+    : daysUntilRenewal >= 0 && daysUntilRenewal <= 7
+      ? "text-warning"
+      : "text-muted-foreground";
 
   const handleEdit = () => {
     if (!onEditSubscription) return;
@@ -239,7 +263,17 @@ function SubscriptionDetailContent({
               </p>
             ) : null}
           </div>
-          <SubscriptionStatusBadge status={effectiveStatus} />
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <SubscriptionStatusBadge status={effectiveStatus} />
+            {relativeBillingLabel ? (
+              <p
+                data-testid="subscription-detail-relative-billing"
+                className={cn("text-sm font-medium tabular-nums", relativeBillingToneClass)}
+              >
+                {relativeBillingLabel}
+              </p>
+            ) : null}
+          </div>
         </>
       )}
       facts={(

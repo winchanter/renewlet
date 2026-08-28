@@ -231,6 +231,43 @@ describe("SubscriptionDetailDialog", () => {
     expect(within(dialog).getByText(/负责人：Alice/)).toBeInTheDocument();
   });
 
+  it("shows the relative renewal countdown under the status badge in the summary block", () => {
+    renderDetailDialog();
+
+    const dialog = screen.getByRole("dialog", { name: "Fastmail" });
+    const relative = within(dialog).getByTestId("subscription-detail-relative-billing");
+
+    expect(within(dialog).getByText("28 天后续费")).toBe(relative);
+    expect(relative).toHaveClass("text-sm", "tabular-nums", "text-muted-foreground");
+  });
+
+  it("tones the relative renewal countdown as warning within seven days and destructive when expired", () => {
+    const upcoming = renderDetailDialog({
+      subscription: { ...baseSubscription, nextBillingDate: assertDateOnly("2026-05-20") },
+    });
+    expect(within(screen.getByRole("dialog", { name: "Fastmail" })).getByTestId("subscription-detail-relative-billing"))
+      .toHaveTextContent("2 天后续费");
+    expect(screen.getByTestId("subscription-detail-relative-billing")).toHaveClass("text-warning");
+    upcoming.unmount();
+
+    renderDetailDialog({
+      subscription: { ...baseSubscription, nextBillingDate: assertDateOnly("2026-05-15") },
+    });
+    const expired = screen.getByTestId("subscription-detail-relative-billing");
+    expect(expired).toHaveTextContent("已过期 3 天");
+    expect(expired).toHaveClass("text-destructive");
+  });
+
+  it("keeps the relative renewal countdown out of buyout details", () => {
+    renderDetailDialog({
+      subscription: { ...baseSubscription, ...subscriptionCycleFixture({ billingCycle: "one-time" }) },
+    });
+
+    const dialog = screen.getByRole("dialog", { name: "Fastmail" });
+
+    expect(within(dialog).queryByTestId("subscription-detail-relative-billing")).not.toBeInTheDocument();
+  });
+
   it("hides the start-date row when a recurring subscription has an unknown start date", () => {
     renderDetailDialog({
       subscription: {

@@ -242,6 +242,8 @@ function SubscriptionCardComponent({
   const isRenewingSoon = !isExpired && !isBuyout && daysUntilRenewal <= 7 && daysUntilRenewal >= 0;
   const isTrialEndingSoon = !isExpired && subscription.status === 'trial' && daysUntilTrialEnd !== null &&
     daysUntilTrialEnd <= 3 && daysUntilTrialEnd >= 0;
+  // 手动续订的临近到期订阅参照试用期强提醒：3 天窗口内加脉冲动画和警告条；试用期条优先，避免双条重复。
+  const isManualRenewalUrgent = isRenewingSoon && daysUntilRenewal <= 3 && !subscription.autoRenew && !isTrialEndingSoon;
   const billingDateText = isBuyout && subscription.startDate
     ? t("subscription.card.oneTimeDate", { date: formatDateOnly(subscription.startDate) })
     : isBuyout
@@ -356,7 +358,7 @@ function SubscriptionCardComponent({
         onViewDetails && "cursor-pointer",
         isExpired && "border-destructive/40",
         isRenewingSoon && "border-warning/40",
-        isTrialEndingSoon && "animate-pulse-glow"
+        (isTrialEndingSoon || isManualRenewalUrgent) && "animate-pulse-glow"
       )}
     >
       {onViewDetails ? (
@@ -545,6 +547,17 @@ function SubscriptionCardComponent({
             <div className="flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning">
               <span className="font-medium">
                 {t("subscription.card.trialEnds", { date: formatDateOnly(subscription.trialEndDate, "monthDay") })}
+              </span>
+            </div>
+          )}
+
+          {isManualRenewalUrgent && (
+            <div
+              data-testid="subscription-card-manual-renewal-alert"
+              className="flex items-center gap-2 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning"
+            >
+              <span className="font-medium">
+                {t("subscription.card.manualRenewalDue", { date: formatDateOnly(subscription.nextBillingDate, "monthDay") })}
               </span>
             </div>
           )}

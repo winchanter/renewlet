@@ -556,6 +556,48 @@ describe("SubscriptionCard", () => {
     expectMetaFlowItemsInOrder("开始: 2026/5/15", "到期: 2026/5/15", "已过期 3 天");
   });
 
+  it("renders the urgent manual renewal alert with the trial-end treatment for manual renewals due within three days", () => {
+    renderSubscriptionCard({ status: "active", nextBillingDate: assertDateOnly("2026-05-20") });
+
+    const card = screen.getByTestId("subscription-card");
+    const alert = screen.getByTestId("subscription-card-manual-renewal-alert");
+
+    expect(within(alert).getByText("5月20日 到期，请及时续费")).toHaveClass("font-medium");
+    expect(card).toHaveClass("animate-pulse-glow", "border-warning/40");
+  });
+
+  it("keeps auto-renew subscriptions on the muted soon-renewing treatment without the urgent alert", () => {
+    renderSubscriptionCard({ status: "active", nextBillingDate: assertDateOnly("2026-05-20"), autoRenew: true });
+
+    const card = screen.getByTestId("subscription-card");
+
+    expect(screen.queryByTestId("subscription-card-manual-renewal-alert")).not.toBeInTheDocument();
+    expect(card).toHaveClass("border-warning/40");
+    expect(card).not.toHaveClass("animate-pulse-glow");
+  });
+
+  it("keeps manual renewals outside the three-day window on the muted treatment", () => {
+    renderSubscriptionCard({ status: "active", nextBillingDate: assertDateOnly("2026-05-23") });
+
+    const card = screen.getByTestId("subscription-card");
+
+    expect(screen.queryByTestId("subscription-card-manual-renewal-alert")).not.toBeInTheDocument();
+    expect(card).toHaveClass("border-warning/40");
+    expect(card).not.toHaveClass("animate-pulse-glow");
+  });
+
+  it("prefers the trial-end banner over the manual renewal alert when both windows overlap", () => {
+    renderSubscriptionCard({
+      status: "trial",
+      nextBillingDate: assertDateOnly("2026-05-20"),
+      trialEndDate: assertDateOnly("2026-05-20"),
+    });
+
+    expect(screen.getByText("试用期将于 5月20日 结束")).toBeInTheDocument();
+    expect(screen.queryByTestId("subscription-card-manual-renewal-alert")).not.toBeInTheDocument();
+    expect(screen.getByTestId("subscription-card")).toHaveClass("animate-pulse-glow");
+  });
+
   it("does not render relative renewal days for overdue paused subscriptions", () => {
     renderSubscriptionCard({ status: "paused", nextBillingDate: assertDateOnly("2026-05-12") });
     const metaFlow = screen.getByTestId("subscription-card-meta-flow");

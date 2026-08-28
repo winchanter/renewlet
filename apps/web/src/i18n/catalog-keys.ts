@@ -1878,6 +1878,7 @@ export const MESSAGE_KEYS = [
   "subscription.card.expiresInDays",
   "subscription.card.expiresPrefix",
   "subscription.card.expiresToday",
+  "subscription.card.manualRenewalDue",
   "subscription.card.oneTimeDate",
   "subscription.card.reminderDays",
   "subscription.card.reminderDisabled",

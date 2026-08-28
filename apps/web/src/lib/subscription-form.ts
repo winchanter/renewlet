@@ -22,11 +22,14 @@ import { getApiLocale } from "@/i18n/api-locale";
 import { translate } from "@/i18n/messages";
 import type { MessageKey, MessageParams } from "@/i18n/messages";
 import { compareDateOnly } from "@/lib/time/date-only";
-import { calculateOneTimeTermEndDate } from "@/lib/subscription-billing";
+import { calculateOneTimeTermEndDate, calculateUsageExhaustionDate } from "@/lib/subscription-billing";
+import { usageBasedEstimatedDays } from "@renewlet/shared/subscription-billing";
 import { canonicalizeMoneyString } from "@renewlet/shared/money";
 
 const MAX_PRICE = 1_000_000_000;
 const MAX_DAYS = MAX_REMINDER_DAYS;
+/** 量包总量/日均的输入上限，与 shared schema 的 z.number().max(1e9) 保持同一契约。 */
+const MAX_USAGE_AMOUNT = 1_000_000_000;
 const TAG_SEPARATOR_PATTERN = /[、，,;；\n]+/g;
 type SubscriptionFormSubmissionBase = Omit<
   SubscriptionFormSubmission,
@@ -41,6 +44,7 @@ export type SubscriptionFormErrorField =
   | "dates"
   | "customDays"
   | "oneTimeTerm"
+  | "usage"
   | "reminderDays"
   | "costSharing"
   | "website"
@@ -53,6 +57,7 @@ export type SubscriptionFormValidationIssueCode =
   | "reminderInvalid"
   | "customCycleInvalid"
   | "oneTimeTermInvalid"
+  | "usageFieldsInvalid"
   | "costSharingCollectionReminderOneTimeBuyoutInvalid"
   | "costSharingCollectionReminderInvalid"
   | "costSharingCollectionReminderAnchorRequired"
@@ -98,6 +103,40 @@ export function parsePositiveIntegerInput(input: string, max = MAX_DAYS): number
   const parsed = parseNonNegativeIntegerInput(input, max);
   if (parsed === null || parsed <= 0) return null;
   return parsed;
+}
+
+/** 严格解析正数（允许小数）；用于量包总量（GB 场景）与日均消耗（0.5 条/天）这类非整数输入。 */
+export function parsePositiveNumberInput(input: string, max = MAX_USAGE_AMOUNT): number | null {
+  const value = input.trim();
+  if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > max) return null;
+  return parsed;
+}
+
+export interface SubscriptionUsageFormFields {
+  usageUnit: string;
+  usageTotal: string;
+  usageDailyRate: string;
+}
+
+/**
+ * 解析量包表单字段：单位 trim 后非空、总量/日均均为正数且推算天数不超限。
+ * 任一条件不满足返回 null，由校验层统一给出首错。
+ */
+export function parseUsageFormFields(
+  formData: Pick<SubscriptionFormState, keyof SubscriptionUsageFormFields>,
+): { unit: string; total: number; dailyRate: number } | null {
+  const unit = formData.usageUnit.trim();
+  const total = parsePositiveNumberInput(formData.usageTotal);
+  const dailyRate = parsePositiveNumberInput(formData.usageDailyRate);
+  if (!unit || total === null || dailyRate === null) return null;
+  try {
+    usageBasedEstimatedDays(total, dailyRate);
+  } catch {
+    return null;
+  }
+  return { unit, total, dailyRate };
 }
 
 /** 校验可选 URL：空值允许；非空时只接受 http(s)。 */
@@ -211,12 +250,14 @@ export function getSubscriptionDateValidationKind(formData: Pick<
   "billingCycle" | "oneTimeMode" | "startDate" | "nextBillingDate" | "autoCalculate"
 >): SubscriptionDateValidationKind | null {
   const isOneTime = formData.billingCycle === "one-time";
-  if (isOneTime && !formData.startDate) return "purchaseDateRequired";
-  if (!isOneTime && formData.autoCalculate && !formData.startDate) {
+  // usage-based 的耗尽日由量包字段推算，日期校验只关心购买日；字段有效性由量包校验单独报告。
+  const isUsageBased = formData.billingCycle === "usage-based";
+  if ((isOneTime || isUsageBased) && !formData.startDate) return "purchaseDateRequired";
+  if (!isOneTime && !isUsageBased && formData.autoCalculate && !formData.startDate) {
     return "startDateRequiredForAutoCalculate";
   }
-  if (!isOneTime && !formData.nextBillingDate) return "nextBillingDateRequired";
-  if (!isOneTime && isRenewalDateBeforeStartDate(formData)) {
+  if (!isOneTime && !isUsageBased && !formData.nextBillingDate) return "nextBillingDateRequired";
+  if (!isOneTime && !isUsageBased && isRenewalDateBeforeStartDate(formData)) {
     return "dateOrderInvalid";
   }
   return null;
@@ -311,6 +352,9 @@ export function getSubscriptionFormValidationIssues(formData: SubscriptionFormSt
   if (formData.billingCycle === "one-time" && formData.oneTimeMode === "term" && parsePositiveIntegerInput(formData.oneTimeTermCount) === null) {
     issues.push({ code: "oneTimeTermInvalid", field: "oneTimeTerm", messageKey: "subscription.validation.oneTimeTermInvalid" });
   }
+  if (formData.billingCycle === "usage-based" && parseUsageFormFields(formData) === null) {
+    issues.push({ code: "usageFieldsInvalid", field: "usage", messageKey: "subscription.validation.usageFieldsInvalid" });
+  }
   if (formData.costSharing?.enabled) {
     const price = parseMoneyInput(formData.price);
     const collectionReminder = formData.costSharing.collectionReminder;
@@ -392,11 +436,15 @@ export function toSubscriptionFormSubmission(formData: SubscriptionFormState): S
     ? parsePositiveIntegerInput(formData.oneTimeTermCount)
     : undefined;
   const startDate = formData.startDate ?? null;
+  // 量包耗尽日在提交边界推算；表单里的 nextBillingDate 只是 UI 预览态，允许为空。
+  const usage = formData.billingCycle === "usage-based" ? parseUsageFormFields(formData) : null;
   const nextBillingDate = formData.billingCycle === "one-time"
     ? formData.oneTimeMode === "term" && formData.startDate && oneTimeTermCount
       ? calculateOneTimeTermEndDate(formData.startDate, oneTimeTermCount, formData.oneTimeTermUnit)
       : formData.startDate
-    : formData.nextBillingDate;
+    : usage && formData.startDate
+      ? calculateUsageExhaustionDate(formData.startDate, usage.total, usage.dailyRate)
+      : formData.nextBillingDate;
   if (
     price === null ||
     reminderDays === null ||
@@ -460,6 +508,20 @@ export function toSubscriptionFormSubmission(formData: SubscriptionFormState): S
       billingCycle: "one-time",
       autoRenew: false,
       autoCalculateNextBillingDate: false,
+    };
+  }
+  if (formData.billingCycle === "usage-based") {
+    if (!usage || !formData.startDate) return null;
+    // 量包耗尽日 = 购买日 + 预估可用天数；autoCalculate 固定为 true，让后端续费推进同样以 startDate 为锚点。
+    return {
+      ...base,
+      billingCycle: "usage-based",
+      usageUnit: usage.unit,
+      usageTotal: usage.total,
+      usageDailyRate: usage.dailyRate,
+      nextBillingDate: calculateUsageExhaustionDate(formData.startDate, usage.total, usage.dailyRate),
+      autoRenew: false,
+      autoCalculateNextBillingDate: true,
     };
   }
   return {

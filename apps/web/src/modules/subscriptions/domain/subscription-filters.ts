@@ -201,6 +201,8 @@ function calculateMonthlyCost(
     subscription.customCycleUnit,
     subscription.oneTimeTermCount,
     subscription.oneTimeTermUnit,
+    subscription.usageTotal,
+    subscription.usageDailyRate,
   );
 }
 

@@ -157,6 +157,7 @@ function SubscriptionDetailContent({
   const isBuyout = isOneTimeBuyout(subscription);
   const isFixedTermOneTime = isOneTimeFixedTerm(subscription);
   const isOneTime = subscription.billingCycle === "one-time";
+  const isUsageBased = subscription.billingCycle === "usage-based";
   const dailyAmount = isBuyout
     ? null
     : toDailyAmountFromMonthly(toSubscriptionMonthlyAmount(subscription.price, subscription));
@@ -185,7 +186,7 @@ function SubscriptionDetailContent({
   const nextBillingLabel =
     isBuyout
       ? t("subscription.detail.purchaseDate")
-      : isFixedTermOneTime
+      : isFixedTermOneTime || isUsageBased
         ? t("subscription.detail.expiryDate")
       : t("subscription.detail.nextBilling");
   const reminderLabel = subscription.reminderDays === DISABLED_REMINDER_DAYS
@@ -268,6 +269,17 @@ function SubscriptionDetailContent({
           {subscription.paymentMethod ? (
             <DetailRow label={t("subscription.field.paymentMethod")}>
               <span className="wrap-break-word">{paymentMethod ? label(paymentMethod.labels) : subscription.paymentMethod}</span>
+            </DetailRow>
+          ) : null}
+          {isUsageBased && subscription.usageUnit && subscription.usageTotal != null && subscription.usageDailyRate != null ? (
+            <DetailRow label={t("subscription.field.usagePackage")}>
+              <span className="tabular-nums wrap-break-word">
+                {t("subscription.detail.usageSummary", {
+                  total: subscription.usageTotal.toLocaleString(locale),
+                  unit: subscription.usageUnit,
+                  dailyRate: subscription.usageDailyRate.toLocaleString(locale),
+                })}
+              </span>
             </DetailRow>
           ) : null}
           {isBuyout ? (

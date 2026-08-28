@@ -511,3 +511,97 @@ describe("subscription custom cycle write contract", () => {
     }).success).toBe(true);
   });
 });
+
+describe("subscription usage-based contract", () => {
+  const usageBasedCollectionItem = {
+    ...recurringCollectionItem,
+    billingCycle: "usage-based",
+    usageUnit: "条",
+    usageTotal: 1000,
+    usageDailyRate: 10,
+    // 量包必须有真实开始日期作为耗尽日推算锚点。
+    startDate: "2026-01-01",
+    autoRenew: false,
+    autoCalculateNextBillingDate: true,
+  };
+
+  it("requires usage unit, total and daily rate on usage-based collection items", () => {
+    expect(apiSubscriptionCollectionItemSchema.safeParse(usageBasedCollectionItem).success).toBe(true);
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...usageBasedCollectionItem,
+      usageUnit: undefined,
+    }).success).toBe(false);
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...usageBasedCollectionItem,
+      usageTotal: undefined,
+    }).success).toBe(false);
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...usageBasedCollectionItem,
+      usageDailyRate: undefined,
+    }).success).toBe(false);
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...usageBasedCollectionItem,
+      usageTotal: 0,
+    }).success).toBe(false);
+  });
+
+  it("rejects auto-renew and non-positive usage fields on usage-based records", () => {
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...usageBasedCollectionItem,
+      autoRenew: true,
+    }).success).toBe(false);
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...usageBasedCollectionItem,
+      usageDailyRate: -1,
+    }).success).toBe(false);
+  });
+
+  it("keeps usage fields out of recurring collection items", () => {
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...recurringCollectionItem,
+      usageTotal: 1000,
+    }).success).toBe(false);
+  });
+
+  it("requires consistent usage fields on usage-based create payloads", () => {
+    expect(subscriptionCreateBodySchema.safeParse({
+      ...recurringBody,
+      billingCycle: "usage-based",
+      usageUnit: "GB",
+      usageTotal: 500,
+      usageDailyRate: 2.5,
+      startDate: "2026-01-01",
+      nextBillingDate: "2026-07-01",
+      autoRenew: false,
+    }).success).toBe(true);
+    expect(subscriptionCreateBodySchema.safeParse({
+      ...recurringBody,
+      billingCycle: "usage-based",
+      usageTotal: 500,
+      usageDailyRate: 2.5,
+      startDate: "2026-01-01",
+      nextBillingDate: "2026-07-01",
+      autoRenew: false,
+    }).success).toBe(false);
+    expect(subscriptionCreateBodySchema.safeParse({
+      ...recurringBody,
+      usageUnit: "GB",
+      usageTotal: 500,
+      usageDailyRate: 2.5,
+    }).success).toBe(false);
+  });
+
+  it("rejects usage-based payloads whose estimated days exceed the limit", () => {
+    // ceil(1_000_000 / 0.1) = 10_000_000 天，远超 3650 天上限。
+    expect(subscriptionCreateBodySchema.safeParse({
+      ...recurringBody,
+      billingCycle: "usage-based",
+      usageUnit: "条",
+      usageTotal: 1_000_000,
+      usageDailyRate: 0.1,
+      startDate: "2026-01-01",
+      nextBillingDate: "2026-07-01",
+      autoRenew: false,
+    }).success).toBe(false);
+  });
+});

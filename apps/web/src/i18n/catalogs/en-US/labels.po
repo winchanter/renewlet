@@ -194,6 +194,11 @@ msgid "cycle.oneTime"
 msgstr "One-time purchase"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/labels.ts:40
+msgid "cycle.usageBased"
+msgstr "Usage-based"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/labels.ts:13
 msgid "category.cloudStorage"
 msgstr "Cloud Storage"

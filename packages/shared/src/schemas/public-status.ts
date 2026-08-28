@@ -82,6 +82,8 @@ const publicStatusSubscriptionSchema = z.object({
   customCycleUnit: z.enum(CUSTOM_CYCLE_UNITS).optional(),
   oneTimeTermCount: z.number().int().positive().max(3650).optional(),
   oneTimeTermUnit: z.enum(CUSTOM_CYCLE_UNITS).optional(),
+  usageTotal: z.number().finite().positive().max(1_000_000_000).optional(),
+  usageDailyRate: z.number().finite().positive().max(1_000_000_000).optional(),
 }).strict().refine((value) => (value.price === undefined) === (value.currency === undefined), {
   path: ["price"],
   message: "Price and currency must be included together",
@@ -93,23 +95,40 @@ const publicStatusSubscriptionSchema = z.object({
     return value.customDays === undefined
       && value.customCycleUnit === undefined
       && value.oneTimeTermCount === undefined
-      && value.oneTimeTermUnit === undefined;
+      && value.oneTimeTermUnit === undefined
+      && value.usageTotal === undefined
+      && value.usageDailyRate === undefined;
   }
   if (value.billingCycle === "custom") {
     return value.customDays !== undefined
       && value.customCycleUnit !== undefined
       && value.oneTimeTermCount === undefined
-      && value.oneTimeTermUnit === undefined;
+      && value.oneTimeTermUnit === undefined
+      && value.usageTotal === undefined
+      && value.usageDailyRate === undefined;
   }
   if (value.billingCycle === "one-time") {
     return value.customDays === undefined
       && value.customCycleUnit === undefined
-      && (value.oneTimeTermCount === undefined) === (value.oneTimeTermUnit === undefined);
+      && (value.oneTimeTermCount === undefined) === (value.oneTimeTermUnit === undefined)
+      && value.usageTotal === undefined
+      && value.usageDailyRate === undefined;
+  }
+  if (value.billingCycle === "usage-based") {
+    // 公开页只投影月均摊销所需字段；量包单位不在公开 allowlist。
+    return value.customDays === undefined
+      && value.customCycleUnit === undefined
+      && value.oneTimeTermCount === undefined
+      && value.oneTimeTermUnit === undefined
+      && value.usageTotal !== undefined
+      && value.usageDailyRate !== undefined;
   }
   return value.customDays === undefined
     && value.customCycleUnit === undefined
     && value.oneTimeTermCount === undefined
-    && value.oneTimeTermUnit === undefined;
+    && value.oneTimeTermUnit === undefined
+    && value.usageTotal === undefined
+    && value.usageDailyRate === undefined;
 }, {
   path: ["billingCycle"],
   message: "Billing cycle fields are inconsistent",

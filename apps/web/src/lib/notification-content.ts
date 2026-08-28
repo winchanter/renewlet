@@ -272,8 +272,9 @@ export function collectNotificationItemsForLocalDate(
           });
         }
       } else if (daysUntilNext === reminderDays) {
+        // one-time 服务期与 usage-based 量包的 nextBillingDate 都是到期边界，提醒语义是 expiry 而不是续费。
         items.push({
-          type: isOneTime ? "expiry" : "renewal",
+          type: isOneTime || sub.billingCycle === "usage-based" ? "expiry" : "renewal",
           subscriptionId: sub.id,
           name: sub.name,
           price: sub.price,

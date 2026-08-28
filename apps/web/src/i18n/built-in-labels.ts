@@ -41,6 +41,7 @@ export const BUILT_IN_LABELS = {
   "cycle.oneTime": { "zh-CN": "一次性购买", "en-US": "One-time purchase" },
   "cycle.quarterly": { "zh-CN": "每季", "en-US": "Quarterly" },
   "cycle.semiAnnual": { "zh-CN": "每半年", "en-US": "Semiannual" },
+  "cycle.usageBased": { "zh-CN": "按量", "en-US": "Usage-based" },
   "cycle.weekly": { "zh-CN": "每周", "en-US": "Weekly" },
   "payment.affirm": { "zh-CN": "Affirm", "en-US": "Affirm" },
   "payment.alipay": { "zh-CN": "支付宝", "en-US": "Alipay" },

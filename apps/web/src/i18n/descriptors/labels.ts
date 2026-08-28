@@ -37,6 +37,7 @@ export const messages = [
   msg({ id: "cycle.annual", message: "每年" }),
   msg({ id: "cycle.custom", message: "自定义" }),
   msg({ id: "cycle.oneTime", message: "一次性购买" }),
+  msg({ id: "cycle.usageBased", message: "按量" }),
   msg({ id: "channel.telegram", message: "Telegram" }),
   msg({ id: "channel.notifyx", message: "Notifyx" }),
   msg({ id: "channel.webhook", message: "Webhook 通知" }),

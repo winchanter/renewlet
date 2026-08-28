@@ -171,7 +171,7 @@ const subscriptionCollectionContractFixtureSchema = z.object({
   boundedCollectionRoutes: z.array(z.string().startsWith("/api/app/subscriptions")).min(1),
   invalidQueryRoutes: z.array(z.string().startsWith("/api/app/subscriptions")).min(1),
   detailOnlyFields: z.array(z.string().min(1)).min(1),
-  collectionItems: z.array(apiSubscriptionCollectionItemSchema).length(4),
+  collectionItems: z.array(apiSubscriptionCollectionItemSchema).length(5),
   completeSubscription: apiSubscriptionSchema,
 }).strict();
 

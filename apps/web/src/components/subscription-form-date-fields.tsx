@@ -32,11 +32,13 @@ export function SubscriptionFormDateFields({ id, formData, update, errors }: Sub
   const nextBillingDateErrorId = id("nextBillingDate-error");
   // 当非法到期日被清空后，打开到期日历应落在开始日所在月份，让下一个合法选择直接可见。
   const nextBillingDateCalendarMonth = formData.nextBillingDate ?? formData.startDate;
-  const isNextBillingDateDisabled = formData.autoCalculate || formData.billingCycle === "one-time";
+  const isUsageBased = formData.billingCycle === "usage-based";
+  // usage-based 的耗尽日由量包字段推算，与 one-time 固定服务期一样不允许手动改写。
+  const isNextBillingDateDisabled = formData.autoCalculate || formData.billingCycle === "one-time" || isUsageBased;
   const isOneTimeBuyout = formData.billingCycle === "one-time" && formData.oneTimeMode === "buyout";
-  const showAutoCalculate = formData.billingCycle !== "one-time";
-  const isRecurringStartDateOptional = formData.billingCycle !== "one-time" && !formData.autoCalculate;
-  const requiredStartDateLabel = formData.billingCycle === "one-time"
+  const showAutoCalculate = formData.billingCycle !== "one-time" && !isUsageBased;
+  const isRecurringStartDateOptional = formData.billingCycle !== "one-time" && !isUsageBased && !formData.autoCalculate;
+  const requiredStartDateLabel = formData.billingCycle === "one-time" || isUsageBased
     ? t("subscription.field.purchaseDate")
     : t("subscription.field.startDate");
   const startDateLabel = isRecurringStartDateOptional
@@ -44,7 +46,9 @@ export function SubscriptionFormDateFields({ id, formData, update, errors }: Sub
     : requiredStartDateLabel;
   const nextBillingDateLabel = formData.billingCycle === "one-time"
     ? t("subscription.field.expiryDate")
-    : t("subscription.field.nextBillingDate");
+    : isUsageBased
+      ? t("subscription.field.usageExhaustionDate")
+      : t("subscription.field.nextBillingDate");
   const dateValidationKind = errors.dates ? getSubscriptionDateValidationKind(formData) : null;
   const dateErrorTarget: "start" | "next" | null =
     dateValidationKind === "purchaseDateRequired" || dateValidationKind === "startDateRequiredForAutoCalculate"
@@ -61,9 +65,11 @@ export function SubscriptionFormDateFields({ id, formData, update, errors }: Sub
   const nextBillingDateHelp =
     formData.billingCycle === "one-time" && formData.oneTimeMode === "term"
       ? t("subscription.oneTimeTermDateHelp")
-      : formData.autoCalculate
-        ? t("subscription.autoCalculateHelp")
-        : null;
+      : isUsageBased
+        ? t("subscription.usageExhaustionDateHelp")
+        : formData.autoCalculate
+          ? t("subscription.autoCalculateHelp")
+          : null;
   const isTrial = formData.status === "trial";
   const trialEndDateCalendarMonth = formData.trialEndDate ?? formData.nextBillingDate ?? formData.startDate;
   return (

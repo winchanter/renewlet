@@ -15,11 +15,13 @@ import { CYCLE_LABELS } from "@/types/subscription";
 import {
   calculateNextBillingDate as calculateSharedNextBillingDate,
   calculateOneTimeTermEndDate as calculateSharedOneTimeTermEndDate,
+  calculateUsageExhaustionDate as calculateSharedUsageExhaustionDate,
   isOneTimeBuyout,
   isOneTimeFixedTerm,
   toDailyAmountFromMonthly,
   toMonthlyAmount,
   toSubscriptionMonthlyAmount,
+  usageBasedEstimatedDays,
 } from "@renewlet/shared/subscription-billing";
 import { requireCustomBillingCycle } from "@renewlet/shared/subscription-renewal";
 
@@ -29,6 +31,7 @@ export {
   toDailyAmountFromMonthly,
   toMonthlyAmount,
   toSubscriptionMonthlyAmount,
+  usageBasedEstimatedDays,
 };
 
 /**
@@ -60,6 +63,15 @@ export function calculateOneTimeTermEndDate(
   unit: CustomCycleUnit,
 ): DateOnly {
   return calculateSharedOneTimeTermEndDate(startDate, count, unit) as DateOnly;
+}
+
+/** 预付量包的预计耗尽日 = 购买日 + ceil(总量/日均)，作为 nextBillingDate 驱动到期提醒。 */
+export function calculateUsageExhaustionDate(
+  startDate: DateOnly,
+  usageTotal: number,
+  usageDailyRate: number,
+): DateOnly {
+  return calculateSharedUsageExhaustionDate(startDate, usageTotal, usageDailyRate) as DateOnly;
 }
 
 export function customCycleUnitLabelKey(unit: CustomCycleUnit): `subscription.customCycleUnit.${CustomCycleUnit}` {

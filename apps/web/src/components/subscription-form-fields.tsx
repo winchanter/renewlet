@@ -32,11 +32,11 @@ import {
   REPEAT_REMINDER_WINDOW_OPTIONS,
 } from "@/types/subscription";
 import type { SubscriptionFormReminderType, SubscriptionFormState } from "@/types/subscription-form";
-import { toReminderDays } from "@/lib/subscription-form";
-import { customCycleUnitLabelKey } from "@/lib/subscription-billing";
+import { parseUsageFormFields, toReminderDays } from "@/lib/subscription-form";
+import { customCycleUnitLabelKey, usageBasedEstimatedDays } from "@/lib/subscription-billing";
 import { useI18n } from "@/i18n/I18nProvider";
 import { localizedLabel } from "@/i18n/locales";
-import { getErrorFieldsToClearForFormChange, type SubscriptionFormErrors, type SubscriptionFormFieldsProps } from "@/components/subscription-form-fields-model";
+import { getErrorFieldsToClearForFormChange, type SubscriptionFormErrors, type SubscriptionFormFieldUpdater, type SubscriptionFormFieldsProps } from "@/components/subscription-form-fields-model";
 
 export type { SubscriptionFormReminderType };
 export type { SubscriptionFormState };
@@ -65,6 +65,68 @@ function disableCollectionReminder(costSharing: CostSharing | undefined): CostSh
   };
 }
 
+interface UsagePackageFieldsProps {
+  id: (name: string) => string;
+  formData: SubscriptionFormState;
+  update: SubscriptionFormFieldUpdater;
+  errors: SubscriptionFormErrors;
+}
+
+/** usage-based 预付量包输入：单位 + 总量 + 日均消耗预估，耗尽日由 auto-dates hook 推算并回填。 */
+function UsagePackageFields({ id, formData, update, errors }: UsagePackageFieldsProps) {
+  const { t } = useI18n();
+  const usage = parseUsageFormFields(formData);
+  const estimatedDays = usage ? usageBasedEstimatedDays(usage.total, usage.dailyRate) : null;
+  return (
+    <FormField
+      id={id("usageTotal")}
+      label={t("subscription.field.usagePackage")}
+      description={estimatedDays !== null ? t("subscription.usageEstimatedDays", { days: estimatedDays }) : undefined}
+      descriptionId={id("usage-help")}
+      error={errors.usage}
+      errorId={id("usage-error")}
+    >
+      {(field) => (
+        <div className="grid gap-2 sm:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)]" data-testid="usage-package-inline-control">
+          <Input
+            id={id("usageUnit")} name={id("usageUnit")} enterKeyHint="next"
+            placeholder={t("subscription.placeholder.usageUnit")}
+            value={formData.usageUnit}
+            onChange={(e) => update("usageUnit", e.target.value)}
+            aria-label={t("subscription.field.usageUnit")}
+            className="border-border bg-secondary"
+          />
+          <NumericInput
+            id={field.id} name={field.id}
+            allowNegative={false}
+            inputMode="decimal" enterKeyHint="next"
+            placeholder={t("subscription.placeholder.usageTotal")}
+            thousandSeparator
+            value={formData.usageTotal}
+            onRawValueChange={(value: string) => update("usageTotal", value)}
+            aria-label={t("subscription.field.usageTotal")}
+            aria-invalid={field.invalid}
+            aria-describedby={field.describedBy}
+            className="min-w-0 border-border bg-secondary"
+          />
+          <NumericInput
+            id={id("usageDailyRate")} name={id("usageDailyRate")}
+            allowNegative={false}
+            inputMode="decimal" enterKeyHint="next"
+            placeholder={t("subscription.placeholder.usageDailyRate")}
+            value={formData.usageDailyRate}
+            onRawValueChange={(value: string) => update("usageDailyRate", value)}
+            aria-label={t("subscription.field.usageDailyRate")}
+            aria-invalid={field.invalid}
+            aria-describedby={field.describedBy}
+            className="min-w-0 border-border bg-secondary"
+          />
+        </div>
+      )}
+    </FormField>
+  );
+}
+
 export const SubscriptionFormFields = memo(function SubscriptionFormFields({
   idPrefix,
   config,
@@ -89,6 +151,8 @@ export const SubscriptionFormFields = memo(function SubscriptionFormFields({
         const nextBillingCycle = value as BillingCycle;
         const leavingImplicitBuyoutReminder =
           prev.billingCycle === "one-time" && prev.oneTimeMode === "buyout" && prev.reminderType === "disabled";
+        // one-time 与 usage-based 都没有自动续订语义：前者无扣费周期，后者的量包必须由用户购买新包推进。
+        const isFixedBoundaryCycle = nextBillingCycle === "one-time" || nextBillingCycle === "usage-based";
         return {
           ...prev,
           billingCycle: nextBillingCycle,
@@ -99,12 +163,16 @@ export const SubscriptionFormFields = memo(function SubscriptionFormFields({
           oneTimeTermCount: nextBillingCycle === "one-time" ? prev.oneTimeTermCount || "1" : prev.oneTimeTermCount,
           oneTimeTermUnit: nextBillingCycle === "one-time" ? prev.oneTimeTermUnit || "month" : prev.oneTimeTermUnit,
           // autoRenew 默认关闭；从 one-time 切回周期时保留用户当前选择，不把沉默状态改成自动续订。
-          autoRenew: nextBillingCycle === "one-time" ? false : prev.autoRenew,
-          autoCalculate: nextBillingCycle === "one-time" ? false : prev.autoCalculate,
-          nextBillingDate: nextBillingCycle === "one-time" ? prev.startDate : prev.nextBillingDate,
+          autoRenew: isFixedBoundaryCycle ? false : prev.autoRenew,
+          autoCalculate: isFixedBoundaryCycle ? false : prev.autoCalculate,
+          nextBillingDate: isFixedBoundaryCycle ? prev.startDate : prev.nextBillingDate,
           costSharing: nextBillingCycle === "one-time" ? disableCollectionReminder(prev.costSharing) : prev.costSharing,
-          ...(nextBillingCycle === "one-time"
-            ? disabledReminderFields()
+          ...(isFixedBoundaryCycle
+            ? nextBillingCycle === "one-time"
+              ? disabledReminderFields()
+              : leavingImplicitBuyoutReminder
+                ? inheritedReminderFields()
+                : {}
             : leavingImplicitBuyoutReminder
               ? inheritedReminderFields()
               : {}),
@@ -498,7 +566,7 @@ export const SubscriptionFormFields = memo(function SubscriptionFormFields({
         </FormField>
       ) : null}
 
-      {(formData.billingCycle === "custom" || formData.billingCycle === "one-time") && (
+      {(formData.billingCycle === "custom" || formData.billingCycle === "one-time" || formData.billingCycle === "usage-based") && (
         <div className="grid gap-2">
           <Label htmlFor={id("paymentMethod")}>{t("subscription.field.paymentMethod")}</Label>
           <SubscriptionPaymentMethodSelect
@@ -513,7 +581,16 @@ export const SubscriptionFormFields = memo(function SubscriptionFormFields({
         </div>
       )}
 
-      {formData.billingCycle !== "one-time" ? (
+      {formData.billingCycle === "usage-based" ? (
+        <UsagePackageFields
+          id={id}
+          formData={formData}
+          update={update}
+          errors={errors}
+        />
+      ) : null}
+
+      {formData.billingCycle !== "one-time" && formData.billingCycle !== "usage-based" ? (
         <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-secondary/30 p-3">
           <div className="min-w-0">
             <Label htmlFor={id("autoRenew")} className="cursor-pointer text-sm font-medium">

@@ -38,6 +38,7 @@ describe("contract fixtures", () => {
       ["custom", null, true],
       ["one-time", null, false],
       ["one-time", 6, false],
+      ["usage-based", null, true],
     ]);
   });
 });

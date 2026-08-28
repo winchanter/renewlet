@@ -194,6 +194,11 @@ msgid "cycle.oneTime"
 msgstr "一次性购买"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/labels.ts:40
+msgid "cycle.usageBased"
+msgstr "按量"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/labels.ts:13
 msgid "category.cloudStorage"
 msgstr "云存储"

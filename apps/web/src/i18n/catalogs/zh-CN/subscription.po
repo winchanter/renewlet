@@ -639,6 +639,61 @@ msgid "subscription.oneTimeTermHelp"
 msgstr "价格会按整段服务期摊入月均和年化支出，到期日可提醒但不视为自动续费。"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:165
+msgid "subscription.field.usagePackage"
+msgstr "量包"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:166
+msgid "subscription.field.usageUnit"
+msgstr "单位"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:167
+msgid "subscription.field.usageTotal"
+msgstr "总量"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:168
+msgid "subscription.field.usageDailyRate"
+msgstr "日均消耗"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:169
+msgid "subscription.placeholder.usageUnit"
+msgstr "如：条、GB、次"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:170
+msgid "subscription.placeholder.usageTotal"
+msgstr "总量，如 1000"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:171
+msgid "subscription.placeholder.usageDailyRate"
+msgstr "日均，如 10"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:172
+msgid "subscription.usageEstimatedDays"
+msgstr "按当前日均约可用 {days} 天"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:173
+msgid "subscription.field.usageExhaustionDate"
+msgstr "预计耗尽日"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:174
+msgid "subscription.usageExhaustionDateHelp"
+msgstr "由购买日和总量/日均自动推算，量包用完前会按提醒设置通知。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:175
+msgid "subscription.validation.usageFieldsInvalid"
+msgstr "请填写量包的单位、总量和日均消耗，日均过小时推算天数会超出上限。"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:516
 msgid "aiRecognition.imageOptimizingCount"
 msgstr "优化中 {count} 张"
@@ -3002,6 +3057,11 @@ msgstr "试用期将于 {date} 结束"
 #: src/i18n/descriptors/subscription.ts:228
 msgid "subscription.detail.trialEndDate"
 msgstr "试用结束"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:242
+msgid "subscription.detail.usageSummary"
+msgstr "共 {total} {unit}，日均 {dailyRate}"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:638

@@ -165,6 +165,48 @@ describe("public status schemas", () => {
     })).success).toBe(true);
   });
 
+  it("projects usage-based quantities only together with prices and billing cycle", () => {
+    const publicResponse = (subscription: Record<string, unknown>) => success({
+      page: {
+        title: "Renewlet",
+        showPrices: true,
+        currency: "USD",
+        generatedAt: "2026-06-07T00:00:00.000Z",
+        truncated: false,
+      },
+      subscriptions: [{
+        name: "SMS Pack",
+        category: { value: "communication", label: "Communication" },
+        status: "active",
+        startDate: "2026-01-01",
+        nextBillingDate: "2026-04-11",
+        updatedAt: "2026-06-07T00:00:00.000Z",
+        price: "50",
+        currency: "USD",
+        ...subscription,
+      }],
+    });
+
+    // usage-based 公开投影只输出月均摊销所需字段；总量与日均必须随价格同进同出。
+    expect(publicStatusResponseSchema.safeParse(publicResponse({
+      billingCycle: "usage-based",
+      usageTotal: 1000,
+      usageDailyRate: 10,
+    })).success).toBe(true);
+    expect(publicStatusResponseSchema.safeParse(publicResponse({
+      billingCycle: "usage-based",
+      usageTotal: 1000,
+    })).success).toBe(false);
+    expect(publicStatusResponseSchema.safeParse(publicResponse({
+      billingCycle: "usage-based",
+    })).success).toBe(false);
+    expect(publicStatusResponseSchema.safeParse(publicResponse({
+      billingCycle: "monthly",
+      usageTotal: 1000,
+      usageDailyRate: 10,
+    })).success).toBe(false);
+  });
+
   it("accepts inherited or explicit public status currency settings", () => {
     expect(appSettingsSchema.pick({ publicStatusCurrency: true }).parse({ publicStatusCurrency: "inherit" }).publicStatusCurrency).toBe("inherit");
     expect(appSettingsSchema.pick({ publicStatusCurrency: true }).parse({ publicStatusCurrency: "USD" }).publicStatusCurrency).toBe("USD");

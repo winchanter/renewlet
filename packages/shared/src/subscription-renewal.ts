@@ -159,7 +159,7 @@ export function calculateNextBillingDate(
   }, threshold, false);
 }
 
-/** 预付量包的预估可用天数 = ceil(总量 / 日均消耗)，钳制到推算上限；字段缺失或非正数在写入边界拒绝。 */
+/** 预付量包的预估可用天数 = ceil(总量 / 日均消耗)；字段缺失或非正数、或推算天数超过上限时在写入边界拒绝。 */
 export function usageBasedEstimatedDays(
   usageTotal: number | null | undefined,
   usageDailyRate: number | null | undefined,
@@ -170,7 +170,12 @@ export function usageBasedEstimatedDays(
   if (typeof usageDailyRate !== "number" || !Number.isFinite(usageDailyRate) || usageDailyRate <= 0) {
     throw new Error("SUBSCRIPTION_USAGE_FIELDS_INVALID");
   }
-  return Math.min(Math.ceil(usageTotal / usageDailyRate), MAX_USAGE_ESTIMATED_DAYS);
+  const days = Math.ceil(usageTotal / usageDailyRate);
+  if (days > MAX_USAGE_ESTIMATED_DAYS) {
+    // 与 Go usageEstimatedDays 的 USAGE_ESTIMATED_DAYS_TOO_HIGH 拒绝语义对齐，避免两端写入口径分叉。
+    throw new Error("SUBSCRIPTION_USAGE_ESTIMATED_DAYS_TOO_HIGH");
+  }
+  return days;
 }
 
 /** 预付量包的预计耗尽日 = 购买日 + 预估可用天数，作为 nextBillingDate 驱动提醒与过期判定。 */

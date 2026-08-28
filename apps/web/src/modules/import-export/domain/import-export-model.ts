@@ -166,6 +166,9 @@ export function subscriptionToImportSubscription(subscription: Subscription, sou
     customCycleUnit: subscription.billingCycle === "custom" ? subscription.customCycleUnit : null,
     oneTimeTermCount: subscription.billingCycle === "one-time" ? subscription.oneTimeTermCount ?? null : null,
     oneTimeTermUnit: subscription.billingCycle === "one-time" ? subscription.oneTimeTermUnit ?? null : null,
+    usageUnit: subscription.billingCycle === "usage-based" ? subscription.usageUnit ?? null : null,
+    usageTotal: subscription.billingCycle === "usage-based" ? subscription.usageTotal ?? null : null,
+    usageDailyRate: subscription.billingCycle === "usage-based" ? subscription.usageDailyRate ?? null : null,
     category: subscription.category,
     status: subscription.status,
     pinned: subscription.pinned,
@@ -173,7 +176,9 @@ export function subscriptionToImportSubscription(subscription: Subscription, sou
     paymentMethod: subscription.paymentMethod ?? null,
     startDate: subscription.startDate,
     nextBillingDate: subscription.nextBillingDate,
-    autoRenew: subscription.billingCycle === "one-time" ? false : subscription.autoRenew,
+    autoRenew: subscription.billingCycle === "one-time" || subscription.billingCycle === "usage-based"
+      ? false
+      : subscription.autoRenew,
     autoCalculateNextBillingDate: subscription.autoCalculateNextBillingDate,
     trialEndDate: subscription.trialEndDate ?? null,
     website: subscription.website ?? null,
@@ -207,7 +212,9 @@ export function subscriptionToExportRow(subscription: Subscription): RenewletExp
     ...(subscription.paymentMethod ? { paymentMethod: subscription.paymentMethod } : {}),
     startDate: subscription.startDate,
     nextBillingDate: subscription.nextBillingDate,
-    autoRenew: subscription.billingCycle === "one-time" ? false : subscription.autoRenew,
+    autoRenew: subscription.billingCycle === "one-time" || subscription.billingCycle === "usage-based"
+      ? false
+      : subscription.autoRenew,
     autoCalculateNextBillingDate: subscription.autoCalculateNextBillingDate,
     ...(subscription.trialEndDate ? { trialEndDate: subscription.trialEndDate } : {}),
     ...(subscription.website ? { website: subscription.website } : {}),
@@ -240,6 +247,16 @@ export function subscriptionToExportRow(subscription: Subscription): RenewletExp
       };
     }
     return { ...common, billingCycle: "one-time" };
+  }
+
+  if (subscription.billingCycle === "usage-based") {
+    return {
+      ...common,
+      billingCycle: "usage-based",
+      usageUnit: subscription.usageUnit,
+      usageTotal: subscription.usageTotal,
+      usageDailyRate: subscription.usageDailyRate,
+    };
   }
 
   return { ...common, billingCycle: subscription.billingCycle };

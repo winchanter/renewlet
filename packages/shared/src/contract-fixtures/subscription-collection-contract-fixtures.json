@@ -109,6 +109,26 @@
       "autoCalculateNextBillingDate": false,
       "reminderDays": 3,
       "tags": []
+    },
+    {
+      "id": "sub_collection_usage_based",
+      "name": "Collection Usage Pack",
+      "price": "50",
+      "currency": "USD",
+      "billingCycle": "usage-based",
+      "usageUnit": "条",
+      "usageTotal": 1000,
+      "usageDailyRate": 10,
+      "category": "communication",
+      "status": "active",
+      "pinned": false,
+      "publicHidden": false,
+      "startDate": "2026-01-01",
+      "nextBillingDate": "2026-04-11",
+      "autoRenew": false,
+      "autoCalculateNextBillingDate": true,
+      "reminderDays": 3,
+      "tags": []
     }
   ],
   "completeSubscription": {

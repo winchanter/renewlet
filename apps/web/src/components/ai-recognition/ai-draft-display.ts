@@ -12,6 +12,7 @@ export const BILLING_CYCLE_LABEL_KEYS: Record<BillingCycle, MessageKey> = {
   annual: "cycle.annual",
   custom: "cycle.custom",
   "one-time": "cycle.oneTime",
+  "usage-based": "cycle.usageBased",
 };
 export const STATUS_LABEL_KEYS: Record<SubscriptionStatus, MessageKey> = {
   trial: "status.trial",

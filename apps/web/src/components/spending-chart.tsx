@@ -94,6 +94,8 @@ export function SpendingChart({ subscriptions, categories, defaultCurrency, time
           sub.customCycleUnit,
           sub.oneTimeTermCount,
           sub.oneTimeTermUnit,
+          sub.usageTotal,
+          sub.usageDailyRate,
         );
         acc[sub.category] = (acc[sub.category] || 0) + monthly;
         return acc;

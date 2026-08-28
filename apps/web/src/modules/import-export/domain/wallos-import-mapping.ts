@@ -123,7 +123,9 @@ export function buildFromRenewletExport(
       paymentMethod: subscription.paymentMethod ?? null,
       startDate: subscription.startDate,
       nextBillingDate: subscription.nextBillingDate,
-      autoRenew: subscription.billingCycle === "one-time" ? false : subscription.autoRenew,
+      autoRenew: subscription.billingCycle === "one-time" || subscription.billingCycle === "usage-based"
+        ? false
+        : subscription.autoRenew,
       autoCalculateNextBillingDate: subscription.autoCalculateNextBillingDate,
       trialEndDate: subscription.trialEndDate ?? null,
       website: subscription.website ?? null,

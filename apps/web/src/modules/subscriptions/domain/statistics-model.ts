@@ -150,7 +150,8 @@ function addCashflowTrend(
   subscription: SubscriptionCollectionItem,
   amountInDefault: number,
 ) {
-  if (subscription.billingCycle === "one-time" || buckets.length === 0) return;
+  // one-time 没有周期扣费；usage-based 的量包耗尽日是到期边界而不是定期账单，都不预测未来现金流。
+  if (subscription.billingCycle === "one-time" || subscription.billingCycle === "usage-based" || buckets.length === 0) return;
 
   const firstBucket = buckets.at(0);
   const lastBucket = buckets.at(-1);
@@ -188,7 +189,7 @@ function addAmortizedTrend(
 ) {
   if (monthlyAmount <= 0) return;
 
-  if (subscription.billingCycle !== "one-time") {
+  if (subscription.billingCycle !== "one-time" && subscription.billingCycle !== "usage-based") {
     for (const bucket of buckets) {
       bucket.amortized += monthlyAmount;
       addTrendItem(bucket.amortizedItems, subscription, monthlyAmount, null);
@@ -196,8 +197,8 @@ function addAmortizedTrend(
     return;
   }
 
-  // 固定服务期 one-time 的到期日是权益结束边界，不是下一次扣费；只把服务覆盖月份计入摊销。
-  if (!subscription.oneTimeTermCount) return;
+  // 固定服务期 one-time 与预付量包的到期日都是权益结束边界，不是下一次扣费；只把覆盖月份计入摊销。
+  if (subscription.billingCycle === "one-time" && !subscription.oneTimeTermCount) return;
   if (!subscription.startDate) return;
   for (const bucket of buckets) {
     const overlapsServiceWindow =
@@ -277,6 +278,8 @@ export function buildStatisticsModel({
       subscription.customCycleUnit,
       subscription.oneTimeTermCount,
       subscription.oneTimeTermUnit,
+      subscription.usageTotal,
+      subscription.usageDailyRate,
     );
   };
 
@@ -291,7 +294,7 @@ export function buildStatisticsModel({
     return currentMonthly > maxMonthly ? subscription : max;
   }, null);
   const thisMonthDue = activeSubscriptions
-    .filter((subscription) => subscription.billingCycle !== "one-time" && isSameMonthDateOnly(subscription.nextBillingDate, today))
+    .filter((subscription) => subscription.billingCycle !== "one-time" && subscription.billingCycle !== "usage-based" && isSameMonthDateOnly(subscription.nextBillingDate, today))
     .reduce((sum, subscription) => sum + convertToDefault(amountForStats(subscription), subscription.currency), 0);
   const budgetUsedPercent = monthlyBudgetAmount > 0 ? (totalMonthly / monthlyBudgetAmount) * 100 : 0;
   const budgetRemaining = monthlyBudgetAmount - totalMonthly;

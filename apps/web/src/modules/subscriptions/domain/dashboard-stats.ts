@@ -41,6 +41,8 @@ export function buildDashboardStats({
       subscription.customCycleUnit,
       subscription.oneTimeTermCount,
       subscription.oneTimeTermUnit,
+      subscription.usageTotal,
+      subscription.usageDailyRate,
     );
   }, 0);
   const totalDaily = toDailyAmountFromMonthly(totalMonthly);

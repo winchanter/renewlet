@@ -47,6 +47,10 @@ export type SubscriptionFormState = {
   oneTimeMode: OneTimePurchaseMode;
   oneTimeTermCount: string;
   oneTimeTermUnit: CustomCycleUnit;
+  /** usage-based 预付量包：单位、总量与日均消耗预估；UI 输入态为字符串，提交边界转数字。 */
+  usageUnit: string;
+  usageTotal: string;
+  usageDailyRate: string;
   category: Category;
   status: SubscriptionStatus;
   publicHidden: boolean;
@@ -85,6 +89,9 @@ export function createSubscriptionFormState(
     oneTimeMode: "buyout",
     oneTimeTermCount: "1",
     oneTimeTermUnit: "month",
+    usageUnit: "",
+    usageTotal: "",
+    usageDailyRate: "",
     category: "productivity",
     status: "active",
     publicHidden: false,

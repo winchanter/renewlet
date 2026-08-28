@@ -639,6 +639,61 @@ msgid "subscription.oneTimeTermHelp"
 msgstr "The price is amortized into monthly average and annualized spend across the full service term. The expiry can be reminded, but is not treated as auto-renewal."
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:165
+msgid "subscription.field.usagePackage"
+msgstr "Usage package"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:166
+msgid "subscription.field.usageUnit"
+msgstr "Unit"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:167
+msgid "subscription.field.usageTotal"
+msgstr "Total"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:168
+msgid "subscription.field.usageDailyRate"
+msgstr "Daily usage"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:169
+msgid "subscription.placeholder.usageUnit"
+msgstr "e.g. SMS, GB, runs"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:170
+msgid "subscription.placeholder.usageTotal"
+msgstr "Total, e.g. 1000"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:171
+msgid "subscription.placeholder.usageDailyRate"
+msgstr "Daily, e.g. 10"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:172
+msgid "subscription.usageEstimatedDays"
+msgstr "Estimated to last about {days} days at this rate"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:173
+msgid "subscription.field.usageExhaustionDate"
+msgstr "Est. exhaustion date"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:174
+msgid "subscription.usageExhaustionDateHelp"
+msgstr "Calculated from the purchase date and total/daily usage; you will be reminded before it runs out."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:175
+msgid "subscription.validation.usageFieldsInvalid"
+msgstr "Fill in the usage unit, total and daily rate; a too-small daily rate pushes the estimate beyond the limit."
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:516
 msgid "aiRecognition.imageOptimizingCount"
 msgstr "Optimizing {count} images"
@@ -3002,6 +3057,11 @@ msgstr "Trial ends on {date}"
 #: src/i18n/descriptors/subscription.ts:228
 msgid "subscription.detail.trialEndDate"
 msgstr "Trial ends"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/subscription.ts:242
+msgid "subscription.detail.usageSummary"
+msgstr "{total} {unit} total, {dailyRate}/day"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:638

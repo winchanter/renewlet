@@ -403,12 +403,18 @@ const apiSubscriptionCollectionItemShape = {
 } satisfies z.ZodRawShape;
 
 const recurringBillingCycles = ["weekly", "monthly", "quarterly", "semi-annual", "annual"] as const;
+const apiUsageAbsentCycleShape = {
+  usageUnit: z.never().optional(),
+  usageTotal: z.never().optional(),
+  usageDailyRate: z.never().optional(),
+} satisfies z.ZodRawShape;
 const apiRecurringCycleShape = {
   billingCycle: z.enum(recurringBillingCycles),
   customDays: z.never().optional(),
   customCycleUnit: z.never().optional(),
   oneTimeTermCount: z.never().optional(),
   oneTimeTermUnit: z.never().optional(),
+  ...apiUsageAbsentCycleShape,
 } satisfies z.ZodRawShape;
 const apiCustomCycleShape = {
   billingCycle: z.literal("custom"),
@@ -416,6 +422,7 @@ const apiCustomCycleShape = {
   customCycleUnit: z.enum(CUSTOM_CYCLE_UNITS),
   oneTimeTermCount: z.never().optional(),
   oneTimeTermUnit: z.never().optional(),
+  ...apiUsageAbsentCycleShape,
 } satisfies z.ZodRawShape;
 const apiOneTimeBuyoutCycleShape = {
   billingCycle: z.literal("one-time"),
@@ -423,6 +430,7 @@ const apiOneTimeBuyoutCycleShape = {
   customCycleUnit: z.never().optional(),
   oneTimeTermCount: z.never().optional(),
   oneTimeTermUnit: z.never().optional(),
+  ...apiUsageAbsentCycleShape,
 } satisfies z.ZodRawShape;
 const apiOneTimeFixedTermCycleShape = {
   billingCycle: z.literal("one-time"),
@@ -430,6 +438,7 @@ const apiOneTimeFixedTermCycleShape = {
   customCycleUnit: z.never().optional(),
   oneTimeTermCount: oneTimeTermCountSchema,
   oneTimeTermUnit: oneTimeTermUnitSchema,
+  ...apiUsageAbsentCycleShape,
 } satisfies z.ZodRawShape;
 const apiUsageBasedCycleShape = {
   billingCycle: z.literal("usage-based"),

@@ -175,10 +175,11 @@ type SubscriptionCollectionItemFromApi<T> =
 export type SubscriptionCollectionItem = SubscriptionCollectionItemFromApi<ApiSubscriptionCollectionItem>;
 export type RecurringCycleSubscriptionCollectionItem = Extract<
   SubscriptionCollectionItem,
-  { billingCycle: Exclude<BillingCycle, "custom" | "one-time"> }
+  { billingCycle: Exclude<BillingCycle, "custom" | "one-time" | "usage-based"> }
 >;
 export type CustomCycleSubscriptionCollectionItem = Extract<SubscriptionCollectionItem, { billingCycle: "custom" }>;
 export type OneTimeSubscriptionCollectionItem = Extract<SubscriptionCollectionItem, { billingCycle: "one-time" }>;
+export type UsageBasedSubscriptionCollectionItem = Extract<SubscriptionCollectionItem, { billingCycle: "usage-based" }>;
 export type OneTimeFixedTermSubscriptionCollectionItem = Extract<
   OneTimeSubscriptionCollectionItem,
   { oneTimeTermCount: number; oneTimeTermUnit: CustomCycleUnit }
@@ -205,10 +206,11 @@ type SubscriptionFromApi<T extends ApiSubscription> = T extends ApiSubscription
 export type Subscription = SubscriptionFromApi<ApiSubscription>;
 export type RecurringCycleSubscription = Extract<
   Subscription,
-  { billingCycle: Exclude<BillingCycle, "custom" | "one-time"> }
+  { billingCycle: Exclude<BillingCycle, "custom" | "one-time" | "usage-based"> }
 >;
 export type CustomCycleSubscription = Extract<Subscription, { billingCycle: "custom" }>;
 export type OneTimeSubscription = Extract<Subscription, { billingCycle: "one-time" }>;
+export type UsageBasedSubscription = Extract<Subscription, { billingCycle: "usage-based" }>;
 export type OneTimeFixedTermSubscription = Extract<
   OneTimeSubscription,
   { oneTimeTermCount: number; oneTimeTermUnit: CustomCycleUnit }
@@ -409,6 +411,7 @@ export const CYCLE_LABELS: Record<BillingCycle, LocalizedLabels> = {
   annual: labelsFromCatalog("cycle.annual"),
   custom: labelsFromCatalog("cycle.custom"),
   'one-time': labelsFromCatalog("cycle.oneTime"),
+  'usage-based': labelsFromCatalog("cycle.usageBased"),
 };
 
 export const CHANNEL_LABELS: Record<NotificationChannel, LocalizedLabels> = {

@@ -206,7 +206,8 @@ describe("use-subscriptions mutations", () => {
       autoRenew: false,
     });
     expect(payload).not.toHaveProperty("user");
-    expect(payload).not.toHaveProperty("trialEndDate");
+    // trialEndDate 现归表单所有：非试用态显式发送 null 清空，而不是省略字段。
+    expect(payload.trialEndDate).toBeNull();
   });
 
   it("sends nullable start dates for manual recurring creates", async () => {
@@ -249,7 +250,8 @@ describe("use-subscriptions mutations", () => {
     });
     expect(payload).not.toHaveProperty("pinned");
     expect(payload).not.toHaveProperty("extra");
-    expect(payload).not.toHaveProperty("trialEndDate");
+    // trialEndDate 现归表单所有：非试用态显式发送 null 清空，而不是省略字段。
+    expect(payload.trialEndDate).toBeNull();
   });
 
   it("sends only quick-action fields through the patch mutation", async () => {

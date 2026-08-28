@@ -41,6 +41,9 @@ export const errorFieldByFormKey: Partial<Record<keyof SubscriptionFormState, Su
   oneTimeMode: "oneTimeTerm",
   oneTimeTermCount: "oneTimeTerm",
   oneTimeTermUnit: "oneTimeTerm",
+  usageUnit: "usage",
+  usageTotal: "usage",
+  usageDailyRate: "usage",
   startDate: "dates",
   nextBillingDate: "dates",
   reminderType: "reminderDays",
@@ -53,7 +56,7 @@ export const errorFieldByFormKey: Partial<Record<keyof SubscriptionFormState, Su
 
 const structuralErrorFieldsByFormKey: Partial<Record<keyof SubscriptionFormState, readonly SubscriptionFormErrorField[]>> = {
   // 这些字段会重塑日期、普通提醒和家庭收款提醒含义；旧提交错误必须失效，下一次提交再按当前形态重新生成。
-  billingCycle: ["billingCycle", "dates", "customDays", "oneTimeTerm", "reminderDays", "costSharing"],
+  billingCycle: ["billingCycle", "dates", "customDays", "oneTimeTerm", "usage", "reminderDays", "costSharing"],
   oneTimeMode: ["dates", "oneTimeTerm", "reminderDays", "costSharing"],
   autoCalculate: ["dates"],
 };

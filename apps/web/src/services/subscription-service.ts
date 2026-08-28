@@ -114,7 +114,9 @@ function fromApiSubscriptionCollectionBase(
     paymentMethod: parsedRow.paymentMethod,
     startDate: parsedRow.startDate === null ? null : assertDateOnly(parsedRow.startDate),
     nextBillingDate: assertDateOnly(parsedRow.nextBillingDate),
-    autoRenew: parsedRow.billingCycle === "one-time" ? false : parsedRow.autoRenew,
+    autoRenew: parsedRow.billingCycle === "one-time" || parsedRow.billingCycle === "usage-based"
+      ? false
+      : parsedRow.autoRenew,
     autoCalculateNextBillingDate: parsedRow.billingCycle === "one-time"
       ? false
       : parsedRow.autoCalculateNextBillingDate,
@@ -165,6 +167,15 @@ function withCollectionBillingCycle(
       billingCycle: "one-time",
     };
   }
+  if (parsedRow.billingCycle === "usage-based") {
+    return {
+      ...base,
+      billingCycle: "usage-based",
+      usageUnit: parsedRow.usageUnit,
+      usageTotal: parsedRow.usageTotal,
+      usageDailyRate: parsedRow.usageDailyRate,
+    };
+  }
   return {
     ...base,
     billingCycle: parsedRow.billingCycle,
@@ -208,12 +219,17 @@ function toSubscriptionFormPayload(submission: SubscriptionFormSubmission) {
     customCycleUnit: submission.customCycleUnit ?? null,
     oneTimeTermCount: submission.oneTimeTermCount ?? null,
     oneTimeTermUnit: submission.oneTimeTermUnit ?? null,
+    usageUnit: submission.usageUnit ?? null,
+    usageTotal: submission.usageTotal ?? null,
+    usageDailyRate: submission.usageDailyRate ?? null,
     category: submission.category,
     status: submission.status,
     paymentMethod: submission.paymentMethod ?? null,
     startDate: submission.startDate,
     nextBillingDate: submission.nextBillingDate,
-    autoRenew: submission.billingCycle === "one-time" ? false : submission.autoRenew,
+    autoRenew: submission.billingCycle === "one-time" || submission.billingCycle === "usage-based"
+      ? false
+      : submission.autoRenew,
     autoCalculateNextBillingDate: submission.autoCalculateNextBillingDate,
     publicHidden: submission.publicHidden,
     website: submission.website ?? null,

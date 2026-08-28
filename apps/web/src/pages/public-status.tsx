@@ -246,6 +246,8 @@ function publicStatusMonthlyTotal(
       subscription.customCycleUnit,
       subscription.oneTimeTermCount,
       subscription.oneTimeTermUnit,
+      subscription.usageTotal,
+      subscription.usageDailyRate,
     );
     return Number.isFinite(monthly) ? sum + monthly : sum;
   }, 0);
@@ -429,6 +431,8 @@ function publicSubscriptionDailyAmount(subscription: PublicStatusSubscription) {
     subscription.customCycleUnit,
     subscription.oneTimeTermCount,
     subscription.oneTimeTermUnit,
+    subscription.usageTotal,
+    subscription.usageDailyRate,
   );
   return Number.isFinite(monthlyAmount)
     ? toDailyAmountFromMonthly(monthlyAmount)

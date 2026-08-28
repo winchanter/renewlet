@@ -194,6 +194,9 @@ function isCreateFormPristine(formData: SubscriptionFormState): boolean {
     formData.oneTimeMode === baseline.oneTimeMode &&
     formData.oneTimeTermCount === baseline.oneTimeTermCount &&
     formData.oneTimeTermUnit === baseline.oneTimeTermUnit &&
+    formData.usageUnit === baseline.usageUnit &&
+    formData.usageTotal === baseline.usageTotal &&
+    formData.usageDailyRate === baseline.usageDailyRate &&
     formData.category === baseline.category &&
     formData.status === baseline.status &&
     formData.publicHidden === baseline.publicHidden &&
@@ -232,6 +235,9 @@ function subscriptionToFormState(subscription: Subscription): SubscriptionFormSt
     oneTimeMode: subscription.billingCycle === "one-time" && subscription.oneTimeTermCount && subscription.oneTimeTermUnit ? "term" : "buyout",
     oneTimeTermCount: subscription.billingCycle === "one-time" && subscription.oneTimeTermCount ? subscription.oneTimeTermCount.toString() : "1",
     oneTimeTermUnit: subscription.billingCycle === "one-time" ? subscription.oneTimeTermUnit ?? "month" : "month",
+    usageUnit: subscription.billingCycle === "usage-based" ? subscription.usageUnit ?? "" : "",
+    usageTotal: subscription.billingCycle === "usage-based" && subscription.usageTotal != null ? subscription.usageTotal.toString() : "",
+    usageDailyRate: subscription.billingCycle === "usage-based" && subscription.usageDailyRate != null ? subscription.usageDailyRate.toString() : "",
     category: subscription.category,
     status: subscription.status,
     publicHidden: subscription.publicHidden,

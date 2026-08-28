@@ -1,6 +1,6 @@
 import { useEffect, type Dispatch, type SetStateAction } from "react";
-import { calculateNextBillingDate, calculateOneTimeTermEndDate } from "@/lib/subscription-billing";
-import { parsePositiveIntegerInput } from "@/lib/subscription-form";
+import { calculateNextBillingDate, calculateOneTimeTermEndDate, calculateUsageExhaustionDate } from "@/lib/subscription-billing";
+import { parsePositiveIntegerInput, parseUsageFormFields } from "@/lib/subscription-form";
 import type { DateOnly } from "@/lib/time/date-only";
 import type { SubscriptionFormState } from "@/types/subscription-form";
 
@@ -15,6 +15,9 @@ type SubscriptionFormAutoDateFields = Pick<
   | "oneTimeMode"
   | "oneTimeTermCount"
   | "oneTimeTermUnit"
+  | "usageUnit"
+  | "usageTotal"
+  | "usageDailyRate"
   | "startDate"
   | "status"
   | "trialEndDate"
@@ -35,6 +38,9 @@ export function useSubscriptionFormAutoDates(
     oneTimeMode,
     oneTimeTermCount,
     oneTimeTermUnit,
+    usageUnit,
+    usageTotal,
+    usageDailyRate,
     startDate,
     status,
     trialEndDate,
@@ -51,6 +57,9 @@ export function useSubscriptionFormAutoDates(
       oneTimeMode,
       oneTimeTermCount,
       oneTimeTermUnit,
+      usageUnit,
+      usageTotal,
+      usageDailyRate,
       startDate,
       status,
       trialEndDate,
@@ -73,6 +82,9 @@ export function useSubscriptionFormAutoDates(
     startDate,
     status,
     trialEndDate,
+    usageUnit,
+    usageTotal,
+    usageDailyRate,
   ]);
 }
 
@@ -87,6 +99,18 @@ export function getSubscriptionFormAutoDatePatch(
       ? calculateOneTimeTermEndDate(formData.startDate, oneTimeTermCount, formData.oneTimeTermUnit)
       : formData.startDate;
     // 一次性订阅默认走 buyout，没有试用到期日联动；term 模式到期日由 startDate 驱动，与试用语义互斥，这里保持不联动。
+    return compactAutoDatePatch(formData, {
+      autoCalculate: false,
+      nextBillingDate,
+    });
+  }
+  if (formData.billingCycle === "usage-based") {
+    // 量包耗尽日 = 购买日 + ceil(总量/日均)；字段未填全时保留 startDate，等量包校验给出首错。
+    const usage = parseUsageFormFields(formData);
+    const nextBillingDate = formData.startDate && usage
+      ? calculateUsageExhaustionDate(formData.startDate, usage.total, usage.dailyRate)
+      : formData.startDate;
+    // 耗尽日始终自动推算；与 one-time 相同不联动试用到期日，量包的到期边界由消耗驱动。
     return compactAutoDatePatch(formData, {
       autoCalculate: false,
       nextBillingDate,

@@ -7,12 +7,14 @@ package main
 import (
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 func setupBillingRecordsTestApp(t *testing.T, role string) (core.App, *core.Record, string) {
@@ -410,5 +412,100 @@ func TestBillingRecordPatchRejectsInvalidPayloads(t *testing.T) {
 	pageAfter := fetchBillingRecordsPageForTest(t, app, token, subscriptionID, "")
 	if pageAfter.Total != 1 || pageAfter.Records[0].Amount != "12" || pageAfter.Records[0].BillingCycle != "monthly" {
 		t.Fatalf("expected rejected patches to leave record untouched, got %#v", pageAfter)
+	}
+}
+
+// TestReadReceiptAssetIds 锁定 PocketBase JSONField 的真实返回类型（types.JSONRaw，底层 []byte）：
+// 旧实现用 raw.([]any) 断言，对 []byte 永远失败并返回空切片，导致历史记录的凭证缩略图无法展示。
+func TestReadReceiptAssetIds(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  any
+		want []string
+	}{
+		{"nil returns empty", nil, []string{}},
+		// PocketBase JSONField 的真实返回类型是 types.JSONRaw（底层 []byte 的命名类型）；
+		// case []byte 不匹配命名类型，只有 case types.JSONRaw 才能命中，否则凭证缩略图永远不显示。
+		{"types.JSONRaw (real PocketBase JSONField)", types.JSONRaw([]byte(`["ogukzf504vf2e5m","ws0toofn2uqtuq6"]`)), []string{"ogukzf504vf2e5m", "ws0toofn2uqtuq6"}},
+		{"types.JSONRaw single", types.JSONRaw([]byte(`["abc123"]`)), []string{"abc123"}},
+		{"types.JSONRaw empty array", types.JSONRaw([]byte(`[]`)), []string{}},
+		{"types.JSONRaw non-array (object)", types.JSONRaw([]byte(`{"a":1}`)), []string{}},
+		{"types.JSONRaw invalid json", types.JSONRaw([]byte(`not json`)), []string{}},
+		{"bare []byte (fallback path)", []byte(`["ogukzf504vf2e5m","ws0toofn2uqtuq6"]`), []string{"ogukzf504vf2e5m", "ws0toofn2uqtuq6"}},
+		{"already unmarshaled []any", []any{"ogukzf504vf2e5m", "ws0toofn2uqtuq6"}, []string{"ogukzf504vf2e5m", "ws0toofn2uqtuq6"}},
+		{"filters out non-string and empty items", []byte(`["ok",123,true,""]`), []string{"ok"}},
+		{"unsupported type returns empty", 42, []string{}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := readReceiptAssetIds(c.raw)
+			if !reflect.DeepEqual(got, c.want) {
+				t.Fatalf("readReceiptAssetIds(%v) = %#v, want %#v", c.raw, got, c.want)
+			}
+		})
+	}
+}
+
+// uploadReceiptAssetForTest 通过产品 API 上传凭证资产，返回 asset id。
+func uploadReceiptAssetForTest(t *testing.T, app core.App, token string, filename string) string {
+	t.Helper()
+	// 上传校验按魔数嗅探 MIME，需真实 PNG 签名才能过白名单；测试只读回/删除，不渲染内容。
+	upload := serveMultipartTestRequest(
+		t,
+		app,
+		"/api/app/assets",
+		token,
+		map[string]string{"kind": "receipt"},
+		"file",
+		filename,
+		"\x89PNG\r\n\x1a\n",
+	)
+	if upload.Code != http.StatusCreated {
+		t.Fatalf("expected receipt upload 201, got %d: %s", upload.Code, upload.Body.String())
+	}
+	uploaded := decodeAPISuccessDataForTest[uploadAssetResponse](t, upload.Body.Bytes())
+	return strings.TrimPrefix(uploaded.URL, "/api/app/assets/")
+}
+
+// TestBillingRecordPatchCleansRemovedReceiptAssets 锁定 PATCH 收窄 receiptAssetIds 时的存储清理契约：
+// 被移除的凭证资产与记录更新在同一事务删除（级联删文件），保留的与缺失的不受影响。
+func TestBillingRecordPatchCleansRemovedReceiptAssets(t *testing.T) {
+	app, _, token := setupBillingRecordsTestApp(t, "billing-patch-receipts")
+	subscriptionID := createBillingRecordSubscriptionForTest(t, app, token, "Patch Receipts")
+	page := fetchBillingRecordsPageForTest(t, app, token, subscriptionID, "")
+	recordID := page.Records[0].ID
+	receiptA := uploadReceiptAssetForTest(t, app, token, "receipt-a.png")
+	receiptB := uploadReceiptAssetForTest(t, app, token, "receipt-b.png")
+
+	attach := serveTestRequest(t, app, http.MethodPatch, "/api/app/billing-records/"+recordID,
+		`{"receiptAssetIds":["`+receiptA+`","`+receiptB+`"]}`, token)
+	if attach.Code != http.StatusOK {
+		t.Fatalf("expected receipt attach patch 200, got %d: %s", attach.Code, attach.Body.String())
+	}
+
+	// 移除 A：A 的资产行与文件应被删除，B 保留可读。
+	shrink := serveTestRequest(t, app, http.MethodPatch, "/api/app/billing-records/"+recordID,
+		`{"receiptAssetIds":["`+receiptB+`"]}`, token)
+	if shrink.Code != http.StatusOK {
+		t.Fatalf("expected receipt shrink patch 200, got %d: %s", shrink.Code, shrink.Body.String())
+	}
+	if readA := serveTestRequest(t, app, http.MethodGet, "/api/app/assets/"+receiptA, "", token); readA.Code != http.StatusNotFound {
+		t.Fatalf("expected removed receipt asset A deleted, got %d: %s", readA.Code, readA.Body.String())
+	}
+	if readB := serveTestRequest(t, app, http.MethodGet, "/api/app/assets/"+receiptB, "", token); readB.Code != http.StatusOK {
+		t.Fatalf("expected kept receipt asset B readable, got %d: %s", readB.Code, readB.Body.String())
+	}
+
+	// 清空后 B 也应被清理；重复空 PATCH 幂等（资产缺失不阻塞编辑）。
+	clear := serveTestRequest(t, app, http.MethodPatch, "/api/app/billing-records/"+recordID, `{"receiptAssetIds":[]}`, token)
+	if clear.Code != http.StatusOK {
+		t.Fatalf("expected receipt clear patch 200, got %d: %s", clear.Code, clear.Body.String())
+	}
+	if readB := serveTestRequest(t, app, http.MethodGet, "/api/app/assets/"+receiptB, "", token); readB.Code != http.StatusNotFound {
+		t.Fatalf("expected cleared receipt asset B deleted, got %d: %s", readB.Code, readB.Body.String())
+	}
+	again := serveTestRequest(t, app, http.MethodPatch, "/api/app/billing-records/"+recordID, `{"receiptAssetIds":[]}`, token)
+	if again.Code != http.StatusOK {
+		t.Fatalf("expected repeated empty receipt patch 200, got %d: %s", again.Code, again.Body.String())
 	}
 }

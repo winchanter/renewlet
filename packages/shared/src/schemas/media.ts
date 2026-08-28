@@ -32,6 +32,8 @@ export const assetInUseDetailsSchema = z.object({
   usageCount: z.number().int().positive(),
   subscriptionLogoCount: z.number().int().nonnegative(),
   paymentMethodIconCount: z.number().int().nonnegative(),
+  // 被扣费记录 receipt_asset_ids 引用的凭证不允许直接删除，否则记录缩略图会静默失效。
+  billingRecordReceiptCount: z.number().int().nonnegative(),
 }).strict();
 
 export const mediaCandidateKindSchema = uploadKindSchema;

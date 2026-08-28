@@ -1,11 +1,12 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { DragEvent, FormEvent, RefObject } from "react";
-import { Loader2, History, ImagePlus, X } from "lucide-react";
+import type { FormEvent, RefObject } from "react";
+import { Loader2, History } from "lucide-react";
 import {
   createRenewSubscriptionLoadingSlots,
   RenewSubscriptionScaffold,
 } from "@/components/renew-subscription-scaffold";
-import { AuthorizedImage } from "@/components/authorized-image";
+import { ReceiptUploader } from "@/components/receipt-uploader";
+import { assetService } from "@/services/asset-service";
 import { Button } from "@/components/ui/button";
 import { FormField, FormFieldRow } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -18,13 +19,10 @@ import { useCustomConfigState } from "@/contexts/CustomConfigContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useManagedCurrencyOptions } from "@/hooks/use-managed-currency-options";
 import { useDeferredDialogInitialFocus } from "@/hooks/use-deferred-dialog-initial-focus";
-import { buildPrivateAssetUrl, parsePrivateAssetId } from "@/lib/logo-url";
-import { uploadImageFile } from "@/lib/upload-image";
 import { compareDateOnly, type DateOnly } from "@/lib/time/date-only";
 import { parseMoneyInput, parsePositiveNumberInput } from "@/lib/subscription-form";
 import type { Subscription, SubscriptionCollectionItem } from "@/types/subscription";
 import { advanceSubscriptionRenewal, calculateNextBillingDate, usageBasedEstimatedDays } from "@renewlet/shared/subscription-renewal";
-import { RECEIPT_ASSET_IDS_MAX } from "@renewlet/shared/runtime";
 import type { SubscriptionRenewBody } from "@renewlet/shared/schemas/subscriptions";
 
 type RenewMode = SubscriptionRenewBody["mode"];
@@ -40,7 +38,7 @@ interface RenewFormState {
   usageUnit: string;
   usageTotal: string;
   usageDailyRate: string;
-  /** 续订凭证 asset id 列表；上限 RECEIPT_ASSET_IDS_MAX。 */
+  /** 续订凭证 asset id 列表；上限由 ReceiptUploader 内部按 RECEIPT_ASSET_IDS_MAX 强制。 */
   receiptAssetIds: string[];
 }
 
@@ -175,6 +173,31 @@ export function RenewSubscriptionDialogContent({
     setForm(createInitialState(subscription, today));
     setErrors({});
   }, [open, subscription, today]);
+
+  // 会话凭证清理：续订凭证全部是本次会话上传，弹窗关闭且未成功提交时逐个删除服务端文件，
+  // 避免取消/ESC 留下孤儿资产。提交成功（onSubmit resolve）后凭证已随新记录持久化，跳过清理。
+  const submittedRef = useRef(false);
+  const wasOpenRef = useRef(false);
+  const formStateRef = useRef(form);
+  formStateRef.current = form;
+  const submittingRef = useRef(submitting);
+  submittingRef.current = submitting;
+  useLayoutEffect(() => {
+    if (open) {
+      wasOpenRef.current = true;
+      submittedRef.current = false;
+      return;
+    }
+    if (!wasOpenRef.current) return;
+    wasOpenRef.current = false;
+    // 提交进行中被关闭（ESC/遮罩）时不清理：mutation 仍可能成功并引用这些凭证。
+    if (submittedRef.current || submittingRef.current) return;
+    for (const id of formStateRef.current?.receiptAssetIds ?? []) {
+      void assetService.delete(id).catch(() => {
+        // 清理失败保留孤儿资产，不阻塞关闭流程。
+      });
+    }
+  }, [open]);
 
   const setField = useCallback(<K extends keyof RenewFormState>(key: K, value: RenewFormState[K]) => {
     setForm((current) => {
@@ -324,7 +347,13 @@ export function RenewSubscriptionDialogContent({
       ...(form.receiptAssetIds.length > 0 ? { receiptAssetIds: form.receiptAssetIds } : {}),
     };
     if (!hasRenewBodyDates(payload)) return;
-    await onSubmit(payload);
+    try {
+      await onSubmit(payload);
+      // 提交成功：凭证已随新扣费记录持久化，弹窗关闭时不再清理。
+      submittedRef.current = true;
+    } catch {
+      // 提交失败：父层已把错误透出到弹窗顶部，表单保持打开；关闭时按取消语义清理会话凭证。
+    }
   };
 
   const titleSubscription = subscription ?? loadingPreview;
@@ -736,194 +765,4 @@ function safeUsageBasedEstimatedDays(total: number, dailyRate: number): number |
   } catch {
     return null;
   }
-}
-
-interface ReceiptUploaderProps {
-  value: string[];
-  onChange: (ids: string[]) => void;
-  submitting: boolean;
-}
-
-/**
- * 续订凭证多图上传区：可选，最多 RECEIPT_ASSET_IDS_MAX 张。
- *
- * 选图后顺序上传，每张成功即把 asset id 写回 form state；提交时整体随续订 payload 一起保存。
- * 取消续订时已上传但未提交的资产会留在用户资产池里，后续可手动清理，不影响本期记录。
- */
-function ReceiptUploader({ value, onChange, submitting }: ReceiptUploaderProps) {
-  const { t } = useI18n();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [uploadingCount, setUploadingCount] = useState(0);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState(false);
-
-  const remaining = RECEIPT_ASSET_IDS_MAX - value.length;
-  const canAddMore = remaining > 0 && uploadingCount === 0 && !submitting;
-
-  const handleFiles = useCallback(async (files: File[]) => {
-    // 只接受图片，非图片（如 PDF/zip）静默过滤；超出 remaining 的部分截断，不报错。
-    const picked = files
-      .filter((file) => file.type.startsWith("image/"))
-      .slice(0, remaining);
-    if (picked.length === 0) return;
-    setUploadError(null);
-    setUploadingCount((current) => current + picked.length);
-    try {
-      const collected: string[] = [];
-      for (const file of picked) {
-        const result = await uploadImageFile({ file, kind: "receipt" });
-        const id = parsePrivateAssetId(result.url);
-        if (!id) {
-          throw new Error(t("media.uploadFailed"));
-        }
-        collected.push(id);
-      }
-      onChange([...value, ...collected]);
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : t("media.uploadFailed"));
-    } finally {
-      setUploadingCount(0);
-      // 清空 input.value，允许用户连续选同一文件重试。
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }, [onChange, remaining, t, value]);
-
-  const removeAt = useCallback((index: number) => {
-    setUploadError(null);
-    const next = value.slice();
-    next.splice(index, 1);
-    onChange(next);
-  }, [onChange, value]);
-
-  // 整个上传区作为 dropzone：canAddMore=false 时静默忽略，避免提交中/上传中/已满被覆盖。
-  const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    if (canAddMore && !dragOver) setDragOver(true);
-  }, [canAddMore, dragOver]);
-
-  const handleDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    // relatedTarget 落在 dropzone 内部（如缩略图）时不清除高亮，避免在子元素间移动闪烁。
-    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-    setDragOver(false);
-  }, []);
-
-  const handleDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragOver(false);
-    if (!canAddMore) return;
-    const dropped = Array.from(event.dataTransfer?.files ?? []);
-    if (dropped.length === 0) return;
-    void handleFiles(dropped);
-  }, [canAddMore, handleFiles]);
-
-  return (
-    <FormField
-      id="renew-receipt"
-      label={t("subscription.billingRecords.receipt")}
-      description={t("subscription.billingRecords.receiptHint", { count: RECEIPT_ASSET_IDS_MAX })}
-    >
-      {() => (
-        <div
-          className={`grid gap-2 rounded-md border border-dashed p-1.5 transition-colors${
-            dragOver
-              ? " border-ring bg-secondary/30 ring-2 ring-ring/50"
-              : " border-transparent"
-          }`}
-          data-testid="renew-receipt-uploader"
-          data-drag-over={dragOver || undefined}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          {value.length === 0 && uploadingCount === 0 ? (
-            <p className="text-xs text-muted-foreground">{t("subscription.billingRecords.receiptDropHint")}</p>
-          ) : null}
-          {value.length > 0 ? (
-            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6" data-testid="renew-receipt-list">
-              {value.map((assetId, index) => (
-                <li
-                  key={assetId}
-                  className="group relative aspect-square overflow-hidden rounded-md border border-border bg-secondary"
-                >
-                  <AuthorizedImage
-                    src={buildPrivateAssetUrl(assetId)}
-                    alt={t("subscription.billingRecords.receiptView", { index: index + 1 })}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeAt(index)}
-                    disabled={submitting}
-                    aria-label={t("subscription.billingRecords.receiptRemove", { index: index + 1 })}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 transition-opacity hover:bg-background group-hover:opacity-100 focus-visible:opacity-100"
-                    data-testid={`renew-receipt-remove-${index}`}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </li>
-              ))}
-              {uploadingCount > 0 ? Array.from({ length: uploadingCount }).map((_, idx) => (
-                <li
-                  key={`renew-receipt-uploading-${idx}`}
-                  className="flex aspect-square items-center justify-center rounded-md border border-dashed border-border bg-secondary/50"
-                  aria-hidden="true"
-                >
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </li>
-              )) : null}
-            </ul>
-          ) : uploadingCount > 0 ? (
-            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6" aria-hidden="true">
-              {Array.from({ length: uploadingCount }).map((_, idx) => (
-                <li
-                  key={`renew-receipt-uploading-${idx}`}
-                  className="flex aspect-square items-center justify-center rounded-md border border-dashed border-border bg-secondary/50"
-                >
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {canAddMore ? (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="sr-only"
-                onChange={(event) => {
-                  if (event.target.files && event.target.files.length > 0) {
-                    void handleFiles(Array.from(event.target.files));
-                  }
-                }}
-                data-testid="renew-receipt-input"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full justify-center border-border sm:w-auto"
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="renew-receipt-add"
-              >
-                <ImagePlus className="mr-1.5 h-4 w-4" />
-                {t("subscription.billingRecords.receiptAdd")}
-              </Button>
-            </>
-          ) : null}
-          <p className="text-xs text-muted-foreground">
-            {t("subscription.billingRecords.receiptsLabel", { count: value.length, max: RECEIPT_ASSET_IDS_MAX })}
-          </p>
-          {uploadError ? (
-            <p className="text-sm text-destructive" role="alert" data-testid="renew-receipt-error">
-              {uploadError}
-            </p>
-          ) : null}
-        </div>
-      )}
-    </FormField>
-  );
 }

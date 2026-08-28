@@ -597,11 +597,25 @@ export async function countAssetReferences(env: Env, userId: string, assetId: st
     .first<{ count: number }>();
   const subscriptionLogoCount = row?.count ?? 0;
   const paymentMethodIconCount = await countPaymentMethodIconReferences(env, userId, assetUrl);
+  const billingRecordReceiptCount = await countBillingRecordReceiptReferences(env, userId, assetId);
   return {
-    usageCount: subscriptionLogoCount + paymentMethodIconCount,
+    usageCount: subscriptionLogoCount + paymentMethodIconCount + billingRecordReceiptCount,
     subscriptionLogoCount,
     paymentMethodIconCount,
+    billingRecordReceiptCount,
   };
+}
+
+/**
+ * 统计 assetId 被多少行扣费记录的 receipt_asset_ids JSON 数组引用。
+ *
+ * 列存 JSON 文本，用 instr 匹配带引号的完整 id，避免 LIKE 把 `_` 当通配符造成误判。
+ */
+export async function countBillingRecordReceiptReferences(env: Env, userId: string, assetId: string): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS count FROM subscription_billing_records WHERE user_id = ? AND instr(receipt_asset_ids, ?) > 0 LIMIT 1",
+  ).bind(userId, `"${assetId}"`).first<{ count: number }>();
+  return row?.count ?? 0;
 }
 
 async function countPaymentMethodIconReferences(env: Env, userId: string, assetUrl: string): Promise<number> {

@@ -643,6 +643,45 @@ func TestAssetProductAPIDeleteBlocksPaymentMethodIconReferences(t *testing.T) {
 	}
 }
 
+// TestAssetProductAPIDeleteBlocksBillingRecordReceiptReferences 锁定 DELETE 的凭证引用保护：
+// 被扣费记录 receipt_asset_ids 引用的资产删除必须 409（ASSET_IN_USE），防止记录缩略图静默失效。
+func TestAssetProductAPIDeleteBlocksBillingRecordReceiptReferences(t *testing.T) {
+	app, _, token := setupBillingRecordsTestApp(t, "assets-receipt-ref")
+	subscriptionID := createBillingRecordSubscriptionForTest(t, app, token, "Receipt Ref Guard")
+	page := fetchBillingRecordsPageForTest(t, app, token, subscriptionID, "")
+	recordID := page.Records[0].ID
+	assetID := uploadReceiptAssetForTest(t, app, token, "receipt-ref.png")
+
+	attach := serveTestRequest(t, app, http.MethodPatch, "/api/app/billing-records/"+recordID,
+		`{"receiptAssetIds":["`+assetID+`"]}`, token)
+	if attach.Code != http.StatusOK {
+		t.Fatalf("expected receipt attach patch 200, got %d: %s", attach.Code, attach.Body.String())
+	}
+
+	blockedDelete := serveTestRequest(t, app, http.MethodDelete, "/api/app/assets/"+assetID, "", token)
+	if blockedDelete.Code != http.StatusConflict {
+		t.Fatalf("expected referenced receipt asset delete 409, got %d: %s", blockedDelete.Code, blockedDelete.Body.String())
+	}
+	var blockedBody struct {
+		Error struct {
+			Code    string            `json:"code"`
+			Details assetInUseDetails `json:"details"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(blockedDelete.Body.Bytes(), &blockedBody); err != nil {
+		t.Fatal(err)
+	}
+	if blockedBody.Error.Code != "ASSET_IN_USE" || blockedBody.Error.Details.UsageCount != 1 ||
+		blockedBody.Error.Details.BillingRecordReceiptCount != 1 {
+		t.Fatalf("unexpected referenced delete body: %#v", blockedBody)
+	}
+
+	read := serveTestRequest(t, app, http.MethodGet, "/api/app/assets/"+assetID, "", token)
+	if read.Code != http.StatusOK {
+		t.Fatalf("expected referenced receipt asset to remain readable, got %d: %s", read.Code, read.Body.String())
+	}
+}
+
 func TestAssetProductAPIDeleteReportsMixedReferencesAndIgnoresForeignConfig(t *testing.T) {
 	app := newSchemaTestApp(t)
 	if err := ensureSchema(app); err != nil {

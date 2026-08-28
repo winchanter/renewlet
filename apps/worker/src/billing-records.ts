@@ -21,7 +21,7 @@ import type { SubscriptionRenewBody } from "@renewlet/shared/schemas/subscriptio
 import type { BillingRecordMode, BillingCycle, CustomCycleUnit } from "@renewlet/shared/runtime";
 import type { SubscriptionRenewalResult } from "@renewlet/shared/subscription-renewal";
 import { addBillingCycles } from "@renewlet/shared/subscription-renewal";
-import { newId, nowIso } from "./db";
+import { countBillingRecordReceiptReferences, deleteAssetMetadata, getAsset, newId, nowIso } from "./db";
 import { HttpError, readJson, requestLocale, successJson } from "./http";
 import { serverText } from "./server-i18n";
 import { requireAuth } from "./auth";
@@ -195,7 +195,34 @@ export async function updateBillingRecord(request: Request, env: Env, recordId: 
     auth.user.id,
     recordId,
   ).run();
+  await cleanupRemovedReceiptAssets(env, auth.user.id, row, record.receiptAssetIds ?? []);
   return successJson(billingRecordPayloadSchema.parse({ record }));
+}
+
+/**
+ * PATCH 收窄 receiptAssetIds 后清理被移除的凭证文件，避免 R2/D1 孤儿占用存储。
+ *
+ * 只删当前用户名下且不再被任何记录引用的资产；R2 删除失败不阻塞响应（记录已更新，幂等重试由下次编辑兜底）。
+ */
+async function cleanupRemovedReceiptAssets(
+  env: Env,
+  userId: string,
+  row: BillingRecordRow,
+  nextReceiptAssetIds: string[],
+): Promise<void> {
+  const previousIds = parseReceiptAssetIds(row.receipt_asset_ids);
+  const removed = new Set(previousIds.filter((id) => !nextReceiptAssetIds.includes(id)));
+  for (const assetId of removed) {
+    const asset = await getAsset(env, userId, assetId);
+    if (!asset) continue;
+    if (await countBillingRecordReceiptReferences(env, userId, assetId) > 0) continue;
+    try {
+      await env.ASSETS_BUCKET.delete(asset.r2_key);
+      await deleteAssetMetadata(env, userId, assetId);
+    } catch {
+      // 清理失败保留孤儿：记录事实已更新，不能让存储清理反过来阻塞用户编辑。
+    }
+  }
 }
 
 /**

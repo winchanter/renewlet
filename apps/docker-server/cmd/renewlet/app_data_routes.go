@@ -60,9 +60,10 @@ type uploadAssetResponse struct {
 const maxAssetUploadBodyBytes = maxImageBytes + 64*1024
 
 type assetInUseDetails struct {
-	UsageCount             int64 `json:"usageCount"`
-	SubscriptionLogoCount  int64 `json:"subscriptionLogoCount"`
-	PaymentMethodIconCount int64 `json:"paymentMethodIconCount"`
+	UsageCount              int64 `json:"usageCount"`
+	SubscriptionLogoCount   int64 `json:"subscriptionLogoCount"`
+	PaymentMethodIconCount  int64 `json:"paymentMethodIconCount"`
+	BillingRecordReceiptCount int64 `json:"billingRecordReceiptCount"`
 }
 
 type subscriptionWriteRequest struct {
@@ -415,11 +416,32 @@ func countAssetReferences(app core.App, userID string, assetID string) (assetInU
 	if err != nil {
 		return assetInUseDetails{}, err
 	}
+	billingRecordReceiptCount, err := countBillingRecordReceiptReferences(app, userID, assetID)
+	if err != nil {
+		return assetInUseDetails{}, err
+	}
 	return assetInUseDetails{
-		UsageCount:             subscriptionLogoCount + paymentMethodIconCount,
-		SubscriptionLogoCount:  subscriptionLogoCount,
-		PaymentMethodIconCount: paymentMethodIconCount,
+		UsageCount:                subscriptionLogoCount + paymentMethodIconCount + billingRecordReceiptCount,
+		SubscriptionLogoCount:     subscriptionLogoCount,
+		PaymentMethodIconCount:    paymentMethodIconCount,
+		BillingRecordReceiptCount: billingRecordReceiptCount,
 	}, nil
+}
+
+// countBillingRecordReceiptReferences 统计 assetID 被多少行扣费记录的 receipt_asset_ids 引用。
+//
+// 列存 JSON 文本，用 instr 匹配带引号的完整 id，避免 LIKE 把 `_` 当通配符造成误判。
+func countBillingRecordReceiptReferences(app core.App, userID string, assetID string) (int64, error) {
+	var projection struct {
+		Count int64 `db:"count"`
+	}
+	err := app.DB().NewQuery(
+		"SELECT COUNT(*) AS count FROM subscription_billing_records WHERE user_id = {:user} AND instr(receipt_asset_ids, {:needle}) > 0",
+	).Bind(dbx.Params{"user": userID, "needle": `"` + assetID + `"`}).One(&projection)
+	if err != nil {
+		return 0, err
+	}
+	return projection.Count, nil
 }
 
 func countPaymentMethodIconReferences(app core.App, userID string, assetURL string) (int64, error) {

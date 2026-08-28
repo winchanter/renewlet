@@ -8,13 +8,20 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+
+# pnpm 本地缓存（pnpm 找不到可写全局 store 时会退化到项目根创建）
+.pnpm-store/
+.pnpm-cache/
+
 dist
 dist-ssr
+dist-types
 .vercel
 .wrangler/
 wrangler.generated.jsonc
 *.local
 *.tsbuildinfo
+.eslintcache
 .env
 .env.*
 !.env.example

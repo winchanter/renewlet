@@ -56,6 +56,7 @@ function billingRecordRow(overrides: Partial<BillingRecordRow> = {}): BillingRec
     usage_unit: null,
     usage_total: null,
     usage_daily_rate: null,
+    receipt_asset_ids: "[]",
     mode: "initial",
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -781,6 +782,7 @@ function openBillingRecordDatabase(): { db: DatabaseSync; env: Env } {
     ) VALUES ('${USER_ID}', 0, 0, '', NULL, NULL, NULL, '${TIMESTAMP}', '${TIMESTAMP}');
   `);
   db.exec(readFileSync(resolve("migrations", "0041_billing_records.sql"), "utf8"));
+  db.exec(readFileSync(resolve("migrations", "0042_billing_records_receipts.sql"), "utf8"));
   return { db, env: { DB: new SqliteD1Database(db) as unknown as D1Database, ASSETS: {} as Fetcher, ASSETS_BUCKET: {} as R2Bucket } as Env };
 }
 

@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Pencil } from "lucide-react";
 import { AuthorizedImage } from "@/components/authorized-image";
 import { DateOnlyPickerField } from "@/components/date-only-picker-field";
 import { QueryErrorState } from "@/components/query-error-state";
+import { ReceiptUploader } from "@/components/receipt-uploader";
 import { SubscriptionLogo } from "@/components/subscription-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { translate, type MessageKey, type MessageParams } from "@/i18n/messages";
 import type { Locale } from "@/i18n/locales";
 import { buildPrivateAssetUrl } from "@/lib/logo-url";
+import { assetService } from "@/services/asset-service";
 import { customCycleUnitLabelKey, formatBillingCycleLabel } from "@/lib/subscription-billing";
 import { formatNumberMaxFractionDigits } from "@/lib/number-format";
 import {
@@ -146,8 +148,10 @@ export function BillingRecordsDialogContent({ collectionItem }: BillingRecordsDi
         )}
       </DialogHeader>
 
+      {/* 滚动区不用 flex-1：h-fit 面板在部分移动内核会把 flex-basis:0% 的子项内在高度按 0 计，导致弹窗塌成只剩 header；
+          basis auto（默认）让内容高度计入面板 fit-content，超出时由 .h5-dialog-panel 的 max-height 收缩并滚动。 */}
       <div
-        className="h5-mobile-sheet-scroll grid min-h-0 flex-1 content-start gap-1 px-6 pb-6 pt-3"
+        className="h5-mobile-sheet-scroll grid min-h-0 content-start gap-1 px-6 pb-6 pt-3"
         data-testid="billing-records-list-region"
       >
         {recordsQuery.isPending ? (
@@ -296,6 +300,8 @@ interface BillingRecordEditFormState {
   oneTimeTermUnit: CustomCycleUnit;
   usageTotal: string;
   usageDailyRate: string;
+  /** 续订凭证 asset id 列表；与 ReceiptUploader 共用，PATCH 时整组覆盖。 */
+  receiptAssetIds: string[];
 }
 
 interface BillingRecordEditFormErrors {
@@ -318,6 +324,8 @@ function createEditFormState(record: ApiBillingRecord): BillingRecordEditFormSta
     oneTimeTermUnit: record.oneTimeTermUnit ?? "month",
     usageTotal: record.usageTotal != null ? String(record.usageTotal) : "",
     usageDailyRate: record.usageDailyRate != null ? String(record.usageDailyRate) : "",
+    // 旧记录可能没有 receiptAssetIds，schema 已 default([])，这里取快照后即可独立编辑。
+    receiptAssetIds: [...record.receiptAssetIds],
   };
 }
 
@@ -398,6 +406,12 @@ function buildBillingRecordPatch(
       break;
   }
 
+  // 凭证列表用整组覆盖：顺序或元素任一变化即写入 patch，避免对端做 diff。
+  const receiptIdsChanged =
+    state.receiptAssetIds.length !== record.receiptAssetIds.length
+    || state.receiptAssetIds.some((id, index) => id !== record.receiptAssetIds[index]);
+  if (receiptIdsChanged) patch.receiptAssetIds = state.receiptAssetIds;
+
   if (Object.keys(errors).length > 0) return { patch: null, errors };
   if (Object.keys(patch).length === 0) return { patch: null, errors };
   return { patch, errors };
@@ -421,6 +435,22 @@ function BillingRecordEditForm({ record, onDone }: BillingRecordEditFormProps) {
   const [errors, setErrors] = useState<BillingRecordEditFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // 会话凭证清理：取消/换行编辑（卸载）时删除本次上传但未提交的凭证文件，避免孤儿占用存储。
+  // savedRef 标记 PATCH 已成功（当前凭证已持久化）；persisted 集合在挂载时固化，不受列表 refetch 影响。
+  const sessionRef = useRef({ saved: false, persisted: new Set(record.receiptAssetIds) });
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  useEffect(() => () => {
+    if (sessionRef.current.saved) return;
+    for (const id of stateRef.current.receiptAssetIds) {
+      if (!sessionRef.current.persisted.has(id)) {
+        void assetService.delete(id).catch(() => {
+          // 清理失败保留孤儿资产，不阻塞用户操作。
+        });
+      }
+    }
+  }, []);
+
   const setField = <K extends keyof BillingRecordEditFormState>(key: K, value: BillingRecordEditFormState[K]) => {
     setState((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
@@ -441,11 +471,13 @@ function BillingRecordEditForm({ record, onDone }: BillingRecordEditFormProps) {
     }
     if (!patch) {
       // 没有任何改动：直接收起，不发起空 PATCH。
+      sessionRef.current.saved = true;
       onDone();
       return;
     }
     try {
       await updateRecord.mutateAsync({ recordId: record.id, patch });
+      sessionRef.current.saved = true;
       toast.success(t("subscription.billingRecords.updated"));
       onDone();
     } catch (error) {
@@ -663,6 +695,14 @@ function BillingRecordEditForm({ record, onDone }: BillingRecordEditFormProps) {
       ) : null}
 
       <p className="text-xs text-muted-foreground">{t("subscription.billingRecords.periodHint")}</p>
+
+      <ReceiptUploader
+        value={state.receiptAssetIds}
+        onChange={(ids) => setField("receiptAssetIds", ids)}
+        submitting={updateRecord.isPending}
+        persistedIds={record.receiptAssetIds}
+        testIdPrefix={`billing-record-receipt-${record.id}`}
+      />
       {submitError ? (
         <p className="text-sm text-destructive" role="alert" data-testid={`billing-record-submit-error-${record.id}`}>
           {submitError}

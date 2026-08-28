@@ -9,6 +9,7 @@ package main
 //   - 记录生成只发生在订阅写入边界（创建/手动续订/自动续订），并与订阅写入放在同一事务。
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"math"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 const (
@@ -210,13 +212,28 @@ func billingRecordItemFromRecord(record *core.Record) billingRecordItem {
 	return out
 }
 
-// readReceiptAssetIds 把 PocketBase JSONField 的任意类型收敛为 string 切片；旧记录无此字段时返回空切片。
+// readReceiptAssetIds 把 PocketBase JSONField 的值收敛为 string 切片；旧记录无此字段时返回空切片。
+//
+// PocketBase 的 JSONField 经 PrepareValue 返回 types.JSONRaw（底层 []byte 的命名类型），
+// Go 的 type switch case []byte 不匹配命名类型，必须显式 case types.JSONRaw 才能命中；
+// 否则走 default 返回空，历史记录的凭证缩略图就永远不显示。
 func readReceiptAssetIds(raw any) []string {
 	if raw == nil {
 		return []string{}
 	}
-	arr, ok := raw.([]any)
-	if !ok {
+	var arr []any
+	switch v := raw.(type) {
+	case types.JSONRaw:
+		if err := json.Unmarshal([]byte(v), &arr); err != nil {
+			return []string{}
+		}
+	case []byte:
+		if err := json.Unmarshal(v, &arr); err != nil {
+			return []string{}
+		}
+	case []any:
+		arr = v
+	default:
 		return []string{}
 	}
 	out := make([]string, 0, len(arr))
@@ -321,6 +338,7 @@ func isPositiveUsageNumber(value float64) bool {
 
 // handleBillingRecordPatch 编辑一条扣费记录：owner 过滤读取、解码合并 patch、重算到期日、事务保存。
 // billingCycle 枚举校验复用 import_export.go 的 isValidBillingCycle，避免两处枚举漂移。
+// 收窄 receiptAssetIds 时，被移除的凭证资产在同一事务里删除（级联删文件），避免存储留孤儿。
 func handleBillingRecordPatch(app core.App, e *core.RequestEvent) error {
 	locale := requestLocale(e.Request)
 	body, err := decodeStrictJSON[billingRecordPatchRequest](e.Request, locale)
@@ -336,15 +354,76 @@ func handleBillingRecordPatch(app core.App, e *core.RequestEvent) error {
 		// 与订阅 renew route 一致：越权和不存在的记录统一 404，避免错误码被拿来枚举他人记录。
 		return e.NotFoundError("BILLING_RECORD_NOT_FOUND", err)
 	}
+	// Original() 是加载时的快照；必须在 applyBillingRecordPatch 改写记录前读取旧凭证列表。
+	previousReceiptIds := readReceiptAssetIds(record.Original().Get("receipt_asset_ids"))
 	if err := applyBillingRecordPatch(record, body); err != nil {
 		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), err)
 	}
+	removedReceiptIds := previousReceiptIds
+	if body.ReceiptAssetIds.Set {
+		removedReceiptIds = differenceStrings(previousReceiptIds, readReceiptAssetIds(record.Get("receipt_asset_ids")))
+	}
 	if err := app.RunInTransaction(func(txApp core.App) error {
-		return txApp.Save(record)
+		if err := txApp.Save(record); err != nil {
+			return err
+		}
+		return deleteOrphanedReceiptAssets(txApp, e.Auth.Id, removedReceiptIds)
 	}); err != nil {
 		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), err)
 	}
 	return apiSuccessJSON(e, http.StatusOK, billingRecordResponse{Record: billingRecordItemFromRecord(record)})
+}
+
+// differenceStrings 返回 in a 中不在 b 里的元素（保持 a 的顺序，不去重；去重由清理侧处理）。
+func differenceStrings(a []string, b []string) []string {
+	excluded := make(map[string]struct{}, len(b))
+	for _, value := range b {
+		excluded[value] = struct{}{}
+	}
+	removed := make([]string, 0, len(a))
+	for _, value := range a {
+		if _, exists := excluded[value]; !exists {
+			removed = append(removed, value)
+		}
+	}
+	return removed
+}
+
+// deleteOrphanedReceiptAssets 在记录事务内清理不再被任何记录引用的凭证资产。
+//
+// 只删当前用户名下的 assets 行（PocketBase 删除记录会级联删除文件字段）；缺失或仍被其他记录引用的 id 跳过，
+// 清理失败随事务回滚，避免“记录已改但文件清理被静默丢弃”。
+func deleteOrphanedReceiptAssets(app core.App, userID string, assetIDs []string) error {
+	seen := make(map[string]struct{}, len(assetIDs))
+	for _, assetID := range assetIDs {
+		if assetID == "" {
+			continue
+		}
+		if _, exists := seen[assetID]; exists {
+			continue
+		}
+		seen[assetID] = struct{}{}
+		count, err := countBillingRecordReceiptReferences(app, userID, assetID)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			continue
+		}
+		asset, err := app.FindRecordById("assets", assetID)
+		if err != nil {
+			// 资产行已不存在（此前清理过）视为幂等成功，不阻塞记录编辑。
+			continue
+		}
+		if asset.GetString("user") != userID {
+			// 防御：凭证 id 只会来自用户自己的记录，仍不越权删除他人资产。
+			continue
+		}
+		if err := app.Delete(asset); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // applyBillingRecordPatch 把 patch 合并进记录并执行合并后契约校验：

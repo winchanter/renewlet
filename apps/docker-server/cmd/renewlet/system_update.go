@@ -197,10 +197,8 @@ func (service *systemUpdateService) baseVersionResponse(locale appLocale) *syste
 }
 
 func (service *systemUpdateService) fetchTargetRelease(ctx context.Context) (*fetchedSystemRelease, error) {
-	if currentUpdateChannel() == systemUpdateChannelRC {
-		return service.fetchLatestRCRelease(ctx)
-	}
-	return service.fetchLatestStableRelease(ctx)
+	// fork 本地部署：不检查上游 release，badge 静默显示当前版本。
+	return nil, nil
 }
 
 func (service *systemUpdateService) fetchLatestStableRelease(ctx context.Context) (*fetchedSystemRelease, error) {

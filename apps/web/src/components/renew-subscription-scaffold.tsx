@@ -37,8 +37,10 @@ export function RenewSubscriptionScaffold({
         <DialogDescription className="sr-only">{description}</DialogDescription>
       </DialogHeader>
       <form ref={formRef} className="flex min-h-0 flex-col overflow-hidden" {...formProps}>
+        {/* 滚动区不用 flex-1：h-fit 面板在部分移动内核会把 flex-basis:0% 的子项内在高度按 0 计导致塌陷；
+            basis auto 让内容计入 fit-content，超出时靠面板 max-height + min-h-0 收缩滚动。 */}
         <div
-          className="h5-mobile-sheet-scroll grid min-h-0 flex-1 gap-5 px-6 py-4"
+          className="h5-mobile-sheet-scroll grid min-h-0 gap-5 px-6 py-4"
           data-dialog-region="renewal-fields"
         >
           {mode}

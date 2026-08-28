@@ -2007,6 +2007,7 @@ export const MESSAGE_KEYS = [
   "subscription.renew.modeRestart",
   "subscription.renew.modeRestartHelp",
   "subscription.renew.modeRestartShort",
+  "subscription.renew.modeUsageBasedHelp",
   "subscription.renew.restartSubmit",
   "subscription.renew.submit",
   "subscription.renew.title",

@@ -656,7 +656,7 @@ msgstr "Total"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:168
 msgid "subscription.field.usageDailyRate"
-msgstr "Daily usage"
+msgstr "Daily usage estimate"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:169
@@ -3272,6 +3272,9 @@ msgstr "Connecting model"
 #: src/i18n/descriptors/subscription.ts:205
 msgid "subscription.renew.modeRestartHelp"
 msgstr "Use this after a subscription was inactive for a while. You can set a new start date and next billing date."
+
+msgid "subscription.renew.modeUsageBasedHelp"
+msgstr "Buy a new usage pack: enter the total, unit and estimated daily consumption. The exhaustion date is calculated automatically."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:202

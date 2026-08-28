@@ -9,9 +9,12 @@ type SubscriptionCycleKeys =
   | "customDays"
   | "customCycleUnit"
   | "oneTimeTermCount"
-  | "oneTimeTermUnit";
+  | "oneTimeTermUnit"
+  | "usageUnit"
+  | "usageTotal"
+  | "usageDailyRate";
 
-type RecurringBillingCycle = Exclude<BillingCycle, "custom" | "one-time">;
+type RecurringBillingCycle = Exclude<BillingCycle, "custom" | "one-time" | "usage-based">;
 
 export type SubscriptionCycleFixtureOverrides =
   | {
@@ -20,6 +23,9 @@ export type SubscriptionCycleFixtureOverrides =
       customCycleUnit?: never;
       oneTimeTermCount?: never;
       oneTimeTermUnit?: never;
+      usageUnit?: never;
+      usageTotal?: never;
+      usageDailyRate?: never;
     }
   | {
       billingCycle: "custom";
@@ -27,6 +33,9 @@ export type SubscriptionCycleFixtureOverrides =
       customCycleUnit?: CustomCycleUnit;
       oneTimeTermCount?: never;
       oneTimeTermUnit?: never;
+      usageUnit?: never;
+      usageTotal?: never;
+      usageDailyRate?: never;
     }
   | {
       billingCycle: "one-time";
@@ -34,6 +43,9 @@ export type SubscriptionCycleFixtureOverrides =
       customCycleUnit?: never;
       oneTimeTermCount?: never;
       oneTimeTermUnit?: never;
+      usageUnit?: never;
+      usageTotal?: never;
+      usageDailyRate?: never;
     }
   | {
       billingCycle: "one-time";
@@ -41,6 +53,19 @@ export type SubscriptionCycleFixtureOverrides =
       customCycleUnit?: never;
       oneTimeTermCount: number;
       oneTimeTermUnit: CustomCycleUnit;
+      usageUnit?: never;
+      usageTotal?: never;
+      usageDailyRate?: never;
+    }
+  | {
+      billingCycle: "usage-based";
+      customDays?: never;
+      customCycleUnit?: never;
+      oneTimeTermCount?: never;
+      oneTimeTermUnit?: never;
+      usageUnit?: string;
+      usageTotal: number;
+      usageDailyRate: number;
     };
 
 export type SubscriptionFixtureOverrides<T extends SubscriptionCollectionItem> =
@@ -53,6 +78,9 @@ type SubscriptionCycleFixture =
       customCycleUnit: undefined;
       oneTimeTermCount: undefined;
       oneTimeTermUnit: undefined;
+      usageUnit: undefined;
+      usageTotal: undefined;
+      usageDailyRate: undefined;
     }
   | {
       billingCycle: "custom";
@@ -60,6 +88,9 @@ type SubscriptionCycleFixture =
       customCycleUnit: CustomCycleUnit;
       oneTimeTermCount: undefined;
       oneTimeTermUnit: undefined;
+      usageUnit: undefined;
+      usageTotal: undefined;
+      usageDailyRate: undefined;
     }
   | {
       billingCycle: "one-time";
@@ -67,6 +98,9 @@ type SubscriptionCycleFixture =
       customCycleUnit: undefined;
       oneTimeTermCount: undefined;
       oneTimeTermUnit: undefined;
+      usageUnit: undefined;
+      usageTotal: undefined;
+      usageDailyRate: undefined;
     }
   | {
       billingCycle: "one-time";
@@ -74,6 +108,19 @@ type SubscriptionCycleFixture =
       customCycleUnit: undefined;
       oneTimeTermCount: number;
       oneTimeTermUnit: CustomCycleUnit;
+      usageUnit: undefined;
+      usageTotal: undefined;
+      usageDailyRate: undefined;
+    }
+  | {
+      billingCycle: "usage-based";
+      customDays: undefined;
+      customCycleUnit: undefined;
+      oneTimeTermCount: undefined;
+      oneTimeTermUnit: undefined;
+      usageUnit: string;
+      usageTotal: number;
+      usageDailyRate: number;
     };
 
 export function subscriptionCycleFixture(
@@ -106,11 +153,26 @@ export function subscriptionCycleFixture(
       oneTimeTermUnit: undefined,
     };
   }
+  if (overrides.billingCycle === "usage-based") {
+    return {
+      billingCycle: "usage-based",
+      customDays: undefined,
+      customCycleUnit: undefined,
+      oneTimeTermCount: undefined,
+      oneTimeTermUnit: undefined,
+      usageUnit: overrides.usageUnit ?? "条",
+      usageTotal: overrides.usageTotal,
+      usageDailyRate: overrides.usageDailyRate,
+    };
+  }
   return {
     billingCycle: overrides.billingCycle ?? "monthly",
     customDays: undefined,
     customCycleUnit: undefined,
     oneTimeTermCount: undefined,
     oneTimeTermUnit: undefined,
+    usageUnit: undefined,
+    usageTotal: undefined,
+    usageDailyRate: undefined,
   };
 }

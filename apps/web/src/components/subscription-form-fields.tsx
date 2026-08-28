@@ -72,43 +72,71 @@ interface UsagePackageFieldsProps {
   errors: SubscriptionFormErrors;
 }
 
-/** usage-based 预付量包输入：单位 + 总量 + 日均消耗预估，耗尽日由 auto-dates hook 推算并回填。 */
+/** usage-based 预付量包输入：总量 + 单位 + 日均消耗预估，耗尽日由 auto-dates hook 推算并回填。 */
 function UsagePackageFields({ id, formData, update, errors }: UsagePackageFieldsProps) {
   const { t } = useI18n();
   const usage = parseUsageFormFields(formData);
   const estimatedDays = usage ? usageBasedEstimatedDays(usage.total, usage.dailyRate) : null;
+  const errorId = id("usage-error");
   return (
-    <FormField
-      id={id("usageTotal")}
-      label={t("subscription.field.usagePackage")}
-      description={estimatedDays !== null ? t("subscription.usageEstimatedDays", { days: estimatedDays }) : undefined}
-      descriptionId={id("usage-help")}
-      error={errors.usage}
-      errorId={id("usage-error")}
-    >
-      {(field) => (
-        <div className="grid gap-2 sm:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)]" data-testid="usage-package-inline-control">
-          <Input
-            id={id("usageUnit")} name={id("usageUnit")} enterKeyHint="next"
-            placeholder={t("subscription.placeholder.usageUnit")}
-            value={formData.usageUnit}
-            onChange={(e) => update("usageUnit", e.target.value)}
-            aria-label={t("subscription.field.usageUnit")}
-            className="border-border bg-secondary"
-          />
-          <NumericInput
-            id={field.id} name={field.id}
-            allowNegative={false}
-            inputMode="decimal" enterKeyHint="next"
-            placeholder={t("subscription.placeholder.usageTotal")}
-            thousandSeparator
-            value={formData.usageTotal}
-            onRawValueChange={(value: string) => update("usageTotal", value)}
-            aria-label={t("subscription.field.usageTotal")}
-            aria-invalid={field.invalid}
-            aria-describedby={field.describedBy}
-            className="min-w-0 border-border bg-secondary"
-          />
+    <div className="grid gap-4 rounded-lg border border-border bg-secondary/30 p-4" data-testid="usage-package-section">
+      <Label className="text-base font-medium">{t("subscription.field.usagePackage")}</Label>
+      {estimatedDays !== null ? (
+        <p className="-mt-2 text-xs text-muted-foreground">
+          {t("subscription.usageEstimatedDays", { days: estimatedDays })}
+        </p>
+      ) : null}
+      <FormFieldRow
+        alignAt="sm"
+        rowClassName="sm:grid-cols-2"
+        errors={[{ id: errorId, message: errors.usage }]}
+      >
+        <FormField
+          id={id("usageTotal")}
+          label={t("subscription.field.usageTotal")}
+          error={errors.usage}
+          errorId={errorId}
+          renderError={false}
+        >
+          {(field) => (
+            <NumericInput
+              id={field.id} name={field.id}
+              allowNegative={false}
+              inputMode="decimal" enterKeyHint="next"
+              placeholder={t("subscription.placeholder.usageTotal")}
+              thousandSeparator
+              value={formData.usageTotal}
+              onRawValueChange={(value: string) => update("usageTotal", value)}
+              aria-label={t("subscription.field.usageTotal")}
+              aria-invalid={field.invalid}
+              aria-describedby={field.describedBy}
+              className="min-w-0 border-border bg-secondary"
+            />
+          )}
+        </FormField>
+        <FormField
+          id={id("usageUnit")}
+          label={t("subscription.field.usageUnit")}
+          renderError={false}
+        >
+          {() => (
+            <Input
+              id={id("usageUnit")} name={id("usageUnit")} enterKeyHint="next"
+              placeholder={t("subscription.placeholder.usageUnit")}
+              value={formData.usageUnit}
+              onChange={(e) => update("usageUnit", e.target.value)}
+              aria-label={t("subscription.field.usageUnit")}
+              className="border-border bg-secondary"
+            />
+          )}
+        </FormField>
+      </FormFieldRow>
+      <FormField
+        id={id("usageDailyRate")}
+        label={t("subscription.field.usageDailyRate")}
+        renderError={false}
+      >
+        {() => (
           <NumericInput
             id={id("usageDailyRate")} name={id("usageDailyRate")}
             allowNegative={false}
@@ -117,13 +145,11 @@ function UsagePackageFields({ id, formData, update, errors }: UsagePackageFields
             value={formData.usageDailyRate}
             onRawValueChange={(value: string) => update("usageDailyRate", value)}
             aria-label={t("subscription.field.usageDailyRate")}
-            aria-invalid={field.invalid}
-            aria-describedby={field.describedBy}
             className="min-w-0 border-border bg-secondary"
           />
-        </div>
-      )}
-    </FormField>
+        )}
+      </FormField>
+    </div>
   );
 }
 
@@ -566,7 +592,7 @@ export const SubscriptionFormFields = memo(function SubscriptionFormFields({
         </FormField>
       ) : null}
 
-      {(formData.billingCycle === "custom" || formData.billingCycle === "one-time" || formData.billingCycle === "usage-based") && (
+      {(formData.billingCycle === "custom" || formData.billingCycle === "one-time") && (
         <div className="grid gap-2">
           <Label htmlFor={id("paymentMethod")}>{t("subscription.field.paymentMethod")}</Label>
           <SubscriptionPaymentMethodSelect

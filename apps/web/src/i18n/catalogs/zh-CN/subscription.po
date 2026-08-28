@@ -656,7 +656,7 @@ msgstr "总量"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:168
 msgid "subscription.field.usageDailyRate"
-msgstr "日均消耗"
+msgstr "日均消耗预估"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:169
@@ -3272,6 +3272,9 @@ msgstr "连接模型"
 #: src/i18n/descriptors/subscription.ts:205
 msgid "subscription.renew.modeRestartHelp"
 msgstr "适合中间断订后重新订阅。可以设置新的开始日期和下次扣费日。"
+
+msgid "subscription.renew.modeUsageBasedHelp"
+msgstr "购买新量包：填写新量包的总量、单位和日均消耗预估，耗尽日自动推算。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:202

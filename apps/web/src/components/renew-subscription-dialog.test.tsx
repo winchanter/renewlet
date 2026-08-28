@@ -60,6 +60,16 @@ vi.mock("@/i18n/I18nProvider", () => ({
         "subscription.field.nextBillingDate": "到期日期",
         "subscription.field.price": "价格",
         "subscription.field.startDate": "开始日期",
+        "subscription.field.usagePackage": "量包",
+        "subscription.field.usageUnit": "单位",
+        "subscription.field.usageTotal": "总量",
+        "subscription.field.usageDailyRate": "日均消耗预估",
+        "subscription.field.usageExhaustionDate": "预计耗尽日",
+        "subscription.placeholder.usageUnit": "如：条、GB、次",
+        "subscription.placeholder.usageTotal": "总量，如 1000",
+        "subscription.placeholder.usageDailyRate": "日均，如 10",
+        "subscription.usageEstimatedDays": `按当前日均约可用 ${String(values?.["days"] ?? "")} 天`,
+        "subscription.usageExhaustionDateHelp": "由购买日和总量/日均自动推算。",
         "subscription.placeholder.currency": "选择货币",
         "subscription.placeholder.date": "选择日期",
         "subscription.renew": "续订",
@@ -73,6 +83,7 @@ vi.mock("@/i18n/I18nProvider", () => ({
         "subscription.renew.modeRestart": "重新开始订阅",
         "subscription.renew.modeRestartHelp": "适合中间断订后重新订阅。可以设置新的开始日期和下次扣费日。",
         "subscription.renew.modeRestartShort": "把新日期写成开始日。",
+        "subscription.renew.modeUsageBasedHelp": "购买新量包：填写新量包的总量、单位和日均消耗预估，耗尽日自动推算。",
         "subscription.renew.restartSubmit": "重新开始订阅",
         "subscription.renew.submit": "确认续订",
         "subscription.renew.title": `续订「${String(values?.["name"] ?? "")}」`,
@@ -266,6 +277,40 @@ describe("RenewSubscriptionDialog", () => {
       nextBillingDate: "2026-08-31",
       autoCalculateNextBillingDate: false,
     }));
+  });
+
+  it("renders usage-based renew as usage pack form with auto-computed exhaustion date", async () => {
+    const user = setupUser();
+    renderDialog({
+      subscription: makeSubscription({
+        status: "active",
+        billingCycle: "usage-based",
+        usageUnit: "条",
+        usageTotal: 100,
+        usageDailyRate: 10,
+        nextBillingDate: assertDateOnly("2026-02-10"),
+      }),
+    });
+
+    // 量包表单应可见，不显示 continue/restart RadioGroup。
+    expect(screen.getByTestId("renew-usage-package-section")).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /继续订阅|重新开始订阅/ })).toBeNull();
+
+    // 总量预填为空（新量包），单位预填原订阅的"条"，日均预填 10。
+    const totalInput = screen.getByLabelText("总量");
+    expect(totalInput).toHaveValue("");
+    const unitInput = screen.getByLabelText("单位");
+    expect(unitInput).toHaveValue("条");
+    const dailyRateInput = screen.getByLabelText("日均消耗预估");
+    expect(dailyRateInput).toHaveValue("10");
+
+    // 购买日默认今天，耗尽日 = 今天 + ceil(0/10) 天，因总量为空暂无推算。
+    // 填入总量 200，耗尽日 = 今天 + ceil(200/10) = 今天 + 20 天。
+    await user.type(totalInput, "200");
+    // 耗尽日只读且自动推算：2026-08-12 + 20 天 = 2026-09-01。
+    const exhaustionButton = screen.getByRole("button", { name: /预计耗尽日/, hidden: true });
+    expect(exhaustionButton).toBeDisabled();
+    expect(exhaustionButton).toHaveTextContent("2026-09-01");
   });
 
   it("switches to restart mode, recalculates default dates, and marks manual next date edits", async () => {

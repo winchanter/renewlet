@@ -75,6 +75,9 @@ type subscriptionWriteRequest struct {
 	CustomCycleUnit              optionalJSONField[string]                 `json:"customCycleUnit"`
 	OneTimeTermCount             optionalJSONField[int]                    `json:"oneTimeTermCount"`
 	OneTimeTermUnit              optionalJSONField[string]                 `json:"oneTimeTermUnit"`
+	UsageUnit                    optionalJSONField[string]                 `json:"usageUnit"`
+	UsageTotal                   optionalJSONField[float64]                `json:"usageTotal"`
+	UsageDailyRate               optionalJSONField[float64]                `json:"usageDailyRate"`
 	Category                     optionalJSONField[string]                 `json:"category"`
 	Status                       optionalJSONField[string]                 `json:"status"`
 	Pinned                       optionalJSONField[bool]                   `json:"pinned"`
@@ -465,7 +468,9 @@ func findOwnedSubscription(app core.App, e *core.RequestEvent) (*core.Record, er
 
 func (r subscriptionWriteRequest) HasChanges() bool {
 	return r.Name.Set || r.Logo.Set || r.Price.Set || r.Currency.Set || r.BillingCycle.Set || r.CustomDays.Set ||
-		r.CustomCycleUnit.Set || r.OneTimeTermCount.Set || r.OneTimeTermUnit.Set || r.Category.Set || r.Status.Set ||
+		r.CustomCycleUnit.Set || r.OneTimeTermCount.Set || r.OneTimeTermUnit.Set ||
+		r.UsageUnit.Set || r.UsageTotal.Set || r.UsageDailyRate.Set ||
+		r.Category.Set || r.Status.Set ||
 		r.Pinned.Set || r.PublicHidden.Set || r.PaymentMethod.Set || r.StartDate.Set || r.NextBillingDate.Set ||
 		r.AutoRenew.Set || r.AutoCalculateNextBillingDate.Set || r.TrialEndDate.Set || r.Website.Set || r.Notes.Set ||
 		r.Tags.Set || r.ReminderDays.Set || r.RepeatReminderEnabled.Set || r.RepeatReminderInterval.Set ||
@@ -498,6 +503,15 @@ func applySubscriptionWriteRequest(record *core.Record, body subscriptionWriteRe
 		return err
 	}
 	if err := setStringRecordField(record, "oneTimeTermUnit", body.OneTimeTermUnit, false, true, true); err != nil {
+		return err
+	}
+	if err := setStringRecordField(record, "usageUnit", body.UsageUnit, false, true, true); err != nil {
+		return err
+	}
+	if err := setFloatRecordField(record, "usageTotal", body.UsageTotal, false, true); err != nil {
+		return err
+	}
+	if err := setFloatRecordField(record, "usageDailyRate", body.UsageDailyRate, false, true); err != nil {
 		return err
 	}
 	if err := setStringRecordField(record, "category", body.Category, create, false, true); err != nil {
@@ -612,6 +626,24 @@ func setMoneyRecordField(record *core.Record, name string, field optionalJSONFie
 }
 
 func setIntRecordField(record *core.Record, name string, field optionalJSONField[int], required bool, nullable bool) error {
+	if !field.Set {
+		if required {
+			return fmt.Errorf("%s_REQUIRED", strings.ToUpper(name))
+		}
+		return nil
+	}
+	if field.Null {
+		if !nullable {
+			return fmt.Errorf("%s_REQUIRED", strings.ToUpper(name))
+		}
+		record.Set(name, 0)
+		return nil
+	}
+	record.Set(name, field.Value)
+	return nil
+}
+
+func setFloatRecordField(record *core.Record, name string, field optionalJSONField[float64], required bool, nullable bool) error {
 	if !field.Set {
 		if required {
 			return fmt.Errorf("%s_REQUIRED", strings.ToUpper(name))

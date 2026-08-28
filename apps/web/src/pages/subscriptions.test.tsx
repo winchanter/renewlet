@@ -182,6 +182,7 @@ vi.mock("@/components/subscription-card", () => ({
     priceReferenceCurrency,
     onTogglePinned,
     onTogglePublicHidden,
+    onViewBillingRecords,
     onViewDetails,
   }: {
     subscription: Subscription;
@@ -189,6 +190,7 @@ vi.mock("@/components/subscription-card", () => ({
     priceReferenceCurrency: string | null;
     onTogglePinned?: (id: string) => void;
     onTogglePublicHidden?: (id: string) => void;
+    onViewBillingRecords?: (id: string) => void;
     onViewDetails?: (id: string) => void;
   }) => (
     <article data-testid="subscription-card">
@@ -204,7 +206,34 @@ vi.mock("@/components/subscription-card", () => ({
       <button type="button" onClick={() => onTogglePublicHidden?.(subscription.id)}>
         公开切换 {subscription.name}
       </button>
+      {onViewBillingRecords ? (
+        <button type="button" data-testid="subscription-card-billing-records" onClick={() => onViewBillingRecords(subscription.id)}>
+          历史记录 {subscription.name}
+        </button>
+      ) : null}
     </article>
+  ),
+}));
+
+vi.mock("@/components/billing-records-dialog-loader", () => ({
+  DeferredBillingRecordsDialog: ({
+    open,
+    collectionItem,
+    onOpenChange,
+  }: {
+    open: boolean;
+    collectionItem: { name: string } | null;
+    onOpenChange: (open: boolean) => void;
+  }) => (
+    <div data-testid="billing-records-dialog-state">
+      {String(open)}
+      <span data-testid="billing-records-dialog-name">{collectionItem?.name ?? ""}</span>
+      {open ? (
+        <button type="button" data-testid="billing-records-dialog-close" onClick={() => onOpenChange(false)}>
+          关闭历史记录
+        </button>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -769,5 +798,34 @@ describe("Subscriptions page virtualization", () => {
       expect(screen.getAllByTestId("subscription-card").length).toBeGreaterThan(0);
     });
     expect(mocks.useSettingsEnvelope).toHaveBeenCalledTimes(settingsCallsAfterMount);
+  });
+});
+
+describe("Subscriptions page billing records entry", () => {
+  beforeAll(installPointerCaptureMocks);
+
+  beforeEach(() => {
+    mockMobileTagFilterMatch(false, 1280);
+    mockDefaultSubscriptionsPageSettings();
+    mocks.useInfiniteSubscriptions.mockReturnValue({
+      subscriptions: [subscription({ id: "sub-billing", name: "Billing Service" })],
+      isPending: false,
+    });
+  });
+
+  it("opens the billing records dialog from the card entry and closes it back", async () => {
+    const user = userEvent.setup();
+    renderSubscriptionsPage();
+
+    await user.click(screen.getByTestId("subscription-card-billing-records"));
+
+    expect(screen.getByTestId("billing-records-dialog-state")).toHaveTextContent("true");
+    expect(screen.getByTestId("billing-records-dialog-name")).toHaveTextContent("Billing Service");
+
+    await user.click(screen.getByTestId("billing-records-dialog-close"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("billing-records-dialog-state")).toHaveTextContent("false");
+    });
   });
 });

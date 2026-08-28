@@ -44,6 +44,7 @@ import {
   rotateSubscriptionCalendarFeed,
 } from "./calendar-feed";
 import { readCustomConfig, readSettings, updateCustomConfig, updateSettings } from "./settings";
+import { listBillingRecords, updateBillingRecord } from "./billing-records";
 import { putExchangeRateSnapshot, readExchangeRateSnapshots } from "./exchange-rate-snapshots";
 import { createSubscription, deleteSubscription, readSubscriptions, renewSubscription, updateSubscription } from "./subscriptions";
 import {
@@ -282,12 +283,21 @@ defineRoute(subscriptionRoutes, "/:id/calendar.ics", {
 defineRoute(subscriptionRoutes, "/:id/renew", {
   POST: (context) => renewSubscription(context.req.raw, context.env, routeParam(context, "id")),
 });
+// 扣费记录列表是订阅详情的附属读取；静态子路径必须先于 /:id 注册，避免被当作订阅 ID。
+defineRoute(subscriptionRoutes, "/:id/billing-records", {
+  GET: (context) => listBillingRecords(context.req.raw, context.env, routeParam(context, "id")),
+});
 defineRoute(subscriptionRoutes, "/:id", {
   GET: (context) => readSubscriptionDetail(context.req.raw, context.env, routeParam(context, "id")),
   PATCH: (context) => updateSubscription(context.req.raw, context.env, routeParam(context, "id")),
   DELETE: (context) => deleteSubscription(context.req.raw, context.env, routeParam(context, "id")),
 });
 app.route("/api/app/subscriptions", subscriptionRoutes);
+
+// 记录事实修正是顶层资源 PATCH；路径与 Go 运行面同形，保持 route parity 契约。
+defineRoute(app, "/api/app/billing-records/:id", {
+  PATCH: (context) => updateBillingRecord(context.req.raw, context.env, routeParam(context, "id")),
+});
 
 defineRoute(app, "/api/app/import/preview", { POST: (context) => previewImport(context.req.raw, context.env) });
 defineRoute(app, "/api/app/import/apply", { POST: (context) => applyImport(context.req.raw, context.env) });

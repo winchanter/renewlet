@@ -5,7 +5,7 @@
  * 注意：金额、周期、状态和提醒标签必须继续复用订阅 domain 常量，避免不同入口展示口径分叉。
  */
 import { useState, type ReactNode } from "react";
-import { CalendarPlus, Edit2, ExternalLink, RotateCw } from "lucide-react";
+import { CalendarPlus, Edit2, ExternalLink, History, RotateCw } from "lucide-react";
 import type { Subscription, SubscriptionCollectionItem } from "@/types/subscription";
 import {
   DEFAULT_NOTIFICATION_REMINDER_DAYS,
@@ -14,6 +14,7 @@ import {
 } from "@/types/subscription";
 import { AddToCalendarDialog } from "@/components/add-to-calendar-dialog";
 import { preloadRenewSubscriptionDialog } from "@/components/renew-subscription-dialog-loader";
+import { preloadBillingRecordsDialog } from "@/components/billing-records-dialog-loader";
 import { SubscriptionLogo } from "@/components/subscription-logo";
 import {
   createSubscriptionDetailLoadingSlots,
@@ -56,6 +57,7 @@ interface SubscriptionDetailDialogProps {
   loadingPreview: SubscriptionCollectionItem | null;
   onEditSubscription?: (subscription: Subscription) => void;
   onRenewSubscription?: (id: string) => void;
+  onViewBillingRecords?: (id: string) => void;
   today: DateOnly | string;
   currencyConvert: SubscriptionCurrencyConverter;
   currencyRatesReady: boolean;
@@ -71,6 +73,7 @@ interface SubscriptionDetailContentProps {
   onClose: () => void;
   onEditSubscription?: (subscription: Subscription) => void;
   onRenewSubscription?: (id: string) => void;
+  onViewBillingRecords?: (id: string) => void;
   onAddToCalendar: () => void;
   currencyConvert: SubscriptionCurrencyConverter;
   currencyRatesReady: boolean;
@@ -118,6 +121,7 @@ function SubscriptionDetailContent({
   onClose,
   onEditSubscription,
   onRenewSubscription,
+  onViewBillingRecords,
   onAddToCalendar,
   currencyConvert,
   currencyRatesReady,
@@ -356,9 +360,19 @@ function SubscriptionDetailContent({
       )}
       actions={(
         <>
-          <Button variant="outline" className="w-full justify-center border-border sm:w-auto" onClick={onClose}>
-            {t("common.close")}
-          </Button>
+          {onViewBillingRecords ? (
+            <Button
+              variant="outline"
+              className="w-full justify-center border-border sm:w-auto"
+              onPointerEnter={preloadBillingRecordsDialog}
+              onFocus={preloadBillingRecordsDialog}
+              onTouchStart={preloadBillingRecordsDialog}
+              onClick={() => onViewBillingRecords(subscription.id)}
+            >
+              <History className="h-4 w-4" />
+              {t("subscription.billingRecords.menuHistory")}
+            </Button>
+          ) : null}
           {!isBuyout ? (
             <Button variant="outline" className="w-full justify-center border-border sm:w-auto" onClick={onAddToCalendar}>
               <CalendarPlus className="h-4 w-4" />
@@ -397,6 +411,7 @@ export function SubscriptionDetailDialog({
   loadingPreview,
   onEditSubscription,
   onRenewSubscription,
+  onViewBillingRecords,
   today,
   currencyConvert,
   currencyRatesReady,
@@ -438,6 +453,7 @@ export function SubscriptionDetailDialog({
       priceReferenceCurrency={priceReferenceCurrency}
       {...(onEditSubscription ? { onEditSubscription } : {})}
       {...(onRenewSubscription ? { onRenewSubscription } : {})}
+      {...(onViewBillingRecords ? { onViewBillingRecords } : {})}
     />
   ) : null;
 

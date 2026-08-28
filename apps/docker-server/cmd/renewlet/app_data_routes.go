@@ -265,7 +265,13 @@ func handleSubscriptionCreate(app core.App, e *core.RequestEvent) error {
 	if err := applySubscriptionWriteRequest(record, body, true); err != nil {
 		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
 	}
-	if err := app.Save(record); err != nil {
+	if err := app.RunInTransaction(func(txApp core.App) error {
+		if err := txApp.Save(record); err != nil {
+			return err
+		}
+		// 首期扣费记录与订阅写入同事务：记录是每期扣费的事实快照，缺行会让历史面板与账本漂移。
+		return upsertInitialBillingRecord(txApp, record)
+	}); err != nil {
 		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
 	}
 	return apiSuccessJSON(e, http.StatusCreated, subscriptionResponse{Subscription: subscriptionAPIFromRecord(record)})
@@ -312,7 +318,7 @@ func handleAssetUpload(app core.App, e *core.RequestEvent) error {
 		return e.BadRequestError(serverText(locale, "asset.uploadChooseImage"), err)
 	}
 	kind := strings.TrimSpace(e.Request.FormValue("kind"))
-	if kind != "logo" && kind != "icon" {
+	if kind != "logo" && kind != "icon" && kind != "receipt" {
 		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
 	}
 	files, err := e.FindUploadedFiles("file")
@@ -340,8 +346,8 @@ func handleAssetUpload(app core.App, e *core.RequestEvent) error {
 func handleAssetsList(app core.App, e *core.RequestEvent) error {
 	locale := requestLocale(e.Request)
 	kind := "logo"
-	if e.Request.URL.Query().Get("kind") == "icon" {
-		kind = "icon"
+	if k := e.Request.URL.Query().Get("kind"); k == "icon" || k == "receipt" {
+		kind = k
 	}
 	page, err := parsePositiveQueryInt(e.Request.URL.Query().Get("page"), 1, 1, 1_000_000)
 	if err != nil {

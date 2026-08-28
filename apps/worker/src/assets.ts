@@ -93,7 +93,8 @@ export async function readAsset(request: Request, env: Env, id: string): Promise
 export async function listUploadedAssets(request: Request, env: Env): Promise<Response> {
   const auth = await requireAuth(request, env);
   const url = new URL(request.url);
-  const kind = url.searchParams.get("kind") === "icon" ? "icon" : "logo";
+  const kindParam = url.searchParams.get("kind");
+  const kind = kindParam === "icon" ? "icon" : kindParam === "receipt" ? "receipt" : "logo";
   const page = positiveInt(url.searchParams.get("page"), 1);
   // perPage 上限保护 D1/R2 列表页，不让 Logo 选择器变成无界资产枚举接口。
   const perPage = clamp(positiveInt(url.searchParams.get("perPage"), 48), 1, 96);

@@ -18,10 +18,16 @@ export const subscriptionQueryKeys = {
   facets: ["subscriptions", "collections", "facets"] as const,
   details: ["subscriptions", "details"] as const,
   detail: (id: string) => ["subscriptions", "details", id] as const,
+  /** 扣费记录按订阅隔离；只随该订阅的创建/续订失效，不挂 collections 前缀避免整页重刷。 */
+  billingRecords: (subscriptionId: string) => ["subscriptions", "billingRecords", subscriptionId] as const,
 };
 
 export function invalidateSubscriptionCollections(queryClient: QueryClient) {
   return queryClient.invalidateQueries({ queryKey: subscriptionQueryKeys.collections });
+}
+
+export function invalidateSubscriptionBillingRecords(queryClient: QueryClient, subscriptionId: string) {
+  return queryClient.invalidateQueries({ queryKey: subscriptionQueryKeys.billingRecords(subscriptionId) });
 }
 
 export function removeSubscriptionDetails(queryClient: QueryClient): void {

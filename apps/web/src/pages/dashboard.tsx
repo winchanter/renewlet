@@ -28,6 +28,7 @@ import { QueryErrorState } from "@/components/query-error-state";
 import { EditSubscriptionDialog } from "@/components/edit-subscription-dialog";
 import { AddSubscriptionDialog } from "@/components/add-subscription-dialog";
 import { DeferredRenewSubscriptionDialog } from "@/components/renew-subscription-dialog-loader";
+import { DeferredBillingRecordsDialog } from "@/components/billing-records-dialog-loader";
 import { CreditCard, TrendingUp, Clock, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useReportExchangeRates } from "@/hooks/use-report-exchange-rates";
@@ -36,6 +37,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { useCustomConfigState } from "@/contexts/CustomConfigContext";
 import { useDashboardStats } from "@/modules/subscriptions/application/use-dashboard-stats";
 import { useSubscriptionCrud } from "@/modules/subscriptions/application/use-subscription-crud";
+import { useSubscriptionBillingRecordsDialog } from "@/hooks/use-subscription-billing-records-dialog";
 import { resolveSubscriptionPriceReferenceCurrency } from "@/modules/subscriptions/domain/subscription-price-reference";
 import { useI18n } from "@/i18n/I18nProvider";
 import { DEFAULT_NOTIFICATION_REMINDER_DAYS } from "@/types/subscription";
@@ -76,6 +78,12 @@ export default function Index() {
     handleDetailDialogOpenChange,
   } = useSubscriptionDetailDialog(subscriptions);
   const calendarDialog = useSubscriptionCalendarDialog(subscriptions);
+  const {
+    open: billingRecordsDialogOpen,
+    collectionItem: billingRecordsCollectionItem,
+    show: showBillingRecords,
+    onOpenChange: handleBillingRecordsDialogOpenChange,
+  } = useSubscriptionBillingRecordsDialog(subscriptions);
   const { activeSubscriptions, totalMonthly, totalDaily, upcomingCount, trialCount } = useDashboardStats(
     subscriptions,
     defaultCurrency,
@@ -242,6 +250,7 @@ export default function Index() {
                       onEdit={handleEditSubscription}
                       onDelete={handleDeleteSubscription}
                       onTogglePublicHidden={handleTogglePublicHiddenSubscription}
+                      onViewBillingRecords={showBillingRecords}
                       onViewDetails={handleViewDetails}
                       onAddToCalendar={calendarDialog.show}
                       onPrefetchDetails={handlePrefetchSubscription}
@@ -294,6 +303,7 @@ export default function Index() {
         loadingPreview={selectedDetailCollectionItem}
         onEditSubscription={handleEditFromDetail}
         onRenewSubscription={handleRenewSubscription}
+        onViewBillingRecords={showBillingRecords}
         today={today}
         currencyConvert={convert}
         currencyRatesReady={currencyRatesReady}
@@ -310,6 +320,7 @@ export default function Index() {
         restoreFocusRef={renewRestoreFocusRef}
         onOpenChange={handleRenewDialogOpenChange}
         onSubmit={handleSubmitRenewSubscription}
+        onViewBillingRecords={showBillingRecords}
         loading={renewDetailPending}
       />
       <AddToCalendarDialog
@@ -318,6 +329,11 @@ export default function Index() {
         subscription={calendarDialog.subscription}
         loadingPreview={calendarDialog.collectionItem}
         loading={calendarDialog.pending}
+      />
+      <DeferredBillingRecordsDialog
+        open={billingRecordsDialogOpen}
+        onOpenChange={handleBillingRecordsDialogOpenChange}
+        collectionItem={billingRecordsCollectionItem}
       />
     </div>
   );

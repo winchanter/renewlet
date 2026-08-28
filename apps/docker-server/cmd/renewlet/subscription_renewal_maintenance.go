@@ -124,9 +124,17 @@ func renewAutoSubscriptionsForUser(app core.App, userID string, timezone string,
 			if !ok {
 				continue
 			}
+			// 自动续订记录的金额/币种/周期快照取推进前的订阅；逐期区间以推进前的旧到期日为起点。
+			snapshot := billingRecordUpsertSnapshot(record)
+			previousNextBillingDate := record.GetString("nextBillingDate")
 			record.Set("nextBillingDate", result.NextBillingDate)
 			record.Set("status", result.Status)
-			if err := app.Save(record); err != nil {
+			if err := app.RunInTransaction(func(txApp core.App) error {
+				if err := txApp.Save(record); err != nil {
+					return err
+				}
+				return generateAutoRenewalBillingRecords(txApp, snapshot, previousNextBillingDate, result.NextBillingDate)
+			}); err != nil {
 				return updated, err
 			}
 			updated++

@@ -281,7 +281,8 @@ func loadSubscriptionCollectionContractFixture(t *testing.T) subscriptionCollect
 	if err := json.Unmarshal(data, &fixture); err != nil {
 		t.Fatal(err)
 	}
-	if fixture.Version != 1 || fixture.CollectionLimit != subscriptionCollectionLimit || len(fixture.CollectionItems) != 4 {
+	// d53bb26 给共享 fixture 增加了 usage-based 第 5 项；Go 侧断言必须与 shared fixture（事实源）同步。
+	if fixture.Version != 1 || fixture.CollectionLimit != subscriptionCollectionLimit || len(fixture.CollectionItems) != 5 {
 		t.Fatalf("invalid subscription collection contract fixture: %#v", fixture)
 	}
 	return fixture

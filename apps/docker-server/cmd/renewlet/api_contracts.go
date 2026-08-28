@@ -380,6 +380,8 @@ type subscriptionRenewRequest struct {
 	// usage-based 续费即购买新量包：可选同步调整总量与日均消耗（单位沿用原订阅）。
 	UsageTotal     *float64 `json:"usageTotal,omitempty"`
 	UsageDailyRate *float64 `json:"usageDailyRate,omitempty"`
+	// 续订凭证（截图/发票）的 asset ID 列表；可选，上限 6 张。
+	ReceiptAssetIds []string `json:"receiptAssetIds,omitempty"`
 }
 
 func (r *subscriptionRenewRequest) Validate(locale appLocale) error {
@@ -420,6 +422,14 @@ func (r *subscriptionRenewRequest) Validate(locale appLocale) error {
 	}
 	if r.UsageDailyRate != nil && *r.UsageDailyRate <= 0 {
 		return errors.New(serverText(locale, "common.invalidRequestParameters"))
+	}
+	if len(r.ReceiptAssetIds) > 6 {
+		return errors.New(serverText(locale, "common.invalidRequestParameters"))
+	}
+	for _, id := range r.ReceiptAssetIds {
+		if strings.TrimSpace(id) == "" {
+			return errors.New(serverText(locale, "common.invalidRequestParameters"))
+		}
 	}
 	return nil
 }

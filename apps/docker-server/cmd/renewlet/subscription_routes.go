@@ -46,10 +46,19 @@ func handleSubscriptionRenew(app core.App, e *core.RequestEvent) error {
 	if err != nil || record == nil {
 		return e.NotFoundError("SUBSCRIPTION_NOT_FOUND", err)
 	}
+	// continue 的记录扣费日取推进前的旧 nextBillingDate；必须在改动订阅前捕获。
+	previousNextBillingDate := record.GetString("nextBillingDate")
 	today := todayDateOnly(time.Now(), currentUserSettingsTimezone(app, e.Auth))
 	input := subscriptionRenewalInputFromRecord(record)
 	if !isManualRenewEligible(input) {
 		return e.BadRequestError("SUBSCRIPTION_RENEW_NOT_ALLOWED", nil)
+	}
+	// 记录归属与来源语义：continue→manual_continue，restart→manual_restart；扣费日分别取旧到期日/新开始日。
+	recordMode := billingRecordModeManualContinue
+	recordBillingDate := previousNextBillingDate
+	if body.Mode == "restart" {
+		recordMode = billingRecordModeManualRestart
+		recordBillingDate = strings.TrimSpace(body.StartDate.Value)
 	}
 	record.Set("price", body.Price)
 	record.Set("currency", body.Currency)
@@ -82,7 +91,13 @@ func handleSubscriptionRenew(app core.App, e *core.RequestEvent) error {
 			record.Set("status", "active")
 		}
 	}
-	if err := app.Save(record); err != nil {
+	if err := app.RunInTransaction(func(txApp core.App) error {
+		if err := txApp.Save(record); err != nil {
+			return err
+		}
+		// 续订扣费记录与订阅写入同事务；period_end_date 是续订后的新到期日，周期快照取更新后的订阅。
+		return upsertManualRenewalBillingRecord(txApp, record, recordMode, recordBillingDate, body.ReceiptAssetIds)
+	}); err != nil {
 		return e.BadRequestError("SUBSCRIPTION_RENEW_FAILED", err)
 	}
 	return apiSuccessJSON(e, http.StatusOK, subscriptionResponse{Subscription: subscriptionAPIFromRecord(record)})

@@ -1,6 +1,7 @@
 export const LOGO_URL_INPUT_MAX_LENGTH = 2048;
 
 const privateAssetPathPattern = /^\/api\/app\/assets\/[A-Za-z0-9_-]+$/;
+export const PRIVATE_ASSET_URL_PREFIX = "/api/app/assets/";
 const ipv4Pattern = /^(?:\d{1,3}\.){3}\d{1,3}$/;
 const ipv6Pattern = /^[0-9a-f:.]+$/i;
 
@@ -14,7 +15,7 @@ export type LogoUrlValidationCode =
 
 export type LogoUrlValidationResult =
   | { ok: true; value: string }
-  | { ok: false; code: LogoUrlValidationCode };
+  | { ok: false, code: LogoUrlValidationCode };
 
 function currentPageProtocol(): string {
   if (typeof window === "undefined") return "https:";
@@ -23,6 +24,23 @@ function currentPageProtocol(): string {
 
 export function isPrivateAssetLogoReference(value: string): boolean {
   return privateAssetPathPattern.test(value.trim());
+}
+
+/**
+ * 解析私有资产受控 URL（/api/app/assets/{id}）的 asset id；非匹配返回 null。
+ *
+ * 续订凭证上传返回的 url 就是这个受控路径；前端只持久化 id，渲染时再还原成 url。
+ */
+export function parsePrivateAssetId(value: string): string | null {
+  const trimmed = value.trim();
+  if (!privateAssetPathPattern.test(trimmed)) return null;
+  return trimmed.slice(PRIVATE_ASSET_URL_PREFIX.length);
+}
+
+/** 把 asset id 还原为受控私有资产读取路径；id 为空时返回空字符串。 */
+export function buildPrivateAssetUrl(id: string): string {
+  const trimmed = id.trim();
+  return trimmed ? `${PRIVATE_ASSET_URL_PREFIX}${trimmed}` : "";
 }
 
 /**

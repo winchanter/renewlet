@@ -25,8 +25,9 @@ const privateRouteKeys = new Set([
 ]);
 const budgets = {
   // 相比 510 KB gzip / 431 KB Brotli 基线分别下降 21.6% / 20.2%。
+  // route Brotli 上调 1 KB：订阅页接入历史扣费记录弹窗的入口接线（轻量 hook + 懒加载 loader）。
   startup: { gzip: 400000, brotli: 344000 },
-  route: { gzip: 400000, brotli: 344000 },
+  route: { gzip: 400000, brotli: 345000 },
 };
 const forbiddenStartupModules = [
   ["Recharts", (id) => id.includes("node_modules/recharts/")],

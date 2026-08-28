@@ -22,6 +22,7 @@ import { subscriptionFilterLayout } from '@/components/subscription-filter-layou
 import { AddSubscriptionDialog } from '@/components/add-subscription-dialog';
 import { EditSubscriptionDialog } from '@/components/edit-subscription-dialog';
 import { DeferredRenewSubscriptionDialog } from '@/components/renew-subscription-dialog-loader';
+import { DeferredBillingRecordsDialog } from '@/components/billing-records-dialog-loader';
 import { SubscriptionDialog } from '@/components/subscription-dialog';
 import {
   DeferredImportDataDialog,
@@ -67,6 +68,7 @@ import type { MessageKey } from '@/i18n/messages';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useSubscriptionDetailDialog } from '@/hooks/use-subscription-detail-dialog';
 import { useSubscriptionCalendarDialog } from '@/hooks/use-subscription-calendar-dialog';
+import { useSubscriptionBillingRecordsDialog } from '@/hooks/use-subscription-billing-records-dialog';
 import { useManagedCurrencyOptions } from '@/hooks/use-managed-currency-options';
 import { todayDateOnlyInTimeZone } from '@/lib/time/date-only';
 import {
@@ -223,6 +225,12 @@ const Subscriptions = () => {
     handleDetailDialogOpenChange,
   } = useSubscriptionDetailDialog(displaySourceSubscriptions);
   const calendarDialog = useSubscriptionCalendarDialog(displaySourceSubscriptions);
+  const {
+    open: billingRecordsDialogOpen,
+    collectionItem: billingRecordsCollectionItem,
+    show: showBillingRecords,
+    onOpenChange: handleBillingRecordsDialogOpenChange,
+  } = useSubscriptionBillingRecordsDialog(displaySourceSubscriptions);
   const selectedStatus = config.statuses.find((status) => status.value === statusFilter);
   const statusFilterLabel = statusFilter === "all"
     ? t("subscriptions.allStatuses")
@@ -240,6 +248,11 @@ const Subscriptions = () => {
   const handleLoadMore = useCallback(() => {
     void fetchNextPage();
   }, [fetchNextPage]);
+  // 历史记录弹窗叠加在续订弹窗之上：两层都是 dismissMode=explicit 的 Radix Dialog，
+  // 焦点域自动层叠——关闭历史记录后焦点自然回到续订弹窗，表单状态不丢失。
+  const handleViewBillingRecordsFromRenew = useCallback((id: string) => {
+    showBillingRecords(id);
+  }, [showBillingRecords]);
   const handleEditFromDetail = useCallback((subscription: Subscription) => {
     handleEditSubscription(subscription.id);
   }, [handleEditSubscription]);
@@ -611,6 +624,7 @@ const Subscriptions = () => {
               onTogglePinned={handleTogglePinnedSubscription}
               onTogglePublicHidden={handleTogglePublicHiddenSubscription}
               onRenew={handleRenewSubscription}
+              onViewBillingRecords={showBillingRecords}
               onViewDetails={handleViewDetails}
               onAddToCalendar={calendarDialog.show}
               onPrefetchDetails={handlePrefetchSubscription}
@@ -663,7 +677,13 @@ const Subscriptions = () => {
         restoreFocusRef={renewRestoreFocusRef}
         onOpenChange={handleRenewDialogOpenChange}
         onSubmit={handleSubmitRenewSubscription}
+        onViewBillingRecords={handleViewBillingRecordsFromRenew}
         loading={renewDetailPending}
+      />
+      <DeferredBillingRecordsDialog
+        open={billingRecordsDialogOpen}
+        onOpenChange={handleBillingRecordsDialogOpenChange}
+        collectionItem={billingRecordsCollectionItem}
       />
       <SubscriptionDetailDialog
         open={detailDialogOpen}
@@ -672,6 +692,7 @@ const Subscriptions = () => {
         loadingPreview={selectedDetailCollectionItem}
         onEditSubscription={handleEditFromDetail}
         onRenewSubscription={handleRenewSubscription}
+        onViewBillingRecords={showBillingRecords}
         today={today}
         currencyConvert={convert}
         currencyRatesReady={currencyRatesReady}

@@ -15,6 +15,7 @@ import {
   DISABLED_REMINDER_DAYS,
   INHERIT_REMINDER_DAYS,
   MAX_REMINDER_DAYS,
+  RECEIPT_ASSET_IDS_MAX,
   REPEAT_REMINDER_INTERVALS,
   REPEAT_REMINDER_WINDOWS,
   SUBSCRIPTION_STATUSES,
@@ -145,6 +146,15 @@ const oneTimeTermUnitSchema = z.enum(CUSTOM_CYCLE_UNITS);
 const usageUnitSchema = z.string().trim().min(1).max(20);
 const usageTotalSchema = z.number().finite().positive().max(1_000_000_000);
 const usageDailyRateSchema = z.number().finite().positive().max(1_000_000_000);
+
+// 供 billing-records 快照 schema 复用同一套字段边界，避免两处数值上限漂移。
+export {
+  oneTimeTermCountSchema,
+  oneTimeTermUnitSchema,
+  usageDailyRateSchema,
+  usageTotalSchema,
+  usageUnitSchema,
+};
 
 export function usageBasedFieldsAreConsistent(value: {
   billingCycle?: BillingCycle | undefined;
@@ -369,6 +379,8 @@ export const subscriptionRenewBodySchema = z.object({
   // usage-based 续费即购买新量包：允许同步调整总量与日均消耗（单位沿用原订阅）。
   usageTotal: usageTotalSchema.nullable().optional(),
   usageDailyRate: usageDailyRateSchema.nullable().optional(),
+  // 续订凭证（截图/发票）的 asset ID 列表；可选，上限 6 张。
+  receiptAssetIds: z.array(z.string().min(1)).max(RECEIPT_ASSET_IDS_MAX).optional(),
 }).strict()
   .describe("手动续订请求：显式选择延续原锚点或从新日期重开，并允许同步调整价格/币种。")
   .refine((value) => value.mode !== "restart" || value.startDate !== undefined && value.startDate !== null, {

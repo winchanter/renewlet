@@ -49,7 +49,9 @@ export class ApiError extends Error {
     rawResponseText = "",
   ) {
     super(message);
-    this.name = "ApiError";
+    // React Query 通过 error.name === "AbortError" 识别 cancel；aborted 错误必须保留该 name，
+    // 否则 StrictMode 双挂载取消的请求会被当作真实 error，导致弹窗显示错误状态而非空列表。
+    this.name = code === "aborted" ? "AbortError" : "ApiError";
     this.status = status;
     this.details = details;
     this.code = code;

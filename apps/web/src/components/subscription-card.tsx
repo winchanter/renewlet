@@ -22,7 +22,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { colorWithAlpha } from '@/lib/color';
-import { Calendar, MoreHorizontal, CalendarClock, Bell, CreditCard, CalendarPlus, Copy, Eye, EyeOff, Gauge, Pencil, Pin, PinOff, RotateCw, Trash2 } from 'lucide-react';
+import { Calendar, MoreHorizontal, CalendarClock, Bell, CreditCard, CalendarPlus, Copy, Eye, EyeOff, Gauge, History, Pencil, Pin, PinOff, RotateCw, Trash2 } from 'lucide-react';
 import {
   daysBetweenDateOnly,
   todayDateOnlyInTimeZone,
@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { preloadRenewSubscriptionDialog } from '@/components/renew-subscription-dialog-loader';
+import { preloadBillingRecordsDialog } from '@/components/billing-records-dialog-loader';
 import { AuthorizedImage } from '@/components/authorized-image';
 import { TruncatedTooltipText } from '@/components/ui/truncated-tooltip-text';
 import {
@@ -87,6 +88,8 @@ interface SubscriptionCardProps {
   onTogglePublicHidden?: (id: string) => void;
   /** 手动续订动作由页面持有 mutation，卡片只负责可见入口。 */
   onRenew?: (id: string) => void;
+  /** 历史记录弹窗由页面持有状态，卡片只负责菜单入口。 */
+  onViewBillingRecords?: (id: string) => void;
   /** 卡片主体 primary action：打开只读详情；菜单内动作保持独立。 */
   onViewDetails?: (id: string) => void;
   /** 日历弹层需要完整 detail DTO，由页面级控制器按 intent 读取。 */
@@ -176,6 +179,7 @@ function SubscriptionCardComponent({
   onTogglePinned,
   onTogglePublicHidden,
   onRenew,
+  onViewBillingRecords,
   onViewDetails,
   onAddToCalendar,
   onPrefetchDetails,
@@ -437,6 +441,19 @@ function SubscriptionCardComponent({
                     {t("subscription.renew")}
                   </DropdownMenuItem>
                 ) : null}
+                {onViewBillingRecords ? (
+                  <DropdownMenuItem
+                    className={CARD_ACTION_MENU_ITEM_CLASSNAME}
+                    onPointerEnter={preloadBillingRecordsDialog}
+                    onFocus={preloadBillingRecordsDialog}
+                    onTouchStart={preloadBillingRecordsDialog}
+                    onClick={() => onViewBillingRecords(subscription.id)}
+                    data-testid="subscription-card-billing-records"
+                  >
+                    <History className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {t("subscription.billingRecords.menuHistory")}
+                  </DropdownMenuItem>
+                ) : null}
                 {onTogglePinned ? (
                   <DropdownMenuItem className={CARD_ACTION_MENU_ITEM_CLASSNAME} onClick={() => onTogglePinned(subscription.id)}>
                     {subscription.pinned ? (
@@ -572,6 +589,7 @@ function areSubscriptionCardPropsEqual(prev: SubscriptionCardProps, next: Subscr
     prev.onTogglePinned === next.onTogglePinned &&
     prev.onTogglePublicHidden === next.onTogglePublicHidden &&
     prev.onRenew === next.onRenew &&
+    prev.onViewBillingRecords === next.onViewBillingRecords &&
     prev.onAddToCalendar === next.onAddToCalendar &&
     prev.onPrefetchDetails === next.onPrefetchDetails &&
     prev.onViewDetails === next.onViewDetails

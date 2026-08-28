@@ -3,7 +3,7 @@ import { BUILT_IN_ICON_PROVIDERS } from "../built-in-icons";
 import { apiSuccessResponseSchema } from "./api";
 import { upstreamErrorDetailsSchema } from "./upstream";
 
-export const uploadKindSchema = z.enum(["logo", "icon"]);
+export const uploadKindSchema = z.enum(["logo", "icon", "receipt"]);
 
 export const uploadImagePayloadSchema = z.object({
   url: z.string().min(1),

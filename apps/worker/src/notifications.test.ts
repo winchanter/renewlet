@@ -450,6 +450,7 @@ describe("Cloudflare notifications", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-09T08:00:00.000Z"));
     const events: string[] = [];
+    const billingRecordInsertParams: unknown[][] = [];
     let renewalSelectSql = "";
     let renewalUpdateParams: unknown[] | null = null;
     let finalizeParams: unknown[] | null = null;
@@ -474,6 +475,10 @@ describe("Cloudflare notifications", () => {
       }
       if (method === "run" && sql.includes("UPDATE subscriptions SET next_billing_date")) {
         renewalUpdateParams = params;
+        return d1Run(1);
+      }
+      if (method === "run" && sql.includes("INSERT INTO subscription_billing_records")) {
+        billingRecordInsertParams.push(params);
         return d1Run(1);
       }
       if (method === "all" && sql.includes("FROM subscriptions") && sql.includes("AND cost_sharing_collection_reminder_enabled = 1")) {
@@ -505,6 +510,12 @@ describe("Cloudflare notifications", () => {
     expect(events).toEqual(["renewal-maintenance", "notification-content"]);
     expect(renewalSelectSql).toContain("billing_cycle IN");
     expect(renewalUpdateParams?.[0]).toBe("2026-02-08");
+    // 自动续订覆盖 2026-01-08 → 2026-02-08 一期，须在同一维护流程内落一条 mode=auto 扣费记录。
+    expect(billingRecordInsertParams).toHaveLength(1);
+    expect(billingRecordInsertParams[0]?.[4]).toBe("2026-01-08");
+    expect(billingRecordInsertParams[0]?.[5]).toBe("2026-02-08");
+    expect(billingRecordInsertParams[0]?.[8]).toBe("monthly");
+    expect(billingRecordInsertParams[0]?.[16]).toBe("auto");
     expect(finalizeParams?.[0]).toBe("skipped");
   });
 

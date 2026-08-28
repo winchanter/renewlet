@@ -15,7 +15,7 @@ import (
 // 为什么读取 MIME：文件扩展名和 Content-Type 都可伪造，必须按文件头重新判断。
 func normalizeAssetRecord(record *core.Record) error {
 	kind := record.GetString("kind")
-	if kind != "logo" && kind != "icon" {
+	if kind != "logo" && kind != "icon" && kind != "receipt" {
 		return errors.New("ASSET_KIND_INVALID")
 	}
 	files := record.GetUnsavedFiles("file")

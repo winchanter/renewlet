@@ -5,7 +5,8 @@ import {
   type SubscriptionRenewalResult,
 } from "@renewlet/shared/subscription-renewal";
 import type { ApiAppSettings } from "@renewlet/shared/schemas/settings";
-import { getSettings, nowIso, SUBSCRIPTION_COLUMNS } from "./db";
+import { getSettings, newId, nowIso, SUBSCRIPTION_COLUMNS } from "./db";
+import { autoRenewBillingRecordRows, buildBillingRecordUpsertStatements, BILLING_RECORD_ID_PREFIX } from "./billing-records";
 import { subscriptionDerivedMutationPlan } from "./subscription-derived-state";
 import { getSubscriptionSchedulerState, listAutoRenewDueUsers, markAutoRenewCheckedForLocalDate } from "./subscription-scheduler-state";
 import { dateOnlyInZone } from "./time";
@@ -123,5 +124,10 @@ async function persistRenewalResult(
     WHERE user_id = ? AND id = ?
     `).bind(result.nextBillingDate, result.status, timestamp, userId, row.id);
   const derived = subscriptionDerivedMutationPlan(env, { before: row, after, kind: "update" }, settings, now);
-  await env.DB.batch([...derived.beforeFact, factStatement, ...derived.afterFact]);
+  // 自动续订按覆盖的每一期生成 mode=auto 扣费记录，与事实行落在同一 D1 batch 保证原子性。
+  const billingRecordStatements = buildBillingRecordUpsertStatements(
+    env,
+    autoRenewBillingRecordRows(row, result, timestamp, () => newId(BILLING_RECORD_ID_PREFIX)),
+  );
+  await env.DB.batch([...derived.beforeFact, factStatement, ...billingRecordStatements, ...derived.afterFact]);
 }

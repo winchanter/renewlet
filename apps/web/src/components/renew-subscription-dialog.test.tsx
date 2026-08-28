@@ -42,10 +42,21 @@ const mocks = vi.hoisted(() => ({
       { id: "EUR", value: "EUR", labels: { "zh-CN": "€ 欧元 (EUR)", "en-US": "€ Euro (EUR)" }, enabled: true },
     ],
   },
+  uploadImageFile: vi.fn(),
 }));
 
 vi.mock("@/contexts/CustomConfigContext", () => ({
   useCustomConfigState: () => ({ config: mocks.config }),
+}));
+
+vi.mock("@/lib/upload-image", () => ({
+  uploadImageFile: mocks.uploadImageFile,
+}));
+
+vi.mock("@/components/authorized-image", () => ({
+  AuthorizedImage: ({ src, alt }: { src: string; alt?: string }) => (
+    <img src={src} alt={alt} data-testid="authorized-image" />
+  ),
 }));
 
 vi.mock("@/i18n/I18nProvider", () => ({
@@ -55,6 +66,15 @@ vi.mock("@/i18n/I18nProvider", () => ({
       const messages: Record<string, string> = {
         "common.cancel": "取消",
         "common.close": "关闭",
+        "subscription.billingRecords.viewHistory": "查看历史记录",
+        "subscription.billingRecords.receipt": "续订凭证",
+        "subscription.billingRecords.receiptHint": `可选，最多 ${String(values?.["count"] ?? "")} 张；保存后随本期扣费记录一起留存。`,
+        "subscription.billingRecords.receiptAdd": "添加凭证",
+        "subscription.billingRecords.receiptRemove": `移除凭证 ${String(values?.["index"] ?? "")}`,
+        "subscription.billingRecords.receiptView": `查看凭证 ${String(values?.["index"] ?? "")}`,
+        "subscription.billingRecords.receiptEmpty": "暂无凭证",
+        "subscription.billingRecords.receiptsLabel": `凭证 ${String(values?.["count"] ?? "")}/${String(values?.["max"] ?? "")}`,
+        "media.uploadFailed": "上传失败，请重试",
         "subscription.empty.currency": "未找到货币",
         "subscription.field.currency": "货币",
         "subscription.field.nextBillingDate": "到期日期",
@@ -106,6 +126,8 @@ beforeEach(() => {
   Element.prototype.hasPointerCapture ??= vi.fn(() => false);
   Element.prototype.setPointerCapture ??= vi.fn();
   Element.prototype.releasePointerCapture ??= vi.fn();
+  mocks.uploadImageFile.mockReset();
+  mocks.uploadImageFile.mockResolvedValue({ url: "/api/app/assets/receipt-1" });
 });
 
 afterEach(() => {
@@ -380,5 +402,85 @@ describe("RenewSubscriptionDialog", () => {
     await user.click(screen.getByRole("button", { name: "取消" }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: "续订入口" })).toHaveFocus());
+  });
+
+  it("offers a billing records entry that hands the subscription id to the page", async () => {
+    const user = setupUser();
+    const onViewBillingRecords = vi.fn();
+    renderDialog({ onViewBillingRecords });
+
+    await user.click(screen.getByTestId("renew-view-billing-records"));
+
+    expect(onViewBillingRecords).toHaveBeenCalledTimes(1);
+    expect(onViewBillingRecords).toHaveBeenCalledWith("sub-renew");
+  });
+
+  it("hides the billing records entry when the page does not provide a handler", () => {
+    renderDialog();
+
+    expect(screen.queryByTestId("renew-view-billing-records")).not.toBeInTheDocument();
+  });
+
+  it("uploads renewal receipts and includes their asset ids in the submit payload", async () => {
+    const user = setupUser();
+    mocks.uploadImageFile
+      .mockResolvedValueOnce({ url: "/api/app/assets/receipt-1" })
+      .mockResolvedValueOnce({ url: "/api/app/assets/receipt-2" });
+
+    const { onSubmit } = renderDialog({ subscription: makeSubscription({ status: "active" }) });
+
+    const fileInput = screen.getByTestId("renew-receipt-input");
+    await user.upload(fileInput, [
+      new File(["a"], "receipt-1.png", { type: "image/png" }),
+      new File(["b"], "receipt-2.png", { type: "image/png" }),
+    ]);
+
+    await waitFor(() => expect(mocks.uploadImageFile).toHaveBeenCalledTimes(2));
+    // 两张缩略图都渲染出来。
+    expect(screen.getAllByTestId("authorized-image")).toHaveLength(2);
+    expect(screen.getByText("凭证 2/6")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "确认续订" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      receiptAssetIds: ["receipt-1", "receipt-2"],
+    })));
+  });
+
+  it("omits receiptAssetIds from the payload when no receipt is uploaded", async () => {
+    const user = setupUser();
+    const { onSubmit } = renderDialog({ subscription: makeSubscription({ status: "active" }) });
+
+    await user.click(screen.getByRole("button", { name: "确认续订" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    const payload = onSubmit.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("receiptAssetIds");
+  });
+
+  it("removes a receipt thumbnail and excludes its id from the payload", async () => {
+    const user = setupUser();
+    mocks.uploadImageFile
+      .mockResolvedValueOnce({ url: "/api/app/assets/receipt-1" })
+      .mockResolvedValueOnce({ url: "/api/app/assets/receipt-2" });
+
+    const { onSubmit } = renderDialog({ subscription: makeSubscription({ status: "active" }) });
+
+    const fileInput = screen.getByTestId("renew-receipt-input");
+    await user.upload(fileInput, [
+      new File(["a"], "receipt-1.png", { type: "image/png" }),
+      new File(["b"], "receipt-2.png", { type: "image/png" }),
+    ]);
+
+    await waitFor(() => expect(screen.getAllByTestId("authorized-image")).toHaveLength(2));
+
+    await user.click(screen.getByTestId("renew-receipt-remove-0"));
+
+    expect(screen.getAllByTestId("authorized-image")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "确认续订" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      receiptAssetIds: ["receipt-2"],
+    })));
   });
 });

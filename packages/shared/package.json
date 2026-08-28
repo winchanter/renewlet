@@ -10,6 +10,7 @@
     "./schemas/admin": "./src/schemas/admin.ts",
     "./schemas/app": "./src/schemas/app.ts",
     "./schemas/auth": "./src/schemas/auth.ts",
+    "./schemas/billing-records": "./src/schemas/billing-records.ts",
     "./schemas/ai-recognition": "./src/schemas/ai-recognition.ts",
     "./schemas/calendar-feed": "./src/schemas/calendar-feed.ts",
     "./schemas/cloud-backup": "./src/schemas/cloud-backup.ts",

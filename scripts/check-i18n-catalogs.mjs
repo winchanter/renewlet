@@ -10,14 +10,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import { formatter } from "@lingui/format-po";
 
 const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const clientDir = path.join(rootDir, "apps/web");
 const clientRequire = createRequire(path.join(clientDir, "package.json"));
-const { getConfig } = await import(clientRequire.resolve("@lingui/conf"));
-const { getCatalogs } = await import(clientRequire.resolve("@lingui/cli/api"));
+// Windows 下 resolve 返回盘符路径，动态 import 只接受 file:// URL，必须显式转换。
+const { getConfig } = await import(pathToFileURL(clientRequire.resolve("@lingui/conf")).href);
+const { getCatalogs } = await import(pathToFileURL(clientRequire.resolve("@lingui/cli/api")).href);
 
 const catalogDir = path.join(clientDir, "src/i18n/catalogs");
 const descriptorDir = path.join(clientDir, "src/i18n/descriptors");

@@ -25,6 +25,7 @@ type SubscriptionGridProps = {
   onTogglePinned: (id: string) => void;
   onTogglePublicHidden: (id: string) => void;
   onRenew: (id: string) => void;
+  onViewBillingRecords: (id: string) => void;
   onViewDetails: (id: string) => void;
   onAddToCalendar: (id: string) => void;
   onPrefetchDetails: (id: string) => void;
@@ -65,6 +66,7 @@ export function SubscriptionGrid({
   onTogglePinned,
   onTogglePublicHidden,
   onRenew,
+  onViewBillingRecords,
   onViewDetails,
   onAddToCalendar,
   onPrefetchDetails,
@@ -100,6 +102,7 @@ export function SubscriptionGrid({
           onTogglePinned={onTogglePinned}
           onTogglePublicHidden={onTogglePublicHidden}
           onRenew={onRenew}
+          onViewBillingRecords={onViewBillingRecords}
           onViewDetails={onViewDetails}
           onAddToCalendar={onAddToCalendar}
           onPrefetchDetails={onPrefetchDetails}
@@ -119,6 +122,7 @@ export function SubscriptionGrid({
     onRenew,
     onTogglePinned,
     onTogglePublicHidden,
+    onViewBillingRecords,
     onViewDetails,
     paymentMethodByValue,
     priceReferenceCurrency,

@@ -192,6 +192,31 @@ export interface SubscriptionRow {
   updated_at: string;
 }
 
+/** D1 扣费记录行模型；记录是订阅每期扣费的事实快照，归属与来源列写入后不可变。 */
+export interface BillingRecordRow {
+  id: string;
+  user_id: string;
+  subscription_id: string;
+  name: string;
+  billing_date: string;
+  period_end_date: string | null;
+  amount: string;
+  currency: string;
+  billing_cycle: string;
+  custom_days: number | null;
+  custom_cycle_unit: string | null;
+  one_time_term_count: number | null;
+  one_time_term_unit: string | null;
+  usage_unit: string | null;
+  usage_total: number | null;
+  usage_daily_rate: number | null;
+  mode: string;
+  // JSON 字符串，存储续订凭证 asset ID 数组；旧记录无此列时 D1 返回 undefined，出站时收敛为 []。
+  receipt_asset_ids: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** 私有集合查询只读取轻量 DTO 所需列，详情字段不会进入列表、统计或日历的 D1 结果集。 */
 export type SubscriptionCollectionRow = Pick<SubscriptionRow,
   | "id"

@@ -381,6 +381,9 @@ func registerRoutes(app core.App, router *router.Router[*core.RequestEvent]) []a
 	auth.PATCH("/public-status-page", func(e *core.RequestEvent) error { return handlePublicStatusPageUpdate(app, e) })
 	auth.DELETE("/public-status-page", func(e *core.RequestEvent) error { return handlePublicStatusPageDelete(app, e) })
 	auth.POST("/subscriptions/{id}/renew", func(e *core.RequestEvent) error { return handleSubscriptionRenew(app, e) })
+	// 扣费记录历史：GET 走 (billing_date, id) keyset 分页；PATCH 只开放事实修正字段，归属/来源字段不可改。
+	auth.GET("/subscriptions/{id}/billing-records", func(e *core.RequestEvent) error { return handleSubscriptionBillingRecordsList(app, e) })
+	auth.PATCH("/billing-records/{id}", func(e *core.RequestEvent) error { return handleBillingRecordPatch(app, e) })
 	auth.GET("/subscriptions/{id}/calendar.ics", func(e *core.RequestEvent) error { return handleSubscriptionCalendarICSDownload(app, e) })
 	auth.GET("/subscriptions/{id}/calendar-feed", func(e *core.RequestEvent) error { return handleSubscriptionCalendarFeedStatus(app, e) })
 	auth.POST("/subscriptions/{id}/calendar-feed", func(e *core.RequestEvent) error { return handleSubscriptionCalendarFeedCreate(app, e) })

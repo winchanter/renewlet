@@ -19,6 +19,7 @@ import type { DateOnly } from "@/lib/time/date-only";
 import type { Subscription, SubscriptionDraft, SubscriptionFormSubmission } from "@/types/subscription";
 import type { SubscriptionRenewBody } from "@renewlet/shared/schemas/subscriptions";
 import {
+  invalidateSubscriptionBillingRecords,
   invalidateSubscriptionCollections,
   subscriptionQueryKeys,
 } from "@/hooks/subscription-query-cache";
@@ -141,7 +142,11 @@ export function useCreateSubscription() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (sub: SubscriptionDraft) => subscriptionService.create(sub),
-    onSuccess: (subscription) => writeSubscriptionMutationResult(queryClient, subscription),
+    onSuccess: (subscription) => {
+      writeSubscriptionMutationResult(queryClient, subscription);
+      // 创建即产生首期扣费记录；这里只失效该订阅的历史分页，不牵连其它订阅。
+      void invalidateSubscriptionBillingRecords(queryClient, subscription.id);
+    },
   });
 }
 
@@ -168,7 +173,11 @@ export function useRenewSubscription() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: SubscriptionRenewBody }) =>
       subscriptionService.renew(id, payload),
-    onSuccess: (subscription) => writeSubscriptionMutationResult(queryClient, subscription),
+    onSuccess: (subscription) => {
+      writeSubscriptionMutationResult(queryClient, subscription);
+      // 续订会追加一期扣费记录；与创建订阅一样按订阅维度失效历史分页。
+      void invalidateSubscriptionBillingRecords(queryClient, subscription.id);
+    },
   });
 }
 

@@ -108,6 +108,7 @@ function renderDetailDialog({
   onOpenChange = vi.fn(),
   onEditSubscription,
   onRenewSubscription,
+  onViewBillingRecords,
   priceReferenceCurrency = "CNY",
   loading = false,
   loadingPreview = subscription,
@@ -117,6 +118,7 @@ function renderDetailDialog({
   onOpenChange?: (open: boolean) => void;
   onEditSubscription?: (subscription: Subscription) => void;
   onRenewSubscription?: (id: string) => void;
+  onViewBillingRecords?: (id: string) => void;
   priceReferenceCurrency?: string | null;
   loading?: boolean;
   loadingPreview?: SubscriptionCollectionItem | null;
@@ -137,6 +139,7 @@ function renderDetailDialog({
           loading={loading}
           {...(onEditSubscription ? { onEditSubscription } : {})}
           {...(onRenewSubscription ? { onRenewSubscription } : {})}
+          {...(onViewBillingRecords ? { onViewBillingRecords } : {})}
         />
       </TooltipProvider>,
     ),
@@ -319,7 +322,8 @@ describe("SubscriptionDetailDialog", () => {
   it("uses a compact desktop footer for detail actions", () => {
     const onEditSubscription = vi.fn();
     const onRenewSubscription = vi.fn();
-    renderDetailDialog({ onEditSubscription, onRenewSubscription });
+    const onViewBillingRecords = vi.fn();
+    renderDetailDialog({ onEditSubscription, onRenewSubscription, onViewBillingRecords });
 
     const dialog = screen.getByRole("dialog", { name: "Fastmail" });
     const editButton = within(dialog).getByRole("button", { name: "编辑" });
@@ -329,7 +333,7 @@ describe("SubscriptionDetailDialog", () => {
     expect(actions).toHaveClass("flex", "flex-col", "border-t", "sm:flex-row", "sm:justify-end");
     expect(actions).not.toHaveClass("sm:grid-cols-2");
     expect(within(actions).getAllByRole("button").map((button) => button.textContent)).toEqual([
-      "关闭",
+      "历史记录",
       "添加到日历",
       "续订",
       "编辑",
@@ -371,7 +375,7 @@ describe("SubscriptionDetailDialog", () => {
     const drawer = screen.getByRole("dialog", { name: "Fastmail" });
 
     expect(drawer).toHaveClass("h5-drawer-panel", "overflow-hidden");
-    expect(within(drawer).getAllByRole("button", { name: "关闭" })).toHaveLength(2);
+    expect(within(drawer).getAllByRole("button", { name: "关闭" })).toHaveLength(1);
     expect(within(drawer).getByText(/团队年度订阅/)).toBeInTheDocument();
   });
 });

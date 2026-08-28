@@ -13,6 +13,7 @@ import {
   subscriptionUpdateBodySchema,
 } from "@renewlet/shared/schemas/subscriptions";
 import { boolToInt, getSettings, getSubscription, newId, nowIso, parseJsonObject, parseStringArray, parseSubscriptionCursor, SUBSCRIPTION_COLUMNS, subscriptionCursor, subscriptionRowValues, toApiSubscription, toApiSubscriptionCollectionItem } from "./db";
+import { BILLING_RECORD_ID_PREFIX, buildBillingRecordUpsertStatements, initialBillingRecordRow, manualRenewBillingRecordRow } from "./billing-records";
 import { listSubscriptionsForQuery } from "./subscription-list-filters";
 import { subscriptionCollectionQueryInput } from "./subscription-query";
 import { advanceSubscriptionRenewal, dateOnlyInZone } from "./subscription-renewal";
@@ -70,7 +71,12 @@ export async function createSubscription(request: Request, env: Env): Promise<Re
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(...subscriptionRowValues(row));
   const derived = subscriptionDerivedMutationPlan(env, { before: null, after: row, kind: "create" }, settings);
-  await env.DB.batch([...derived.beforeFact, factStatement, ...derived.afterFact]);
+  // 创建订阅与首期扣费记录（mode=initial）必须落在同一 D1 batch，保证事实行原子生成。
+  const billingRecordStatements = buildBillingRecordUpsertStatements(
+    env,
+    [initialBillingRecordRow(row, timestamp, newId(BILLING_RECORD_ID_PREFIX))],
+  );
+  await env.DB.batch([...derived.beforeFact, factStatement, ...billingRecordStatements, ...derived.afterFact]);
   return successJson(subscriptionPayloadSchema.parse({ subscription: toApiSubscription(row) }), { status: 201 });
 }
 
@@ -188,7 +194,12 @@ export async function renewSubscription(request: Request, env: Env, id: string):
     id,
   );
   const derived = subscriptionDerivedMutationPlan(env, { before: existing, after: merged, kind: "update" }, settings);
-  await env.DB.batch([...derived.beforeFact, factStatement, ...derived.afterFact]);
+  // 手动续订与本期的 mode=manual_continue/manual_restart 记录必须落在同一 D1 batch，保证事实行原子生成。
+  const billingRecordStatements = buildBillingRecordUpsertStatements(
+    env,
+    [manualRenewBillingRecordRow(existing, merged, body, timestamp, newId(BILLING_RECORD_ID_PREFIX))],
+  );
+  await env.DB.batch([...derived.beforeFact, factStatement, ...billingRecordStatements, ...derived.afterFact]);
   return successJson(subscriptionPayloadSchema.parse({ subscription: toApiSubscription(merged) }));
 }
 

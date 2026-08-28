@@ -38,9 +38,11 @@ import {
   type SubscriptionStatus as SharedSubscriptionStatus,
 } from "@renewlet/shared/runtime";
 import type { ApiSubscription, ApiSubscriptionCollectionItem } from "@renewlet/shared/schemas/subscriptions";
+import type { ApiBillingRecord } from "@renewlet/shared/schemas/billing-records";
 
 export { DEFAULT_NOTIFICATION_REMINDER_DAYS, DISABLED_REMINDER_DAYS, INHERIT_REMINDER_DAYS, MAX_REMINDER_DAYS };
 export type { ApiSubscription, ApiSubscriptionCollectionItem };
+export type { ApiBillingRecord };
 
 export const SUBSCRIPTION_STATUSES = SHARED_SUBSCRIPTION_STATUSES;
 /** 订阅状态（影响展示、统计与提醒逻辑）。 */

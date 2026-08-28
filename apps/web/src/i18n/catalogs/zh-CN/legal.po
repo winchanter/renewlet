@@ -89,14 +89,14 @@ msgid "legal.terms.scope.accuracy"
 msgstr "你需要自行确保录入的订阅/价格/汇率等数据准确性，本项目仅提供管理与展示能力。"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/legal.ts:6
-msgid "legal.privacy.subtitle"
-msgstr "最后更新：2026-08-24"
-
-#. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:25
 msgid "legal.terms.subtitle"
 msgstr "最后更新：2026-01-12"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/legal.ts:6
+msgid "legal.privacy.subtitle"
+msgstr "最后更新：2026-08-24"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:38

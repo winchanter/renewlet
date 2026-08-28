@@ -21,6 +21,13 @@ export type BillingCycle = (typeof BILLING_CYCLES)[number];
 export const CUSTOM_CYCLE_UNITS = ["day", "week", "month", "year"] as const;
 export type CustomCycleUnit = (typeof CUSTOM_CYCLE_UNITS)[number];
 
+/** 扣费记录来源：initial=创建首期，auto=cron 自动推进，manual_*=手动续订（continue 沿用原锚点 / restart 重开）。 */
+export const BILLING_RECORD_MODES = ["initial", "auto", "manual_continue", "manual_restart"] as const;
+export type BillingRecordMode = (typeof BILLING_RECORD_MODES)[number];
+
+/** 续订凭证（截图/发票）上限：防止滥用，复用现有 assets 上传接口的单图限制。 */
+export const RECEIPT_ASSET_IDS_MAX = 6;
+
 /** 通知渠道枚举同时约束设置 payload、cron result 和历史面板筛选。 */
 export const NOTIFICATION_CHANNELS = ["telegram", "notifyx", "webhook", "dingtalk", "wechat", "email", "bark", "serverchan", "discord", "pushplus"] as const;
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];

@@ -82,6 +82,9 @@ func ensureCollectionsSchema(app core.App) error {
 	if err := ensureSubscriptionSchedulerStatesCollection(app, users); err != nil {
 		return err
 	}
+	if err := ensureSubscriptionBillingRecordsCollection(app, users); err != nil {
+		return err
+	}
 	if err := ensureSettingsCollection(app, users); err != nil {
 		return err
 	}
@@ -259,6 +262,8 @@ func ensureSubscriptionsCollection(app core.App, users *core.Collection) error {
 		ownerRules(c)
 		minZero := 0.0
 		maxReminder := float64(maxReminderDays)
+		// usage 字段上限与 shared usageTotalSchema/usageDailyRateSchema 的 .max(1e9) 对齐。
+		maxUsage := float64(maxSubscriptionPrice)
 		replaceLegacyLogoURLField := false
 		if existingLogo := c.Fields.GetByName("logo"); existingLogo != nil && existingLogo.Type() == core.FieldTypeURL {
 			replaceLegacyLogoURLField = true
@@ -275,8 +280,8 @@ func ensureSubscriptionsCollection(app core.App, users *core.Collection) error {
 			&core.NumberField{Name: "oneTimeTermCount", OnlyInt: true, Min: &minZero, Max: &maxReminder},
 			&core.SelectField{Name: "oneTimeTermUnit", Values: []string{"day", "week", "month", "year"}},
 			&core.TextField{Name: "usageUnit", Max: 20},
-			&core.NumberField{Name: "usageTotal", Min: &minZero},
-			&core.NumberField{Name: "usageDailyRate", Min: &minZero},
+			&core.NumberField{Name: "usageTotal", Min: &minZero, Max: &maxUsage},
+			&core.NumberField{Name: "usageDailyRate", Min: &minZero, Max: &maxUsage},
 			&core.TextField{Name: "category", Required: true, Max: 80},
 			&core.SelectField{Name: "status", Required: true, Values: []string{"trial", "active", "expired", "paused", "cancelled"}},
 			&core.BoolField{Name: "pinned"},
@@ -379,6 +384,54 @@ func ensureSubscriptionSchedulerStatesCollection(app core.App, users *core.Colle
 		c.AddIndex("idx_subscription_scheduler_states_auto_due", false, "nextAutoRenewCheckAtUTC, user", "")
 		c.AddIndex("idx_subscription_scheduler_states_daily_due", false, "nextDailyNotificationDueAtUTC, user", "")
 		c.AddIndex("idx_subscription_scheduler_states_repeat_due", false, "nextRepeatNotificationDueAtUTC, user", "")
+		return nil
+	})
+}
+
+func ensureSubscriptionBillingRecordsCollection(app core.App, users *core.Collection) error {
+	return ensureCollection(app, "subscription_billing_records", func(c *core.Collection) error {
+		// 扣费记录是订阅写路径的派生事实：REST 直写会绕过周期互斥与记录生成语义，读写全部收口到 /api/app 路由。
+		c.ListRule = nil
+		c.ViewRule = nil
+		c.CreateRule = nil
+		c.UpdateRule = nil
+		c.DeleteRule = nil
+		minZero := 0.0
+		maxTermCount := float64(maxReminderDays)
+		fields := []core.Field{
+			// user_id 级联删除跟随用户清理；subscription_id 用普通文本保留历史：
+			// name 是订阅删除后的展示兜底，记录必须在订阅被删除后继续存在。
+			&core.RelationField{Name: "user_id", CollectionId: users.Id, CascadeDelete: true, MinSelect: 1, MaxSelect: 1, Required: true},
+			&core.TextField{Name: "subscription_id", Required: true, Max: 128},
+			&core.TextField{Name: "name", Required: true, Max: 120},
+			&core.TextField{Name: "billing_date", Required: true, Max: 10, Pattern: `^\d{4}-\d{2}-\d{2}$`},
+			&core.TextField{Name: "period_end_date", Max: 10, Pattern: `^$|^\d{4}-\d{2}-\d{2}$`},
+			&core.TextField{Name: "amount", Required: true, Max: 32},
+			&core.TextField{Name: "currency", Required: true, Max: 8, Pattern: `^[A-Z]{3}$`},
+			&core.SelectField{Name: "billing_cycle", Required: true, Values: []string{"weekly", "monthly", "quarterly", "semi-annual", "annual", "custom", "one-time", "usage-based"}},
+			&core.NumberField{Name: "custom_days", OnlyInt: true, Min: &minZero},
+			&core.SelectField{Name: "custom_cycle_unit", Values: []string{"day", "week", "month", "year"}},
+			&core.NumberField{Name: "one_time_term_count", OnlyInt: true, Min: &minZero, Max: &maxTermCount},
+			&core.SelectField{Name: "one_time_term_unit", Values: []string{"day", "week", "month", "year"}},
+			&core.TextField{Name: "usage_unit", Max: 20},
+			&core.NumberField{Name: "usage_total", Min: &minZero},
+			&core.NumberField{Name: "usage_daily_rate", Min: &minZero},
+			&core.SelectField{Name: "mode", Required: true, Values: []string{"initial", "auto", "manual_continue", "manual_restart"}},
+			// 续订凭证（截图/发票）的 asset ID JSON 数组；可选，上限由 shared schema 约束。
+			&core.JSONField{Name: "receipt_asset_ids", MaxSize: 2048},
+		}
+		for _, field := range fields {
+			if err := upsertField(c, field); err != nil {
+				return err
+			}
+		}
+		if err := ensureAutodates(c); err != nil {
+			return err
+		}
+		// 唯一键与 D1/共享 schema 同形：同一订阅同一扣费日同一来源只允许一行，是 upsert 幂等的最终保护。
+		c.AddIndex("idx_subscription_billing_records_user_sub_date_mode_unique", true, "user_id, subscription_id, billing_date, mode", "")
+		// 列表按 billing_date DESC + id DESC keyset 分页；user_id 前缀索引同时服务 COUNT 与游标探测。
+		c.AddIndex("idx_subscription_billing_records_user_billing_date", false, "user_id, billing_date", "")
 		return nil
 	})
 }
@@ -508,7 +561,7 @@ func ensureAssetsCollection(app core.App, users *core.Collection) error {
 		ownerRules(c)
 		fields := []core.Field{
 			userRelation(users),
-			&core.SelectField{Name: "kind", Required: true, Values: []string{"logo", "icon"}},
+			&core.SelectField{Name: "kind", Required: true, Values: []string{"logo", "icon", "receipt"}},
 			// Protected 文件只能通过自定义 /api/app/assets/{id} 读取，确保每次访问都重新校验 owner。
 			&core.FileField{Name: "file", MaxSelect: 1, MaxSize: 2 * 1024 * 1024, MimeTypes: []string{"image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/x-icon", "image/vnd.microsoft.icon"}, Protected: true, Required: true},
 			&core.TextField{Name: "mimeType", Max: 100},

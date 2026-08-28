@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface RenewSubscriptionScaffoldProps extends ComponentPropsWithoutRef<"form"> {
   actions: ReactNode;
   description: ReactNode;
+  /** 在 schedule 与 actions 之间渲染的可选扩展区（如续订凭证上传）。 */
+  extras?: ReactNode;
   formRef?: Ref<HTMLFormElement>;
   heading: ReactNode;
   mode: ReactNode;
@@ -14,12 +16,13 @@ interface RenewSubscriptionScaffoldProps extends ComponentPropsWithoutRef<"form"
 
 export type RenewSubscriptionScaffoldSlots = Pick<
   RenewSubscriptionScaffoldProps,
-  "actions" | "mode" | "pricing" | "schedule"
+  "actions" | "extras" | "mode" | "pricing" | "schedule"
 >;
 
 export function RenewSubscriptionScaffold({
   actions,
   description,
+  extras,
   formRef,
   heading,
   mode,
@@ -41,6 +44,7 @@ export function RenewSubscriptionScaffold({
           {mode}
           {pricing}
           {schedule}
+          {extras}
         </div>
         <div
           className="flex shrink-0 flex-col gap-3 border-t border-border bg-card p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end md:p-6 md:pt-4"

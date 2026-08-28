@@ -107,6 +107,7 @@ export const SUBSCRIPTION_COLLECTION_COLUMN_NAMES = [
   "trial_end_date",
   "reminder_days",
   "cost_sharing_json",
+  "tags_json",
   "created_at",
 ] as const satisfies readonly (keyof SubscriptionCollectionRow)[];
 

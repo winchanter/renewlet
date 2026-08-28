@@ -85,6 +85,9 @@ type publicAPISubscriptionResponse struct {
 	CustomCycleUnit              string                 `json:"customCycleUnit,omitempty"`
 	OneTimeTermCount             int                    `json:"oneTimeTermCount,omitempty"`
 	OneTimeTermUnit              string                 `json:"oneTimeTermUnit,omitempty"`
+	UsageUnit                    string                 `json:"usageUnit,omitempty"`
+	UsageTotal                   float64                `json:"usageTotal,omitempty"`
+	UsageDailyRate               float64                `json:"usageDailyRate,omitempty"`
 	Category                     string                 `json:"category"`
 	Status                       string                 `json:"status"`
 	Pinned                       bool                   `json:"pinned"`
@@ -494,6 +497,11 @@ func publicAPISubscriptionFromRecord(record *core.Record) publicAPISubscriptionR
 	if billingCycle == "one-time" && record.GetInt("oneTimeTermCount") > 0 {
 		out.OneTimeTermCount = record.GetInt("oneTimeTermCount")
 		out.OneTimeTermUnit = strings.TrimSpace(record.GetString("oneTimeTermUnit"))
+	}
+	if billingCycle == "usage-based" {
+		out.UsageUnit = strings.TrimSpace(record.GetString("usageUnit"))
+		out.UsageTotal = record.GetFloat("usageTotal")
+		out.UsageDailyRate = record.GetFloat("usageDailyRate")
 	}
 	if costSharing := subscriptionRecordJSONMap(record, "costSharing"); len(costSharing) > 0 {
 		out.CostSharing = costSharing

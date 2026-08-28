@@ -255,9 +255,9 @@ describe("Cloudflare import", () => {
     expect(response.status).toBe(200);
     expect(db.batch).toHaveBeenCalledTimes(1);
     const row = insertedSubscriptionRow(statements);
-    expect(row[16]).toBeNull();
-    expect(row[17]).toBe("2026-06-21");
-    expect(row[19]).toBe(0);
+    expect(row[19]).toBeNull();
+    expect(row[20]).toBe("2026-06-21");
+    expect(row[22]).toBe(0);
   });
 
   it("normalizes one-time imports before binding D1 statements", async () => {
@@ -279,8 +279,8 @@ describe("Cloudflare import", () => {
     expect(row[8]).toBeNull();
     expect(row[9]).toBeNull();
     expect(row[10]).toBeNull();
-    expect(row[18]).toBe(0);
-    expect(row[19]).toBe(0);
+    expect(row[21]).toBe(0);
+    expect(row[22]).toBe(0);
   });
 
   it("restores historical exchange rate snapshots only from Renewlet ZIP payloads", async () => {
@@ -330,8 +330,8 @@ describe("Cloudflare import", () => {
     expect(row[8]).toBeNull();
     expect(row[9]).toBe(6);
     expect(row[10]).toBe("month");
-    expect(row[18]).toBe(0);
-    expect(row[19]).toBe(0);
+    expect(row[21]).toBe(0);
+    expect(row[22]).toBe(0);
   });
 
   it("preserves disabled reminder days before binding D1 statements", async () => {
@@ -344,7 +344,7 @@ describe("Cloudflare import", () => {
 
     expect(response.status).toBe(200);
     expect(db.batch).toHaveBeenCalledTimes(1);
-    expect(insertedSubscriptionRow(statements)[24]).toBe(-2);
+    expect(insertedSubscriptionRow(statements)[27]).toBe(-2);
   });
 
   it("preserves cost sharing before binding D1 statements", async () => {
@@ -367,9 +367,9 @@ describe("Cloudflare import", () => {
     const row = insertedSubscriptionRow(statements);
     const insert = statements.find((statement) => statement.sql.includes("INSERT INTO subscriptions"));
     expect(insert?.sql).toContain("cost_sharing_json");
-    expect(JSON.parse(row[28] as string)).toEqual(costSharing);
-    expect(row[29]).toBe(1);
-    expect(row[30] as string).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(JSON.parse(row[31] as string)).toEqual(costSharing);
+    expect(row[32]).toBe(1);
+    expect(row[33] as string).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it("updates scheduler counts incrementally after applying subscription imports", async () => {
@@ -410,7 +410,7 @@ describe("Cloudflare import", () => {
 
     expect(response.status).toBe(200);
     expect(db.batch).toHaveBeenCalledTimes(1);
-    expect(insertedSubscriptionRow(statements)[18]).toBe(0);
+    expect(insertedSubscriptionRow(statements)[21]).toBe(0);
   });
 
   it("skips existing import keys unless replace is selected", async () => {

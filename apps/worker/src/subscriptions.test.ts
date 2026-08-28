@@ -96,6 +96,9 @@ describe("Cloudflare subscription mapper", () => {
         customCycleUnit: fixture.customCycleUnit ?? null,
         oneTimeTermCount: fixture.oneTimeTermCount ?? null,
         oneTimeTermUnit: fixture.oneTimeTermUnit ?? null,
+        usageUnit: fixture.usageUnit ?? null,
+        usageTotal: fixture.usageTotal ?? null,
+        usageDailyRate: fixture.usageDailyRate ?? null,
         category: fixture.category,
         status: fixture.status,
         pinned: fixture.pinned,
@@ -421,7 +424,8 @@ describe("Cloudflare subscription mapper", () => {
     // D1 migration 必须保持增量拆分；一键部署和本地 migration 都依赖旧库逐步补列，而不是重建初始表。
     const initialMigration = readFileSync(resolve("migrations/0001_initial.sql"), "utf8");
     const customUnitMigration = readFileSync(resolve("migrations/0007_subscription_custom_cycle_unit.sql"), "utf8");
-    const oneTimeTermMigration = readFileSync(resolve("migrations/0008_subscription_one_time_term.sql"), "utf8");
+    // Windows autocrlf 检出会把迁移文件写成 CRLF；比较前归一，避免环境差异干扰内容断言。
+    const oneTimeTermMigration = readFileSync(resolve("migrations/0008_subscription_one_time_term.sql"), "utf8").replace(/\r\n/g, "\n");
     const publicStatusMigration = readFileSync(resolve("migrations/0009_public_status.sql"), "utf8");
     const autoRenewMigration = readFileSync(resolve("migrations/0010_subscription_auto_renew.sql"), "utf8");
     const logoIndexMigration = readFileSync(resolve("migrations/0014_subscription_logo_index.sql"), "utf8");

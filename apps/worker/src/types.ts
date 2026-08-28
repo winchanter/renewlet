@@ -219,6 +219,7 @@ export type SubscriptionCollectionRow = Pick<SubscriptionRow,
   | "trial_end_date"
   | "reminder_days"
   | "cost_sharing_json"
+  | "tags_json"
   | "created_at"
 >;
 

@@ -238,7 +238,8 @@ describe("Cloudflare Telegram Bot commands", () => {
 
   it("declares the D1 binding table without plaintext secret columns", () => {
     const migration = readFileSync(resolve("migrations/0021_telegram_bot_bindings.sql"), "utf8");
-    const rebuildMigration = readFileSync(resolve("migrations/0022_rebuild_telegram_bot_bindings.sql"), "utf8");
+    // Windows autocrlf 检出会把迁移文件写成 CRLF；比较前归一，避免环境差异干扰内容断言。
+    const rebuildMigration = readFileSync(resolve("migrations/0022_rebuild_telegram_bot_bindings.sql"), "utf8").replace(/\r\n/g, "\n");
 
     expect(migration).toContain("CREATE TABLE IF NOT EXISTS telegram_bot_bindings");
     expect(migration).toContain("bot_token_hash");

@@ -91,6 +91,8 @@ type publicStatusSubscriptionView struct {
 	CustomCycleUnit  string                   `json:"customCycleUnit,omitempty"`
 	OneTimeTermCount int                      `json:"oneTimeTermCount,omitempty"`
 	OneTimeTermUnit  string                   `json:"oneTimeTermUnit,omitempty"`
+	UsageTotal       float64                  `json:"usageTotal,omitempty"`
+	UsageDailyRate   float64                  `json:"usageDailyRate,omitempty"`
 }
 
 // publicStatusCategoryView 只暴露展示标签和颜色，隐藏用户自定义配置的其它原始字段。
@@ -354,6 +356,11 @@ func publicStatusSubscriptionFromRecord(request *http.Request, token string, row
 		}
 		if row.GetString("oneTimeTermUnit") != "" {
 			item.OneTimeTermUnit = row.GetString("oneTimeTermUnit")
+		}
+		if row.GetString("billingCycle") == "usage-based" {
+			// 公开页投影只输出月均摊销所需字段；量包单位不在公开 allowlist。
+			item.UsageTotal = row.GetFloat("usageTotal")
+			item.UsageDailyRate = row.GetFloat("usageDailyRate")
 		}
 	}
 	return item

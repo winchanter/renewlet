@@ -165,7 +165,10 @@ describe("Cloudflare subscription renewal route", () => {
     expect(fixture.updateParams?.[2]).toBe("2026-01-31");
     expect(fixture.updateParams?.[3]).toBe("2026-02-28");
     expect(fixture.updateParams?.[4]).toBe(1);
-    expect(fixture.updateParams?.[7]).toBe("active");
+    // usage 量包字段在续订（购买新包）时保持清空，直到用户显式写入新的量包数据。
+    expect(fixture.updateParams?.[5]).toBeNull();
+    expect(fixture.updateParams?.[6]).toBeNull();
+    expect(fixture.updateParams?.[9]).toBe("active");
     expect(json.subscription).toMatchObject({
       autoRenew: false,
       price: "15.5",

@@ -37,7 +37,8 @@ describe("subscription collection query plan", () => {
     expect(plan.facts.sql).toContain("INNER JOIN subscriptions AS sub");
     expect(plan.facts.sql).toContain("sub.auto_calculate_next_billing_date");
     expect(plan.facts.sql).not.toContain("sub.notes");
-    expect(plan.facts.sql).not.toContain("sub.tags_json");
+    // tags 是列表视图的事实列：标签筛选和展示都需要，不再属于被排除的大字段。
+    expect(plan.facts.sql).toContain("sub.tags_json");
     expect(plan.facts.sql).not.toContain("sub.extra_json");
     expect(plan.count.params).toEqual([
       USER_ID,

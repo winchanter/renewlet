@@ -94,7 +94,7 @@ func TestBuildDueNotificationUsesEnglishLocale(t *testing.T) {
 		{ID: "renewal", Name: "Renewal", Price: "18", Currency: "USD", Status: "active", NextBillingDate: "2026-05-17", ReminderDays: 3},
 	}, true)
 
-	if message.Title != "Renewlet subscription reminder" {
+	if message.Title != "Renewo subscription reminder" {
 		t.Fatalf("unexpected title %q", message.Title)
 	}
 	if !strings.Contains(message.Content, "Upcoming renewals") || !strings.Contains(message.Content, "3 days before") {
@@ -552,7 +552,7 @@ func TestBuildBarkRequestURLAddsSinglePublicSubscriptionIcon(t *testing.T) {
 	settings.BarkSilentPush = true
 
 	requestURL, err := buildBarkRequestURL(settings, notificationMessage{
-		Title:     "Renewlet 订阅提醒",
+		Title:     "Renewo 订阅提醒",
 		Content:   "即将续费：\nAWS",
 		Timestamp: "2026-05-14 08:00",
 		Items: []notificationContentItem{{
@@ -568,7 +568,7 @@ func TestBuildBarkRequestURLAddsSinglePublicSubscriptionIcon(t *testing.T) {
 	if got := query.Get("icon"); got != "https://cdn.example.com/icons/aws.png?size=128" {
 		t.Fatalf("expected Bark icon query to use subscription logo, got %q", got)
 	}
-	if got := query.Get("group"); got != "Renewlet" {
+	if got := query.Get("group"); got != "Renewo" {
 		t.Fatalf("expected Bark group, got %q", got)
 	}
 	if got := query.Get("sound"); got != "none" {
@@ -602,7 +602,7 @@ func TestBuildBarkRequestURLSkipsUnsafeOrAmbiguousIcons(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			requestURL, err := buildBarkRequestURL(settings, notificationMessage{
-				Title:     "Renewlet 订阅提醒",
+				Title:     "Renewo 订阅提醒",
 				Content:   "即将续费",
 				Timestamp: "2026-05-14 08:00",
 				Items:     tc.items,

@@ -1,4 +1,4 @@
-// Renewlet 导入测试保护正式导出格式，旧导入桥删除后不能再放宽自导入契约。
+// Renewo 导入测试保护正式导出格式，旧导入桥删除后不能再放宽自导入契约。
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CUSTOM_CONFIG } from "@/types/config";
 import { DEFAULT_SETTINGS, type Subscription } from "@/types/subscription";
@@ -44,7 +44,7 @@ const currentExportSubscription = {
 } satisfies Subscription;
 
 describe("renewlet import", () => {
-  it("rejects legacy Renewlet bare subscription arrays", async () => {
+  it("rejects legacy Renewo bare subscription arrays", async () => {
     await expect(parseJsonText(JSON.stringify([
       {
         id: "03v2x7u3pyafogh",
@@ -67,7 +67,7 @@ describe("renewlet import", () => {
     ]), context)).rejects.toThrow(IMPORT_MESSAGE_CODES.unrecognizedFile);
   });
 
-  it("rejects legacy Renewlet object wrappers", async () => {
+  it("rejects legacy Renewo object wrappers", async () => {
     await expect(parseJsonText(JSON.stringify({
       data: {
         subscriptions: [{
@@ -85,7 +85,7 @@ describe("renewlet import", () => {
     }), context)).rejects.toThrow(IMPORT_MESSAGE_CODES.unrecognizedFile);
   });
 
-  it("builds current Renewlet v1 export rows that satisfy schema and keep pinned", () => {
+  it("builds current Renewo v1 export rows that satisfy schema and keep pinned", () => {
     const row = subscriptionToExportRow(currentExportSubscription);
 
     const parsed = renewletExportV1Schema.parse({
@@ -104,7 +104,7 @@ describe("renewlet import", () => {
     expect(parsed.data.subscriptions[0]?.pinned).toBe(true);
   });
 
-  it("keeps current Renewlet v1 exports on the schema-backed path", async () => {
+  it("keeps current Renewo v1 exports on the schema-backed path", async () => {
     const prepared = await parseJsonText(JSON.stringify({
       kind: "renewlet-export",
       schemaVersion: 1,
@@ -129,7 +129,7 @@ describe("renewlet import", () => {
     expect(prepared.warnings).toHaveLength(0);
   });
 
-  it("stages payment method icons from Renewlet ZIP assets and removes missing ZIP icon paths", () => {
+  it("stages payment method icons from Renewo ZIP assets and removes missing ZIP icon paths", () => {
     const parsed = renewletExportV1Schema.parse({
       kind: "renewlet-export",
       schemaVersion: 1,

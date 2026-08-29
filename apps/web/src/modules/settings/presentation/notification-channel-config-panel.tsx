@@ -574,7 +574,7 @@ export function NotificationChannelConfigPanel({
                 {({ id }) => (
                   <Input
                     id={id}
-                    placeholder="Renewlet <noreply@example.com>"
+                    placeholder="Renewo <noreply@example.com>"
                     value={settings.smtpFrom}
                     disabled={disabled}
                     onChange={(e) => updateSetting('smtpFrom', e.target.value)}

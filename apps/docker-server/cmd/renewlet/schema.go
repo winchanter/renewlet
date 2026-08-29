@@ -622,7 +622,7 @@ func ensureCalendarFeedsCollection(app core.App, users *core.Collection) error {
 		if err := upsertField(c, &core.TextField{Name: "subscriptionId", Max: 128}); err != nil {
 			return err
 		}
-		// ICS 客户端无法携带 Renewlet 登录态；保存可恢复 token，换取刷新后仍可复制订阅 URL 的体验。
+		// ICS 客户端无法携带 Renewo 登录态；保存可恢复 token，换取刷新后仍可复制订阅 URL 的体验。
 		if err := upsertField(c, &core.TextField{Name: "token", Required: true, Max: 128, Pattern: `^[A-Za-z0-9_-]{43}$`}); err != nil {
 			return err
 		}

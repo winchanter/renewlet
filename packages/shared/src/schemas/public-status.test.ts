@@ -12,7 +12,7 @@ describe("public status schemas", () => {
   it("accepts minimal public status rows without prices", () => {
     expect(publicStatusResponseSchema.parse(success({
       page: {
-        title: "Renewlet",
+        title: "Renewo",
         showPrices: false,
         generatedAt: "2026-06-07T00:00:00.000Z",
         truncated: false,
@@ -28,7 +28,7 @@ describe("public status schemas", () => {
       }],
     })).data.subscriptions[0]?.price).toBeUndefined();
     expect(publicStatusResponseSchema.safeParse({
-      page: { title: "Renewlet", showPrices: false, generatedAt: "2026-06-07T00:00:00.000Z", truncated: false },
+      page: { title: "Renewo", showPrices: false, generatedAt: "2026-06-07T00:00:00.000Z", truncated: false },
       subscriptions: [],
     }).success).toBe(false);
   });
@@ -36,7 +36,7 @@ describe("public status schemas", () => {
   it("accepts public status rows with unknown recurring start dates", () => {
     expect(publicStatusResponseSchema.parse(success({
       page: {
-        title: "Renewlet",
+        title: "Renewo",
         showPrices: false,
         generatedAt: "2026-06-07T00:00:00.000Z",
         truncated: false,
@@ -56,7 +56,7 @@ describe("public status schemas", () => {
     // showPrices 是公开账单字段唯一开关；schema 让金额、币种和周期同进同出，避免半公开账单信息。
     expect(publicStatusResponseSchema.safeParse(success({
       page: {
-        title: "Renewlet",
+        title: "Renewo",
         showPrices: true,
         currency: "USD",
         generatedAt: "2026-06-07T00:00:00.000Z",
@@ -77,7 +77,7 @@ describe("public status schemas", () => {
   it("requires public page currency and billing cycle only when prices are visible", () => {
     expect(publicStatusResponseSchema.safeParse(success({
       page: {
-        title: "Renewlet",
+        title: "Renewo",
         showPrices: true,
         currency: "USD",
         exchangeRateBasis: {
@@ -106,7 +106,7 @@ describe("public status schemas", () => {
 
     expect(publicStatusResponseSchema.safeParse(success({
       page: {
-        title: "Renewlet",
+        title: "Renewo",
         showPrices: false,
         currency: "USD",
         generatedAt: "2026-06-07T00:00:00.000Z",
@@ -117,7 +117,7 @@ describe("public status schemas", () => {
 
     expect(publicStatusResponseSchema.safeParse(success({
       page: {
-        title: "Renewlet",
+        title: "Renewo",
         showPrices: false,
         exchangeRateBasis: { status: "live", month: "2026-06" },
         generatedAt: "2026-06-07T00:00:00.000Z",
@@ -130,7 +130,7 @@ describe("public status schemas", () => {
   it("rejects incomplete or unrelated cycle-specific fields", () => {
     const publicResponse = (subscription: Record<string, unknown>) => success({
       page: {
-        title: "Renewlet",
+        title: "Renewo",
         showPrices: true,
         currency: "USD",
         generatedAt: "2026-06-07T00:00:00.000Z",
@@ -168,7 +168,7 @@ describe("public status schemas", () => {
   it("projects usage-based quantities only together with prices and billing cycle", () => {
     const publicResponse = (subscription: Record<string, unknown>) => success({
       page: {
-        title: "Renewlet",
+        title: "Renewo",
         showPrices: true,
         currency: "USD",
         generatedAt: "2026-06-07T00:00:00.000Z",

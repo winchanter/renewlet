@@ -14,8 +14,8 @@ function settings(overrides: Partial<NotificationEmailSettings> = {}): Notificat
 describe("buildNotificationEmail", () => {
   it("renders zh-CN reminder groups with the modern light-only template", () => {
     const email = buildNotificationEmail(settings({ themeVariant: "ocean" }), {
-      title: "Renewlet 订阅提醒",
-      content: "即将续费：Renewlet",
+      title: "Renewo 订阅提醒",
+      content: "即将续费：Renewo",
       timestamp: "2026-05-14 08:00:00 Asia/Shanghai",
       hasPayload: true,
       items: [
@@ -26,14 +26,14 @@ describe("buildNotificationEmail", () => {
       ],
     }, { appUrl: "https://renewlet.example/app/" });
 
-    expect(email.subject).toBe("Renewlet 订阅提醒");
-    expect(email.text).toContain("即将续费：Renewlet");
+    expect(email.subject).toBe("Renewo 订阅提醒");
+    expect(email.text).toContain("即将续费：Renewo");
     expect(email.html).toContain('<table role="presentation"');
     expect(email.html).toContain('width="600"');
     expect(email.html).toContain('class="email-container" width="600"');
     expect(email.html).toContain("style=\"width:100%; max-width:600px;");
     expect(email.html).toContain('<html lang="zh-CN">');
-    expect(email.html).toContain("<title>Renewlet 订阅提醒</title>");
+    expect(email.html).toContain("<title>Renewo 订阅提醒</title>");
     expect(email.html).toContain('<meta name="color-scheme" content="light only">');
     expect(email.html).toContain('<meta name="supported-color-schemes" content="light">');
     expectEmailBrand(email.html);
@@ -67,7 +67,7 @@ describe("buildNotificationEmail", () => {
     expect(email.html).toContain("line-height:48px");
     expect(email.html).not.toContain('<h1 class="email-h1"');
     expect(email.html).not.toContain('class="email-px email-muted"');
-    expect(email.html.match(/Renewlet 订阅提醒/g)).toHaveLength(1);
+    expect(email.html.match(/Renewo 订阅提醒/g)).toHaveLength(1);
     expect(email.html).not.toContain("class=\"email-message-panel\"");
     expect(email.html).not.toContain("class=\"email-stack\"");
     expect(email.html).not.toContain("class=\"email-amount\"");
@@ -96,8 +96,8 @@ describe("buildNotificationEmail", () => {
   it("renders long reminder lists as compact ledger rows without item badges", () => {
     const items = Array.from({ length: 43 }, (_, index) => item("renewal", `Ledger Subscription ${index + 1}`, String(index + 1), "CNY", "2026-05-17", 3));
     const email = buildNotificationEmail(settings(), {
-      title: "Renewlet 订阅提醒",
-      content: "即将续费：Renewlet",
+      title: "Renewo 订阅提醒",
+      content: "即将续费：Renewo",
       timestamp: "2026-05-14 08:00:00 Asia/Shanghai",
       hasPayload: true,
       items,
@@ -122,7 +122,7 @@ describe("buildNotificationEmail", () => {
 
   it("renders cost sharing collection reminders with member payload amounts", () => {
     const email = buildNotificationEmail(settings(), {
-      title: "Renewlet 订阅提醒",
+      title: "Renewo 订阅提醒",
       content: "家庭共享收款：Family Plan",
       timestamp: "2026-05-14 08:00:00 Asia/Shanghai",
       hasPayload: true,
@@ -145,7 +145,7 @@ describe("buildNotificationEmail", () => {
 
   it("renders en-US test notifications and settings CTA", () => {
     const email = buildNotificationEmail(settings({ locale: "en-US" }), {
-      title: "Renewlet test notification",
+      title: "Renewo test notification",
       content: "If you received this message, the channel is ready.",
       timestamp: "2026-05-14 08:00:00 UTC",
       hasPayload: true,
@@ -153,7 +153,7 @@ describe("buildNotificationEmail", () => {
     }, { appUrl: "https://renewlet.example" });
 
     expect(email.html).toContain('<html lang="en-US">');
-    expect(email.html).toContain("<title>Renewlet test notification</title>");
+    expect(email.html).toContain("<title>Renewo test notification</title>");
     expect(email.html).toContain("Channel check");
     expect(email.html).toContain("If you received this message");
     expect(email.html).toContain("Generated at");
@@ -169,15 +169,15 @@ describe("buildNotificationEmail", () => {
 
   it("keeps card bottom spacing without rendering placeholder content when CTA is unavailable", () => {
     const reminder = buildNotificationEmail(settings(), {
-      title: "Renewlet 订阅提醒",
-      content: "即将续费：Renewlet",
+      title: "Renewo 订阅提醒",
+      content: "即将续费：Renewo",
       timestamp: "2026-05-14 08:00:00 Asia/Shanghai",
       hasPayload: true,
       items: [item("renewal", "Renewal", "18", "CNY", "2026-05-17", 3)],
     });
     const testStatus = buildNotificationEmail(settings(), testMessage());
     const empty = buildNotificationEmail(settings({ locale: "en-US" }), {
-      title: "Renewlet subscription reminder",
+      title: "Renewo subscription reminder",
       content: "No subscriptions need reminders today.",
       timestamp: "2026-05-14 08:00:00 UTC",
       hasPayload: false,
@@ -192,7 +192,7 @@ describe("buildNotificationEmail", () => {
 
   it("keeps the message panel for empty reminder notifications", () => {
     const email = buildNotificationEmail(settings({ locale: "en-US" }), {
-      title: "Renewlet subscription reminder",
+      title: "Renewo subscription reminder",
       content: "No subscriptions need reminders today.",
       timestamp: "2026-05-14 08:00:00 UTC",
       hasPayload: false,
@@ -244,8 +244,8 @@ describe("buildNotificationEmail", () => {
     // Worker 和 Go 共用同一体积预算；超长账单列表必须走 compact fallback，避免邮件客户端裁剪关键内容。
     const items = Array.from({ length: 800 }, (_, index) => item("renewal", `Very Long Subscription Name ${index}`, "18", "CNY", "2026-05-17", 3));
     const email = buildNotificationEmail(settings(), {
-      title: "Renewlet 订阅提醒",
-      content: "即将续费：Renewlet\n".repeat(2_000),
+      title: "Renewo 订阅提醒",
+      content: "即将续费：Renewo\n".repeat(2_000),
       timestamp: "2026-05-14 08:00:00 UTC",
       hasPayload: true,
       items,
@@ -267,7 +267,7 @@ function expectEmailBrand(html: string) {
   expect(html).toContain("class=\"email-brand-lockup\"");
   expect(html).toContain("class=\"email-brand-lockup-mark\"");
   expect(html).not.toContain("class=\"email-brand-mark\"");
-  expect(html).toContain("Renewlet");
+  expect(html).toContain("Renewo");
   expect(html).toContain("#111720");
   expect(html).toContain("#26313D");
   expect(html).toContain("#F8FAFC");
@@ -280,7 +280,7 @@ function expectEmailBrand(html: string) {
 
 function testMessage(): NotificationEmailMessage {
   return {
-    title: "Renewlet 测试通知",
+    title: "Renewo 测试通知",
     content: "如果你收到这条消息，说明通知渠道已经配置成功。",
     timestamp: "2026-05-14 08:00:00 UTC",
     hasPayload: true,

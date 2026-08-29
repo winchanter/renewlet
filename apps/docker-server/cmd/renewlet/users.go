@@ -2,7 +2,7 @@ package main
 
 // users.go 管理产品侧用户 DTO、初始化管理员和管理员保护规则。
 //
-// 架构位置：PocketBase 提供认证记录，Renewlet 在 users collection 上增加 role/banned/banReason，
+// 架构位置：PocketBase 提供认证记录，Renewo 在 users collection 上增加 role/banned/banReason，
 // 并由管理员 API 与登录 hook 统一消费这些字段。
 //
 // 注意： 这里的自锁保护是最后一道后端防线；前端按钮禁用不能替代这些检查。
@@ -123,7 +123,7 @@ func createInitialSuperuserIfMissing(app core.App, email string, password string
 }
 
 // hasNonInstallerSuperuser 判断是否已有用户掌控的 PocketBase superuser。
-// 默认 installer 邮箱只是 PocketBase 初始化哨兵，不能阻止 Renewlet 创建真正可登录的管理入口。
+// 默认 installer 邮箱只是 PocketBase 初始化哨兵，不能阻止 Renewo 创建真正可登录的管理入口。
 func hasNonInstallerSuperuser(app core.App) (bool, error) {
 	total, err := app.CountRecords(core.CollectionNameSuperusers, dbx.Not(dbx.HashExp{
 		"email": core.DefaultInstallerEmail,

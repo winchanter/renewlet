@@ -32,7 +32,7 @@ export interface ResolvedImportAssets {
 }
 
 /**
- * parseImportFile 将用户选择的 Renewlet/Wallos 文件转换为待预览导入模型。
+ * parseImportFile 将用户选择的 Renewo/Wallos 文件转换为待预览导入模型。
  *
  * 大文件只在浏览器本地解析或交给 Worker，不把用户的 Wallos 备份上传到服务端做格式探测。
  *
@@ -60,7 +60,7 @@ export async function parseImportFile(
 /**
  * parseJsonText 解析纯文本导入内容。
  *
- * Renewlet export v1 是唯一自导入格式；Wallos 分支只做外部备份字段映射。
+ * Renewo export v1 是唯一自导入格式；Wallos 分支只做外部备份字段映射。
  */
 export async function parseJsonText(
   text: string,

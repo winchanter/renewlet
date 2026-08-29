@@ -1,5 +1,5 @@
 /**
- * 品牌符号组件（Renewlet）。
+ * 品牌符号组件（Renewo）。
  *
  * 架构位置：所有登录/setup/空状态入口共用同一个 SVG，避免品牌图形在页面中复制分叉。
  *
@@ -7,7 +7,7 @@
  */
 import type { SVGProps } from "react";
 
-/** 渲染 Ledger Sans 风格的 Renewlet 品牌符号。 */
+/** 渲染 Renewo 的续费环形品牌符号（环即品牌名中的 "o"，缺口箭头表达循环续费）。 */
 export function RenewletLogo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -18,9 +18,14 @@ export function RenewletLogo(props: SVGProps<SVGSVGElement>) {
       focusable="false"
       {...props}
     >
-      <rect x="2" y="5" width="14" height="4" rx="2" fill="currentColor" />
-      <circle cx="20" cy="7" r="2" fill="hsl(var(--primary))" />
-      <rect x="4" y="14" width="14.5" height="3" rx="1.5" fill="hsl(var(--primary))" />
+      <path
+        d="M 14.63 7.45 A 5.25 5.25 0 1 1 9.38 7.45"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <path d="M 8.78 6.42 L 11 6.52 L 9.98 8.49 Z" fill="hsl(var(--primary))" />
     </svg>
   );
 }

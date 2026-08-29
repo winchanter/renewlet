@@ -61,12 +61,12 @@ msgstr "AI recognition: when you actively use AI recognition to add subscription
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:7
 msgid "legal.privacy.intro"
-msgstr "Renewlet does not inject custom head HTML by default. An instance operator can enable a trusted fragment with same-origin code capabilities; when you use a deployed instance, the fragment and all of its data handling are the operator's responsibility, which may be yours."
+msgstr "Renewo does not inject custom head HTML by default. An instance operator can enable a trusted fragment with same-origin code capabilities; when you use a deployed instance, the fragment and all of its data handling are the operator's responsibility, which may be yours."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:26
 msgid "legal.terms.intro"
-msgstr "Renewlet (renewlet) is an open-source subscription management tool. This page explains the basic rules you should understand when using this project or a deployed instance."
+msgstr "Renewo (renewlet) is an open-source subscription management tool. This page explains the basic rules you should understand when using this project or a deployed instance."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:10
@@ -106,7 +106,7 @@ msgstr "You are responsible for any loss caused by using this project or a deplo
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:17
 msgid "legal.privacy.thirdParty.icons"
-msgstr "Icon search: when you manually search for a Logo, the service name may be sent through the Renewlet backend to Apple Search API for the App Store regions you select, with US queried by default; Apple CDN icons and external favicon/logo fallback candidates may also be loaded in the browser."
+msgstr "Icon search: when you manually search for a Logo, the service name may be sent through the Renewo backend to Apple Search API for the App Store regions you select, with US queried by default; Apple CDN icons and external favicon/logo fallback candidates may also be loaded in the browser."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:32
@@ -176,7 +176,7 @@ msgstr "Some features request third-party services, such as exchange-rate APIs, 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:20
 msgid "legal.privacy.thirdParty.customScript"
-msgstr "Operator-provided head HTML: analytics, session-recording, or other third-party scripts may collect and send page and interaction data. The instance operator is responsible for disclosure, the privacy policy, and any legally required consent signal; Renewlet includes no Clarity-specific logic or consent management platform."
+msgstr "Operator-provided head HTML: analytics, session-recording, or other third-party scripts may collect and send page and interaction data. The instance operator is responsible for disclosure, the privacy policy, and any legally required consent signal; Renewo includes no Clarity-specific logic or consent management platform."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:5

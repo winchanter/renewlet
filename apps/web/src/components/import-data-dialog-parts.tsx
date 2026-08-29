@@ -17,7 +17,7 @@ interface ImportFileDropZoneProps {
   fileHintLabel: string;
 }
 
-// 文件入口同时承接 Renewlet 备份 ZIP 与 Wallos 源文件，accept 只做浏览器提示，真实校验仍在导入解析层。
+// 文件入口同时承接 Renewo 备份 ZIP 与 Wallos 源文件，accept 只做浏览器提示，真实校验仍在导入解析层。
 export function ImportFileDropZone({
   file,
   dragActive,
@@ -66,7 +66,7 @@ export function ImportFileDropZone({
             {file ? formatFileSize(file.size) : fileHintLabel}
           </span>
           <span className="mt-3 flex flex-wrap gap-1.5">
-            {["Renewlet ZIP", "Wallos JSON", "backup.zip", "wallos.db"].map((item) => (
+            {["Renewo ZIP", "Wallos JSON", "backup.zip", "wallos.db"].map((item) => (
               <span key={item} className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                 {item}
               </span>

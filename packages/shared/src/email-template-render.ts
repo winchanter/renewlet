@@ -257,7 +257,7 @@ function renderFooter(data: EmailTemplateData): string {
                   <td align="center" style="padding-top:8px; color:#94A3B8; font-size:12px; line-height:20px;">${escapeHtml(data.copy.footer)}</td>
                 </tr>
                 <tr>
-                  <td align="center" style="padding-top:18px; color:#94A3B8; font-size:11px; line-height:16px;">© Renewlet</td>
+                  <td align="center" style="padding-top:18px; color:#94A3B8; font-size:11px; line-height:16px;">© Renewo</td>
                 </tr>
               </table>
             </td>

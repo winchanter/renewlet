@@ -581,7 +581,7 @@ export function useUnsavedChangesGuard(enabled: boolean, onConfirmLeave: () => v
       setPendingUrl(nextUrl);
     };
 
-    // beforeunload 只能显示浏览器通用文案；站内 SPA 导航在这里转成 Renewlet 风格确认弹窗。
+    // beforeunload 只能显示浏览器通用文案；站内 SPA 导航在这里转成 Renewo 风格确认弹窗。
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
   }, [enabled]);

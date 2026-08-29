@@ -27,7 +27,7 @@ export interface ImportDataDialogProps {
   onOpenChange: (open: boolean) => void;
   /** 导入解析使用当前设置里的 timezone/defaultCurrency/reminder 默认值，不自行读取全局 query。 */
   settings: AppSettings;
-  /** Wallos/Renewlet 导入会映射分类、状态、支付方式和货币，必须使用当前已规范化配置。 */
+  /** Wallos/Renewo 导入会映射分类、状态、支付方式和货币，必须使用当前已规范化配置。 */
   config: CustomConfig;
   /** 外部恢复入口预载的文件；仍然只进入 preview/apply，不在弹窗外写库。 */
   initialFile?: File | null;

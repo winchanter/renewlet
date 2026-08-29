@@ -88,7 +88,7 @@ func TestCalendarFeedLifecycleAndICSRoute(t *testing.T) {
 	unfoldedICS := unfoldCalendarTestICS(ics)
 	for _, expected := range []string{
 		"BEGIN:VCALENDAR",
-		"NAME:Renewlet renewal calendar",
+		"NAME:Renewo renewal calendar",
 		"SOURCE;VALUE=URI:",
 		"BEGIN:VEVENT",
 		"UID:renewlet-renewal-",
@@ -216,7 +216,7 @@ func TestSubscriptionCalendarFeedLifecycleAndICSRoute(t *testing.T) {
 	assertCalendarFeedLineEndings(t, firstICSRes.Body.String())
 	unfoldedICS := unfoldCalendarTestICS(firstICSRes.Body.String())
 	for _, expected := range []string{
-		"NAME:Renewlet - Paused Plan",
+		"NAME:Renewo - Paused Plan",
 		"SUMMARY:Paused Plan",
 		"DESCRIPTION:Amount: 9 USD\\nBilling cycle: Monthly\\nCategory: Developer Tools\\nPayment method: Credit Card\\nNotes: Paused but user requested calendar subscription",
 		"CATEGORIES:Developer Tools",
@@ -326,7 +326,7 @@ func TestSubscriptionCalendarICSDownload(t *testing.T) {
 	assertCalendarFeedLineEndings(t, downloadRes.Body.String())
 	unfoldedICS := unfoldCalendarTestICS(downloadRes.Body.String())
 	for _, expected := range []string{
-		"NAME:Renewlet - Paused Plan",
+		"NAME:Renewo - Paused Plan",
 		"SUMMARY:Paused Plan",
 		"DESCRIPTION:Amount: 9 USD\\nBilling cycle: Monthly\\nCategory: Developer Tools\\nPayment method: Credit Card\\nNotes: One-off download",
 		"CATEGORIES:Developer Tools",
@@ -372,7 +372,7 @@ func TestCalendarFeedICSSkipsInvalidDateOnlyEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := buildCalendarFeedICS(calendarFeedBuildOptions{
-		Name:     "Renewlet - Invalid Date Plan",
+		Name:     "Renewo - Invalid Date Plan",
 		Now:      now,
 		Settings: defaultAppSettings(),
 		Events: []calendarFeedEvent{{

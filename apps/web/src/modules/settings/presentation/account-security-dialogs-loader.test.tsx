@@ -82,7 +82,7 @@ describe("DeferredAccountSecurityDialogs", () => {
       setup: {
         setupId: "setup-1",
         secret: "secret",
-        otpauthUrl: "otpauth://totp/Renewlet",
+        otpauthUrl: "otpauth://totp/Renewo",
         expiresAt: "2026-08-20T00:00:00.000Z",
       },
     }).title).toBe("settings.mfaSetupTitle");

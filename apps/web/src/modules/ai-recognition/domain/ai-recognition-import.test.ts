@@ -234,7 +234,7 @@ describe("AI recognition import mapping", () => {
     expect(prepared.warnings).toContain(`IMPORT_WARNING_FOR_SUBSCRIPTION|Netflix|${IMPORT_MESSAGE_CODES.aiWebsiteSuggested}`);
   });
 
-  it("drops process notes and removes Renewlet-facing advice", () => {
+  it("drops process notes and removes Renewo-facing advice", () => {
     const processDraft = draft({
       notes: { value: "输入没有提供官网或更多上下文，AI 未能高置信识别该服务。", source: "suggested" },
     });

@@ -27,7 +27,7 @@ export type { UploadedAsset, UploadedAssetsPage };
 const UPLOADED_ASSETS_PAGE_SIZE = 48;
 
 /**
- * assetService 统一走 Renewlet 产品 API 上传和列出资产。
+ * assetService 统一走 Renewo 产品 API 上传和列出资产。
  *
  * 前端只消费受控资产 URL；Docker 的 PocketBase 文件字段和 Cloudflare 的 R2 key 都被隔离在后端。
  */

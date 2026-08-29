@@ -403,7 +403,7 @@ const Login = () => {
       <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-primary/20 via-primary/10 to-background items-center justify-center p-12">
         <div className="max-w-md grid gap-8">
           <RenewletBrandLockup
-            title="Renewlet"
+            title="Renewo"
             subtitle={t("app.tagline")}
             markSize="lg"
             titleClassName="text-3xl font-extrabold tracking-tight"
@@ -435,7 +435,7 @@ const Login = () => {
       <div className="auth-form-panel flex-1 flex items-center justify-center">
         <div className="w-full max-w-md grid gap-8">
           <RenewletBrandLockup
-            title="Renewlet"
+            title="Renewo"
             subtitle={t("app.tagline")}
             className="justify-center lg:hidden"
             titleClassName="text-2xl font-extrabold tracking-tight"

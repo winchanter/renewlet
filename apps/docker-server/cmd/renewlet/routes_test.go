@@ -222,7 +222,7 @@ func createRouteTestSuperuser(t *testing.T, app core.App, email string, password
 func TestPocketBaseInstallerIsDisabled(t *testing.T) {
 	event := &core.ServeEvent{
 		InstallerFunc: func(core.App, *core.Record, string) error {
-			t.Fatal("PocketBase installer should not run for Renewlet")
+			t.Fatal("PocketBase installer should not run for Renewo")
 			return nil
 		},
 	}

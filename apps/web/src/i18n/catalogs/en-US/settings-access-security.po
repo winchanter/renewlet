@@ -91,7 +91,7 @@ msgstr "Site key and Secret key are both required to enable Turnstile."
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings-access-security.ts:7
 msgid "settings.turnstileHelp"
-msgstr "When enabled, Renewlet verifies Turnstile before email/password login to reduce brute-force and credential stuffing risk; passkeys, the authenticator second step, and first-time setup are not affected."
+msgstr "When enabled, Renewo verifies Turnstile before email/password login to reduce brute-force and credential stuffing risk; passkeys, the authenticator second step, and first-time setup are not affected."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings-access-security.ts:9
@@ -101,7 +101,7 @@ msgstr "When enabled, both Site key and Secret key must be filled in, otherwise 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings-access-security.ts:24
 msgid "settings.turnstileTestDialogDescription"
-msgstr "Complete the verification below. Renewlet will then check whether the current Site key and Secret key work."
+msgstr "Complete the verification below. Renewo will then check whether the current Site key and Secret key work."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings-access-security.ts:18

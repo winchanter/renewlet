@@ -2,7 +2,7 @@ package main
 
 // external_request_origin.go 收敛 Docker/Go 运行面的外部访问 Origin。
 //
-// Renewlet 会生成公开状态页和日历订阅这类 bearer URL；在反向代理或 Vite dev proxy 下，
+// Renewo 会生成公开状态页和日历订阅这类 bearer URL；在反向代理或 Vite dev proxy 下，
 // 浏览器看到的 origin 和 Go 实际监听地址可能不同，所有对外 URL 必须共用这一层解析。
 import (
 	"net/http"

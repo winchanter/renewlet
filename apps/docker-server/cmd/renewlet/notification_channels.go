@@ -365,7 +365,7 @@ func renderDingTalkNotification(settings appSettings, message notificationMessag
 func renderDingTalkTemplate(template string, message notificationMessage, keyword string) string {
 	// 钉钉模板只改官方 payload 的文本字段；raw JSON body 会绕开 msgtype/errcode 约束并重现交付误判。
 	return strings.NewReplacer(
-		"{brand}", "Renewlet",
+		"{brand}", "Renewo",
 		"{keyword}", strings.TrimSpace(keyword),
 		"{title}", message.Title,
 		"{content}", message.Content,
@@ -377,8 +377,8 @@ func renderDingTalkTemplate(template string, message notificationMessage, keywor
 func ensureDingTalkContentMarkers(content string, keyword string) string {
 	// 钉钉关键词校验只看可见正文，不能藏在 title 或不可见字符里；缺失标记放末尾，避免抢走通知第一屏。
 	markers := []string{}
-	if !strings.Contains(content, "Renewlet") {
-		markers = append(markers, "Renewlet")
+	if !strings.Contains(content, "Renewo") {
+		markers = append(markers, "Renewo")
 	}
 	keyword = strings.TrimSpace(keyword)
 	if keyword != "" && !strings.Contains(content, keyword) && !dingTalkMarkerQueued(markers, keyword) {
@@ -503,7 +503,7 @@ func sendWeChatWork(settings appSettings, message notificationMessage) error {
 	}
 	content := buildTextMessage(message)
 	if settings.WechatAddModeTag {
-		content = "【Renewlet】\n" + content
+		content = "【Renewo】\n" + content
 	}
 	if settings.WechatMessageType == "markdown" {
 		resp, err := postJSON(safeURL.String(), wechatMarkdownRequest{
@@ -579,7 +579,7 @@ func buildBarkRequestURL(settings appSettings, message notificationMessage) (*ur
 		return nil, err
 	}
 	q := parsed.Query()
-	q.Set("group", "Renewlet")
+	q.Set("group", "Renewo")
 	if iconURL := barkNotificationIconURL(message); iconURL != "" {
 		q.Set("icon", iconURL)
 	}

@@ -513,7 +513,7 @@ export function createControllerState(overrides: {
       smtpSecure: false,
       smtpUser: "smtp-user",
       smtpPassword: "smtp-password",
-      smtpFrom: "Renewlet <noreply@example.com>",
+      smtpFrom: "Renewo <noreply@example.com>",
       smtpReplyTo: "support@example.com",
       recipientEmail: "alice@example.com",
       ...overrides.settings,

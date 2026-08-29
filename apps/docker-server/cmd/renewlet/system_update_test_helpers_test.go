@@ -21,6 +21,7 @@ type fakeSystemReleaseClient struct {
 	release       *systemRelease
 	releases      []systemRelease
 	fetchDelay    time.Duration
+	downloadDelay time.Duration
 	fetchCount    int32
 	probeCount    int32
 	downloadCount int32
@@ -61,6 +62,13 @@ func (client *fakeSystemReleaseClient) ProbeReleaseAssets(_ context.Context, _ s
 func (client *fakeSystemReleaseClient) DownloadFile(ctx context.Context, _ string, targetPath string, _ int64, _ int64) (string, error) {
 	atomic.AddInt32(&client.downloadCount, 1)
 	client.recordRequest("archive")
+	if client.downloadDelay > 0 {
+		select {
+		case <-time.After(client.downloadDelay):
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
 	select {
 	case <-ctx.Done():
 		return "", ctx.Err()
@@ -164,7 +172,7 @@ func releaseFixture(tag string) systemRelease {
 	// fixture 固定 Release 资产命名，保护 Docker 页面内更新对 archive/checksums 的查找契约。
 	return systemRelease{
 		TagName:     tag,
-		Name:        "Renewlet " + version,
+		Name:        "Renewo " + version,
 		PublishedAt: "2026-06-04T00:00:00Z",
 		HTMLURL:     "https://github.com/zhiyingzzhou/renewlet/releases/tag/" + tag,
 		Assets: []systemReleaseAsset{

@@ -15,7 +15,7 @@
   ],
   "outputContract": [
     "Top-level JSON must be exactly {\"subscriptions\": [], \"warnings\": []}.",
-    "Each subscription object must use Renewlet field names only: name, price, currency, billingCycle, customDays, customCycleUnit, oneTimeTermCount, oneTimeTermUnit, category, status, paymentMethod, startDate, nextBillingDate, autoCalculateNextBillingDate, trialEndDate, website, notes, tags, reminderDays, repeatReminderEnabled, repeatReminderInterval, repeatReminderWindow, confidence, warnings.",
+    "Each subscription object must use Renewo field names only: name, price, currency, billingCycle, customDays, customCycleUnit, oneTimeTermCount, oneTimeTermUnit, category, status, paymentMethod, startDate, nextBillingDate, autoCalculateNextBillingDate, trialEndDate, website, notes, tags, reminderDays, repeatReminderEnabled, repeatReminderInterval, repeatReminderWindow, confidence, warnings.",
     "Every field listed above must be present exactly once and no other fields are allowed. Use JSON null for unknown scalar/object fields except notes, and [] for unknown tags or warnings.",
     "website must be either null or an object {\"value\": string, \"source\": \"input\" | \"suggested\"}. If the website is unknown, output the entire field as website: null; never output {\"value\": null, \"source\": \"suggested\"}. Use source=input only when the value appears in the user input or image; use source=suggested when generated from public knowledge.",
     "notes must always be an object {\"value\": string | null, \"source\": \"input\" | \"suggested\" | \"none\"}. Use source=none only with value=null when the service purpose is truly unknowable.",

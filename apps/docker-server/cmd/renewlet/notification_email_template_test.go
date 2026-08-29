@@ -36,8 +36,8 @@ func TestBuildEmailHTMLMessageRendersModernLightOnlyReminderTemplate(t *testing.
 		`<html lang="zh-CN">`,
 		`<meta name="color-scheme" content="light only">`,
 		`<meta name="supported-color-schemes" content="light">`,
-		"Renewlet",
-		"<title>Renewlet 订阅提醒</title>",
+		"Renewo",
+		"<title>Renewo 订阅提醒</title>",
 		`class="email-summary-panel"`,
 		`class="email-summary-panel" style="width:100%; border-collapse:separate; border-spacing:0; background:#F8FAF9; border:1px solid #E6EAE8; border-radius:12px;"`,
 		`class="email-group-card"`,
@@ -66,7 +66,7 @@ func TestBuildEmailHTMLMessageRendersModernLightOnlyReminderTemplate(t *testing.
 		"#0F172A",
 		"#64748B",
 	)
-	if got := strings.Count(body, "Renewlet 订阅提醒"); got != 1 {
+	if got := strings.Count(body, "Renewo 订阅提醒"); got != 1 {
 		t.Fatalf("expected reminder title to appear only in document title, got %d\n%s", got, body)
 	}
 	if got := strings.Count(body, `font-size:13px; line-height:20px;">你有 3 项订阅提醒需要查看。</div>`); got != 1 {
@@ -112,8 +112,8 @@ func TestBuildEmailHTMLMessageRendersLongReminderListAsCompactLedgerRows(t *test
 		})
 	}
 	message := notificationMessage{
-		Title:      "Renewlet 订阅提醒",
-		Content:    "即将续费：Renewlet",
+		Title:      "Renewo 订阅提醒",
+		Content:    "即将续费：Renewo",
 		Timestamp:  "2026-05-14 08:00:00 Asia/Shanghai",
 		Items:      items,
 		HasPayload: true,
@@ -153,7 +153,7 @@ func TestBuildEmailHTMLMessageRendersCostSharingCollectionReminder(t *testing.T)
 	settings := defaultAppSettings()
 	settings.Locale = string(localeZhCN)
 	message := notificationMessage{
-		Title:     "Renewlet 订阅提醒",
+		Title:     "Renewo 订阅提醒",
 		Content:   "家庭共享收款：Family Plan",
 		Timestamp: "2026-05-14 08:00:00 Asia/Shanghai",
 		Items: []notificationContentItem{{
@@ -193,7 +193,7 @@ func TestBuildEmailHTMLMessageRendersEnglishTestNotification(t *testing.T) {
 
 	assertContainsAll(t, body,
 		`<html lang="en-US">`,
-		"Renewlet test notification",
+		"Renewo test notification",
 		"Channel check",
 		"If you received this message",
 		"Generated at",
@@ -211,7 +211,7 @@ func TestBuildEmailHTMLMessageRendersTestStatusWithoutDuplicateMessagePanel(t *t
 	message := buildTestNotification(time.Date(2026, 5, 14, 1, 2, 3, 0, time.UTC), settings)
 	body := mustBuildEmailHTML(t, settings, message)
 
-	assertContainsAll(t, body, "<title>Renewlet 测试通知</title>", "配置检查", `>0 <span`, "如果你收到了这条消息")
+	assertContainsAll(t, body, "<title>Renewo 测试通知</title>", "配置检查", `>0 <span`, "如果你收到了这条消息")
 	assertContainsAll(t, body, `padding-bottom:36px`)
 	assertEmailBrand(t, body)
 	assertNotContainsAny(t, body, `<h1 class="email-h1"`, "消息内容", `class="email-message-panel"`, `class="email-group-card"`, `email-card-bottom-safe-area`, "email-ledger")
@@ -296,7 +296,7 @@ func TestBuildEmailHTMLMessageEscapesPlainContentLines(t *testing.T) {
 	t.Setenv("APP_URL", "")
 	settings := defaultAppSettings()
 	message := notificationMessage{
-		Title:      "Renewlet 测试通知",
+		Title:      "Renewo 测试通知",
 		Content:    "Line <b>one</b>\nLine two",
 		Timestamp:  "2026-05-14 08:00:00 UTC",
 		Items:      []notificationContentItem{},
@@ -314,7 +314,7 @@ func TestBuildEmailHTMLMessageRendersEmptyNotificationContent(t *testing.T) {
 	settings := defaultAppSettings()
 	settings.Locale = string(localeEnUS)
 	message := notificationMessage{
-		Title:      "Renewlet subscription reminder",
+		Title:      "Renewo subscription reminder",
 		Content:    "No subscriptions need reminders today.",
 		Timestamp:  "2026-05-14 08:00:00 UTC",
 		Items:      []notificationContentItem{},
@@ -351,8 +351,8 @@ func TestBuildEmailHTMLMessageCapsLargeHTMLBody(t *testing.T) {
 		})
 	}
 	message := notificationMessage{
-		Title:      "Renewlet 订阅提醒",
-		Content:    strings.Repeat("即将续费：Renewlet\n", 2000),
+		Title:      "Renewo 订阅提醒",
+		Content:    strings.Repeat("即将续费：Renewo\n", 2000),
 		Timestamp:  "2026-05-14 08:00:00 UTC",
 		Items:      items,
 		HasPayload: true,
@@ -431,7 +431,7 @@ func TestServerI18nCatalogsHaveSameKeysAndNoEmptyValues(t *testing.T) {
 
 func TestEmailPlainTextFallbackContentRemainsAvailable(t *testing.T) {
 	message := notificationMessage{
-		Title:     "Renewlet subscription reminder",
+		Title:     "Renewo subscription reminder",
 		Content:   "Upcoming renewals:\n- Renewal: 2026-05-17, 18 CNY (3 days before)",
 		Timestamp: "2026-05-14 08:00:00 UTC",
 	}
@@ -472,7 +472,7 @@ func assertEmailBrand(t *testing.T, body string) {
 	assertContainsAll(t, body,
 		`class="email-brand-lockup"`,
 		`class="email-brand-lockup-mark"`,
-		"Renewlet",
+		"Renewo",
 		"#111720",
 		"#26313D",
 		"#F8FAFC",

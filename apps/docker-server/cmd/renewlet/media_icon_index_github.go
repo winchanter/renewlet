@@ -88,7 +88,7 @@ func fetchGitHubAtomFeed(ctx context.Context, url string, etag string, label str
 		return nil, "", false, err
 	}
 	req.Header.Set("Accept", "application/atom+xml")
-	req.Header.Set("User-Agent", "Renewlet/"+Version)
+	req.Header.Set("User-Agent", "Renewo/"+Version)
 	if etag != "" {
 		req.Header.Set("If-None-Match", etag)
 	}

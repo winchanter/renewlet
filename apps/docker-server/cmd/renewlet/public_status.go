@@ -285,7 +285,7 @@ func buildPublicStatusResponse(app core.App, request *http.Request, page *core.R
 	}
 	showPrices := page.GetBool("showPrices")
 	view := publicStatusPageView{
-		Title:       "Renewlet",
+		Title:       "Renewo",
 		ShowPrices:  showPrices,
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 		Truncated:   truncated,

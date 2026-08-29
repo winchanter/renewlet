@@ -106,7 +106,7 @@ func (client *httpSystemReleaseClient) probeReleaseAsset(ctx context.Context, so
 	if err != nil {
 		return 0, false
 	}
-	request.Header.Set("User-Agent", "Renewlet/"+Version)
+	request.Header.Set("User-Agent", "Renewo/"+Version)
 	response, err := sendUpstreamHTTPRequest(request, upstreamHTTPRequestOptions{
 		Provider: "GitHub Release asset",
 		Timeout:  systemUpdateAssetRequestTimeout,
@@ -145,7 +145,7 @@ func (client *httpSystemReleaseClient) FetchText(ctx context.Context, sourceURL 
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Set("User-Agent", "Renewlet/"+Version)
+	request.Header.Set("User-Agent", "Renewo/"+Version)
 	response, err := sendUpstreamHTTPRequest(request, upstreamHTTPRequestOptions{
 		Provider: "GitHub",
 		Timeout:  systemUpdateAssetRequestTimeout,
@@ -185,7 +185,7 @@ func validateTrustedDownloadURL(rawURL string) error {
 
 func applySystemReleaseFeedHeaders(request *http.Request) {
 	request.Header.Set("Accept", "application/atom+xml")
-	request.Header.Set("User-Agent", "Renewlet/"+Version)
+	request.Header.Set("User-Agent", "Renewo/"+Version)
 }
 
 func newSystemReleaseHTTPError(response *http.Response) error {
@@ -259,7 +259,7 @@ func systemReleaseFromAtomEntry(entry systemReleaseAtomEntry) (systemRelease, bo
 	}
 	name := strings.TrimSpace(entry.Title)
 	if name == "" {
-		name = "Renewlet " + version
+		name = "Renewo " + version
 	}
 	return systemRelease{
 		TagName:     tagName,

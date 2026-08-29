@@ -1,6 +1,6 @@
 package main
 
-// 汇率快照测试保护“当前月登录态 capture”和“历史月只能从 Renewlet ZIP 恢复”的边界。
+// 汇率快照测试保护“当前月登录态 capture”和“历史月只能从 Renewo ZIP 恢复”的边界。
 
 import (
 	"encoding/json"

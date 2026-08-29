@@ -228,9 +228,9 @@ const generatedTagsSchema = z.array(z.string().trim().max(40))
   .max(3)
   .describe("User-facing reusable organization tags. Prefer existing user tags from prompt context; if none fit, generate only stable reusable service/product/domain tags, not one-off order attributes.");
 const generatedCategorySchema = z.string().trim().max(80).nullable()
-  .describe("Renewlet category value from provided options when possible; otherwise a concise user-facing category only when the service type is obvious.");
+  .describe("Renewo category value from provided options when possible; otherwise a concise user-facing category only when the service type is obvious.");
 const generatedPaymentMethodSchema = z.string().trim().max(80).nullable()
-  .describe("Renewlet payment method value from provided options when possible; otherwise a concise user-facing payment method only when the input explicitly names one.");
+  .describe("Renewo payment method value from provided options when possible; otherwise a concise user-facing payment method only when the input explicitly names one.");
 const generatedConfidenceSchema = z.enum(["high", "low"])
   .describe("Use high only when the extracted row can be directly confirmed; use low for ambiguous, partial, or inferred records.");
 const generatedWarningsSchema = z.array(z.string().trim().min(1).max(240))

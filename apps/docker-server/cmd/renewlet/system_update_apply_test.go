@@ -117,14 +117,12 @@ func TestReplaceRenewletBinaryUsesHardLinkBackupWithoutOverwritingIt(t *testing.
 
 func TestSystemUpdateReusesOperationAndCachedReleaseUntilRestart(t *testing.T) {
 	service, client, binaryPath := newExecutableSystemUpdateService(t, "1.0.0", "1.1.0")
-	checked, err := service.CheckVersion(context.Background(), localeZhCN, true)
-	if err != nil {
-		t.Fatal(err)
+	cached := service.cachedUpdateRelease()
+	if cached == nil || cached.dto == nil {
+		t.Fatal("expected cached release")
 	}
-	if checked.ReleaseInfo == nil {
-		t.Fatal("expected checked release")
-	}
-	checked.ReleaseInfo.Version = "9.9.9"
+	// cachedUpdateRelease 返回深拷贝；变异它不能影响 operation 实际使用的缓存 release。
+	cached.dto.Version = "9.9.9"
 	first, err := service.StartUpdate(localeZhCN)
 	if err != nil {
 		t.Fatal(err)
@@ -151,8 +149,8 @@ func TestSystemUpdateReusesOperationAndCachedReleaseUntilRestart(t *testing.T) {
 	if string(content) != "renewlet-new" {
 		t.Fatalf("binary content = %q, want renewlet-new", content)
 	}
-	if got := atomic.LoadInt32(&client.fetchCount); got != 1 {
-		t.Fatalf("release fetch count = %d, want cached single fetch", got)
+	if got := atomic.LoadInt32(&client.fetchCount); got != 0 {
+		t.Fatalf("fork deployment must not fetch releases, calls = %d", got)
 	}
 	if got := atomic.LoadInt32(&client.checksumCount); got != 1 {
 		t.Fatalf("checksum fetch count = %d, want 1", got)
@@ -181,7 +179,8 @@ func TestSystemUpdateReusesOperationAndCachedReleaseUntilRestart(t *testing.T) {
 
 func TestSystemUpdateTotalTimeoutBecomesFailedOperation(t *testing.T) {
 	service, client, _ := newExecutableSystemUpdateService(t, "1.0.0", "1.1.0")
-	client.fetchDelay = 100 * time.Millisecond
+	// fork 下 release 来自缓存，总超时由下载阶段的长延迟触发。
+	client.downloadDelay = 100 * time.Millisecond
 	service.operationTimeout = 10 * time.Millisecond
 	if _, err := service.StartUpdate(localeZhCN); err != nil {
 		t.Fatal(err)
@@ -272,6 +271,16 @@ func newExecutableSystemUpdateService(t *testing.T, currentVersion string, targe
 	release := releaseFixture("v" + targetVersion)
 	client := &fakeSystemReleaseClient{release: &release}
 	service := newSystemUpdateService(client)
+	// fork 本地部署不再从上游拉取 release；更新流程测试通过版本缓存注入目标 release，
+	// 让 StartUpdate 走真实的缓存复用路径而不依赖 CheckVersion。
+	fetched := systemReleaseFromSource(&release, targetVersion)
+	service.storeVersion(&systemVersionResponse{
+		CurrentVersion: currentVersion,
+		LatestVersion:  targetVersion,
+		HasUpdate:      true,
+		CheckSucceeded: true,
+		ReleaseInfo:    fetched.dto,
+	}, fetched)
 	service.capability = func(appLocale) systemUpdateCapability {
 		return systemUpdateCapability{
 			deployment: "docker",

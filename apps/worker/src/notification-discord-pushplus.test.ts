@@ -11,7 +11,7 @@ import { NOTIFICATION_HTTP_TIMEOUT_MS, sendNotificationRequest } from "./notific
 import { sendPushPlus } from "./notification-pushplus";
 
 const baseMessage: NotificationEmailMessage = {
-  title: "Renewlet",
+  title: "Renewo",
   content: "订阅即将续费",
   timestamp: "2026-06-23 08:00 UTC",
   hasPayload: true,
@@ -75,7 +75,7 @@ describe("Cloudflare Discord and PushPlus notification senders", () => {
 
     await sendDiscord(settings({
       discordWebhookUrl: "https://discord.com/api/webhooks/123/secret?thread_id=456",
-      discordBotUsername: "Renewlet",
+      discordBotUsername: "Renewo",
       discordBotAvatarUrl: "https://cdn.example.com/avatar.png",
     }), {
       ...baseMessage,
@@ -88,7 +88,7 @@ describe("Cloudflare Discord and PushPlus notification senders", () => {
     expect(init?.method).toBe("POST");
     const payload = objectBody(init);
     expect(Array.from(String(payload["content"]))).toHaveLength(2000);
-    expect(payload["username"]).toBe("Renewlet");
+    expect(payload["username"]).toBe("Renewo");
     expect(payload["avatar_url"]).toBe("https://cdn.example.com/avatar.png");
     expect(payload["allowed_mentions"]).toEqual({ parse: [] });
   });
@@ -227,7 +227,7 @@ describe("Cloudflare Discord and PushPlus notification senders", () => {
     expect(init?.method).toBe("POST");
     expect(objectBody(init)).toEqual({
       token: "push-token",
-      title: "Renewlet",
+      title: "Renewo",
       content: "订阅即将续费\n\n2026-06-23 08:00 UTC",
       template: "txt",
     });

@@ -2,7 +2,7 @@
  * 设置页 React Query 数据层。
  *
  * 架构位置：
- * - settingsService 统一调用 Renewlet 产品 API，Docker/Cloudflare 只在后端适配存储。
+ * - settingsService 统一调用 Renewo 产品 API，Docker/Cloudflare 只在后端适配存储。
  * - hook 负责缓存键、401 降级和前端类型归一。
  *
  * 注意： 未登录返回 DEFAULT_SETTINGS 是为了让公共页面/登录前 Provider 能安全渲染；

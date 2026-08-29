@@ -68,10 +68,10 @@ func TestSendDiscordPostsAllowedMentionsAndTruncatesContent(t *testing.T) {
 
 	settings := defaultAppSettings()
 	settings.DiscordWebhookURL = "https://discord.com/api/webhooks/123/super-secret"
-	settings.DiscordBotUsername = "Renewlet"
+	settings.DiscordBotUsername = "Renewo"
 	settings.DiscordBotAvatarURL = "https://cdn.example.com/avatar.png"
 	err := sendDiscord(settings, notificationMessage{
-		Title:     "Renewlet",
+		Title:     "Renewo",
 		Content:   strings.Repeat("订", 2100) + "@everyone",
 		Timestamp: "2026-06-23 08:00 UTC",
 	})
@@ -87,7 +87,7 @@ func TestSendDiscordPostsAllowedMentionsAndTruncatesContent(t *testing.T) {
 	if len(gotPayload.AllowedMentions.Parse) != 0 {
 		t.Fatalf("expected allowed_mentions.parse to stay empty, got %#v", gotPayload.AllowedMentions.Parse)
 	}
-	if gotPayload.Username != "Renewlet" || gotPayload.AvatarURL != "https://cdn.example.com/avatar.png" {
+	if gotPayload.Username != "Renewo" || gotPayload.AvatarURL != "https://cdn.example.com/avatar.png" {
 		t.Fatalf("unexpected optional Discord fields: %#v", gotPayload)
 	}
 }

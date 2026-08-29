@@ -146,7 +146,7 @@ msgstr "{days}d"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:496
 msgid "import.warning.dateInvalid"
-msgstr "{field} is missing or invalid. Renewlet used {fallback}."
+msgstr "{field} is missing or invalid. Renewo used {fallback}."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:369
@@ -311,7 +311,7 @@ msgstr "AI returned an invalid custom cycle. Fix it in the draft."
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:536
 msgid "import.warning.aiTooManySubscriptionsTruncated"
-msgstr "AI returned more subscriptions than the limit, so Renewlet kept the first 100."
+msgstr "AI returned more subscriptions than the limit, so Renewo kept the first 100."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:535
@@ -386,7 +386,7 @@ msgstr "Logo upload failed. Remove the problematic logo and try again."
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:55
 msgid "subscription.addToCalendarCalendarName"
-msgstr "Renewlet - {name}"
+msgstr "Renewo - {name}"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:426
@@ -396,7 +396,7 @@ msgstr "UI JSON"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:503
 msgid "import.warning.wallosCurrencyIdOnly"
-msgstr "Wallos API content only has currency_id and no currencies.code. Renewlet used the current default currency."
+msgstr "Wallos API content only has currency_id and no currencies.code. Renewo used the current default currency."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:499
@@ -1276,7 +1276,7 @@ msgstr "Import {done}/{total}"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:403
 msgid "import.description"
-msgstr "Import a Renewlet backup, or migrate Wallos JSON, backup.zip, and SQLite databases."
+msgstr "Import a Renewo backup, or migrate Wallos JSON, backup.zip, and SQLite databases."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:512
@@ -1931,7 +1931,7 @@ msgstr "Supported"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:410
 msgid "import.fileHint"
-msgstr "Supports Renewlet ZIP/JSON, Wallos JSON, backup.zip, and wallos.db."
+msgstr "Supports Renewo ZIP/JSON, Wallos JSON, backup.zip, and wallos.db."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:547
@@ -2016,7 +2016,7 @@ msgstr "This image could not be optimized. Choose a smaller, clear screenshot."
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:505
 msgid "import.error.unrecognizedFile"
-msgstr "Import file is not recognized. Choose a Renewlet v1 export or a Wallos export/backup."
+msgstr "Import file is not recognized. Choose a Renewo v1 export or a Wallos export/backup."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:666
@@ -2291,12 +2291,12 @@ msgstr "Source"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:493
 msgid "import.warning.lowConfidenceKey"
-msgstr "The source has no original ID. Renewlet will look for existing records by name, website, category, and billing cycle."
+msgstr "The source has no original ID. Renewo will look for existing records by name, website, category, and billing cycle."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:494
 msgid "import.warning.lowConfidenceNameMatched"
-msgstr "The source has no original ID. Renewlet found an existing Wallos record by name; confirm before replacing it."
+msgstr "The source has no original ID. Renewo found an existing Wallos record by name; confirm before replacing it."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:258
@@ -2821,7 +2821,7 @@ msgstr "Paste JSON"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:413
 msgid "import.pastePlaceholder"
-msgstr "Paste Renewlet or Wallos JSON..."
+msgstr "Paste Renewo or Wallos JSON..."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:546
@@ -3086,7 +3086,7 @@ msgstr "Subscriptions"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:514
 msgid "import.error.subscriptionInvalid"
-msgstr "Subscription fields do not meet Renewlet write rules. Check dates, logo, website, or notes."
+msgstr "Subscription fields do not meet Renewo write rules. Check dates, logo, website, or notes."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:516

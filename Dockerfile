@@ -60,7 +60,7 @@ ARG VERSION=0.0.0-dev
 ARG COMMIT=dev
 ARG BUILD_TIME=dev
 
-LABEL org.opencontainers.image.title="Renewlet" \
+LABEL org.opencontainers.image.title="Renewo" \
   org.opencontainers.image.description="Self-hosted subscription ledger and renewal reminders" \
   org.opencontainers.image.source="https://github.com/zhiyingzzhou/renewlet" \
   org.opencontainers.image.version="${VERSION}" \

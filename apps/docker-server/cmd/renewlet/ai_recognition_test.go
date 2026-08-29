@@ -675,8 +675,8 @@ func TestAIRecognitionGeneratedSchemaRequiresCompleteDraftFields(t *testing.T) {
 	for field, want := range map[string]string{
 		"website":       "Official or user-provided website",
 		"notes":         "service/site description",
-		"category":      "Renewlet category value",
-		"paymentMethod": "Renewlet payment method value",
+		"category":      "Renewo category value",
+		"paymentMethod": "Renewo payment method value",
 		"confidence":    "directly confirmed",
 		"warnings":      "Stable warning codes",
 	} {

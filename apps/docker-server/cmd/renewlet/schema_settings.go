@@ -11,7 +11,7 @@ import (
 func configureAppSettings(app core.App) error {
 	settings := app.Settings()
 	changed := false
-	if setStringIfChanged(&settings.Meta.AppName, envString("APP_NAME", "Renewlet")) {
+	if setStringIfChanged(&settings.Meta.AppName, envString("APP_NAME", "Renewo")) {
 		changed = true
 	}
 	if appURL := strings.TrimSpace(os.Getenv("APP_URL")); appURL != "" {

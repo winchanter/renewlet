@@ -3,7 +3,7 @@
  *
  * 架构位置：
  * - React hooks/application 层通过这里调用 Go/PocketBase 自定义 API。
- * - Renewlet 产品 session 由 HttpOnly cookie 承载，unsafe 请求自动附带 CSRF header。
+ * - Renewo 产品 session 由 HttpOnly cookie 承载，unsafe 请求自动附带 CSRF header。
  *
  * 请求/校验流转：
  * ```mermaid
@@ -260,7 +260,7 @@ function shouldPreferValidationMessage(code: string | undefined, message: string
 }
 
 function parseApiErrorPayload(payload: unknown): { code: string; message: string; details?: unknown } | undefined {
-  // Renewlet 已彻底切到 shared envelope；不要恢复旧扁平 `{ message, code }` 的兼容解析。
+  // Renewo 已彻底切到 shared envelope；不要恢复旧扁平 `{ message, code }` 的兼容解析。
   const parsed = apiErrorResponseSchema.safeParse(payload);
   return parsed.success ? parsed.data.error : undefined;
 }
@@ -287,7 +287,7 @@ function shouldClearAuthSession(status: number, payload: unknown, authMode: ApiA
   if (authMode !== "required" || !sessionSnapshot) return false;
   if (status !== 401) return false;
   const code = getErrorCode(payload);
-  // 模型列表代理会透传 provider 401；它是业务错误，只展示，不应清 Renewlet 登录态。
+  // 模型列表代理会透传 provider 401；它是业务错误，只展示，不应清 Renewo 登录态。
   return code !== "AI_MODEL_LIST_FAILED";
 }
 

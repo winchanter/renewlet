@@ -295,7 +295,7 @@ func createFailedCronJobForTest(t *testing.T, app core.App, userID string, setti
 		schedule.localScheduleOccurrence,
 		settings,
 		notificationMessage{
-			Title:      "Renewlet",
+			Title:      "Renewo",
 			Content:    "failed",
 			Timestamp:  "2026-05-14 08:00:00 UTC",
 			HasPayload: true,

@@ -121,7 +121,7 @@ func finishPasskeyRegistration(app core.App, request *http.Request, user *core.R
 	if err != nil {
 		return sessionResponse{}, err
 	}
-	// Go WebAuthn 库负责校验 challenge、origin、RP ID 与 attestation；Renewlet 只保存通过后的 credential。
+	// Go WebAuthn 库负责校验 challenge、origin、RP ID 与 attestation；Renewo 只保存通过后的 credential。
 	credential, err := wa.FinishRegistration(waUser, sessionData, credentialRequest)
 	if err != nil {
 		return sessionResponse{}, err
@@ -254,7 +254,7 @@ func newRequestWebAuthn(request *http.Request) (*webauthn.WebAuthn, error) {
 	// WebAuthn 的 origin/RP ID 必须来自浏览器实际访问的公开地址；反代头解析失败时让库校验失败关闭。
 	return webauthn.New(&webauthn.Config{
 		RPID:                  rpID,
-		RPDisplayName:         "Renewlet",
+		RPDisplayName:         "Renewo",
 		RPOrigins:             []string{origin.String()},
 		AttestationPreference: protocol.PreferNoAttestation,
 		AuthenticatorSelection: protocol.AuthenticatorSelection{

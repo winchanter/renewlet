@@ -468,7 +468,7 @@ func emailBrandView() emailBrand {
 	header.BottomInset = 2
 
 	return emailBrand{
-		Name:       "Renewlet",
+		Name:       "Renewo",
 		HeaderMark: header,
 	}
 }

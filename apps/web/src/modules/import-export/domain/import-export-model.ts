@@ -26,7 +26,7 @@ export type ImportAssetTarget =
   | { type: "paymentMethodIcon"; paymentMethodIndex: number };
 
 /**
- * ImportAssetRef 描述导入流程中尚未上传到 Renewlet 的私有资产。
+ * ImportAssetRef 描述导入流程中尚未上传到 Renewo 的私有资产。
  *
  * target 绑定最终要改写的 payload 字段；apply 前必须先落资产表，再写 `/api/app/assets/{id}` 代理路径。
  */
@@ -61,7 +61,7 @@ export interface PreparedImport {
   wallosUsers?: WallosImportUser[];
 }
 
-/** WallosImportUser 用于多用户 Wallos 备份选择；用户 ID 只在导入解析阶段使用，不写入 Renewlet 账号。 */
+/** WallosImportUser 用于多用户 Wallos 备份选择；用户 ID 只在导入解析阶段使用，不写入 Renewo 账号。 */
 export interface WallosImportUser {
   id: string;
   label: string;
@@ -149,7 +149,7 @@ export function sanitizeSettingsForExport(settings: AppSettings, includeSecrets:
 /**
  * subscriptionToImportSubscription 把当前订阅转换为导入执行契约。
  *
- * extra.import 以当前订阅 id 作为高置信幂等键，保证 Renewlet 自导出再导入时能 replace/skip 同一条记录。
+ * extra.import 以当前订阅 id 作为高置信幂等键，保证 Renewo 自导出再导入时能 replace/skip 同一条记录。
  */
 export function subscriptionToImportSubscription(subscription: Subscription, sourceId = subscription.id): ImportSubscription {
   const extra = {
@@ -341,7 +341,7 @@ export interface ImportBillingCycle {
   customCycleUnit?: CustomCycleUnit;
 }
 
-/** toBillingCycleFromDays 把 Wallos 天数周期映射到 Renewlet 当前正式 billingCycle 契约。 */
+/** toBillingCycleFromDays 把 Wallos 天数周期映射到 Renewo 当前正式 billingCycle 契约。 */
 export function toBillingCycleFromDays(days: number): ImportBillingCycle {
   if (days === 7) return { billingCycle: "weekly" };
   if (days === 30) return { billingCycle: "monthly" };

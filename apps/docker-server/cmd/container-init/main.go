@@ -69,7 +69,7 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	// execve 让 Renewlet 直接接管 PID 1，Docker 的停止信号和退出码不会被 init 中间层截断。
+	// execve 让 Renewo 直接接管 PID 1，Docker 的停止信号和退出码不会被 init 中间层截断。
 	return unix.Exec(executable, command, os.Environ())
 }
 
@@ -162,10 +162,10 @@ func requireDirectory(path string) error {
 func validateRenewletBinary(path string) error {
 	info, err := os.Lstat(path)
 	if err != nil {
-		return fmt.Errorf("inspect Renewlet binary %s: %w", path, err)
+		return fmt.Errorf("inspect Renewo binary %s: %w", path, err)
 	}
 	if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
-		return fmt.Errorf("Renewlet binary %s must be an executable regular file", path)
+		return fmt.Errorf("Renewo binary %s must be an executable regular file", path)
 	}
 	return nil
 }

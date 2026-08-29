@@ -9,7 +9,7 @@ describe("sanitizeSettingsForExport", () => {
     const settings = {
       ...DEFAULT_SETTINGS,
       discordWebhookUrl: "https://discord.com/api/webhooks/123/secret",
-      discordBotUsername: "Renewlet",
+      discordBotUsername: "Renewo",
       discordBotAvatarUrl: "https://cdn.example.com/avatar.png",
       pushplusToken: "push-token",
       dingtalkWebhookUrl: "https://oapi.dingtalk.com/robot/send?access_token=ding-token",
@@ -37,7 +37,7 @@ describe("sanitizeSettingsForExport", () => {
 
     const withSecrets = sanitizeSettingsForExport(settings, true);
     expect(withSecrets.discordWebhookUrl).toBe("https://discord.com/api/webhooks/123/secret");
-    expect(withSecrets.discordBotUsername).toBe("Renewlet");
+    expect(withSecrets.discordBotUsername).toBe("Renewo");
     expect(withSecrets.discordBotAvatarUrl).toBe("https://cdn.example.com/avatar.png");
     expect(withSecrets.pushplusToken).toBe("push-token");
     expect(withSecrets.dingtalkWebhookUrl).toBe("https://oapi.dingtalk.com/robot/send?access_token=ding-token");

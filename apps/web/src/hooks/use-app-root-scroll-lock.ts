@@ -50,7 +50,7 @@ export function useAppRootScrollLock(locked: boolean) {
     const root = getAppScrollRoot();
     if (!root) return undefined;
 
-    // Renewlet 的页面滚动发生在 #root 上；Radix 的 body scroll lock 覆盖不到这个应用滚动根。
+    // Renewo 的页面滚动发生在 #root 上；Radix 的 body scroll lock 覆盖不到这个应用滚动根。
     lockAppScrollRoot(root);
     return () => unlockAppScrollRoot(root);
   }, [locked]);

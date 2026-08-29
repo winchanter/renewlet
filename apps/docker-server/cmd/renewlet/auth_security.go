@@ -310,7 +310,7 @@ func verifyCloudflareTurnstileToken(ctx context.Context, secret string, token st
 	form.Set("secret", secret)
 	form.Set("response", token)
 	if remoteIP != "" {
-		// remoteip 只是 Cloudflare 风险辅助信号，不参与 Renewlet 鉴权；拿不到可信客户端 IP 时宁可省略。
+		// remoteip 只是 Cloudflare 风险辅助信号，不参与 Renewo 鉴权；拿不到可信客户端 IP 时宁可省略。
 		form.Set("remoteip", remoteIP)
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, turnstileSiteverifyURL, strings.NewReader(form.Encode()))

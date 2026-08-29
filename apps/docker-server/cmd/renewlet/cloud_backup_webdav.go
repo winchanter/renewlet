@@ -249,7 +249,7 @@ func (transport *webDAVCaptureTransport) RoundTrip(request *http.Request) (*http
 	if response.StatusCode < 400 {
 		return response, nil
 	}
-	// gowebdav 仍要消费错误 body 来生成自身错误；这里捕获后重放，确保 SDK 和 Renewlet raw response 契约都能拿到同一份响应。
+	// gowebdav 仍要消费错误 body 来生成自身错误；这里捕获后重放，确保 SDK 和 Renewo raw response 契约都能拿到同一份响应。
 	captured, body := cloudBackupProviderResponseAndBodyFromHTTPResponse(response, transport.secrets)
 	response.Body.Close()
 	response.Body = io.NopCloser(strings.NewReader(body))

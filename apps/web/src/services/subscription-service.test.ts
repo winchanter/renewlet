@@ -217,7 +217,7 @@ describe("subscription service normalization", () => {
 });
 
 describe("subscription service API calls", () => {
-  it("lists subscriptions through the Renewlet product API", async () => {
+  it("lists subscriptions through the Renewo product API", async () => {
     mocks.apiFetch.mockResolvedValue({
       subscriptions: [apiCollectionItem],
       nextCursor: "next",

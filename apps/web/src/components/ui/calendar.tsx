@@ -3,7 +3,7 @@
  *
  * 架构位置：基于 react-day-picker 封装项目内的日期选择交互，订阅续费日期和筛选日期共用这里。
  *
- * 注意： Renewlet 的业务日期是 date-only；不要在此组件内引入用户时区换算。
+ * 注意： Renewo 的业务日期是 date-only；不要在此组件内引入用户时区换算。
  */
 import * as React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";

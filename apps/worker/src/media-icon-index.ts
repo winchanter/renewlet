@@ -479,7 +479,7 @@ async function fetchGitHubAtomFeed(
 ): Promise<{ text: string; etag: string; notModified: boolean }> {
   const headers: HeadersInit = {
     accept: "application/atom+xml",
-    "user-agent": `Renewlet/${env.RENEWLET_VERSION?.trim() || "cloudflare"}`,
+    "user-agent": `Renewo/${env.RENEWLET_VERSION?.trim() || "cloudflare"}`,
   };
   if (etag) headers["if-none-match"] = etag;
   const response = await sendUpstreamRequest(url, { headers }, {

@@ -388,7 +388,7 @@ function emailBrand(): EmailBrand {
     accent: "#10B981",
   };
   return {
-    name: "Renewlet",
+    name: "Renewo",
     headerMark: {
       ...base,
       size: 28,

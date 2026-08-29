@@ -60,7 +60,7 @@ func (service *systemUpdateService) InitializeState(dataDir string) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&state); err != nil || decoder.Decode(&struct{}{}) != io.EOF || state.Version != systemUpdateStateVersion {
-		// 状态文件不是业务数据；损坏时忽略并等待下一次任务原子覆盖，不能阻断 Renewlet 启动。
+		// 状态文件不是业务数据；损坏时忽略并等待下一次任务原子覆盖，不能阻断 Renewo 启动。
 		slog.Warn("system update recovery state ignored", "reason", "invalid_state")
 		return nil
 	}

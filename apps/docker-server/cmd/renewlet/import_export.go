@@ -1,6 +1,6 @@
 package main
 
-// import_export.go 实现 Renewlet/Wallos 导入预览与执行。
+// import_export.go 实现 Renewo/Wallos 导入预览与执行。
 //
 // 架构位置：
 //   - 前端先在浏览器本地解析文件，再把标准 importPayload 交给这里做用户隔离、冲突预览和写库。
@@ -544,7 +544,7 @@ func existingSubscriptionMatches(rows []*core.Record) importExistingMatches {
 		LowConfidenceDuplicates: map[string]bool{},
 	}
 	for _, row := range rows {
-		// Renewlet 自导出旧记录可能还没有 extra.import；当前用户内用原订阅 id 做二级匹配，保证导出再导入能 replace/skip。
+		// Renewo 自导出旧记录可能还没有 extra.import；当前用户内用原订阅 id 做二级匹配，保证导出再导入能 replace/skip。
 		result.ByKey[importKeyString(importKey{Source: "renewlet", SourceID: row.Id})] = row
 		extra := map[string]interface{}{}
 		data, err := jsonBytesFromValue(row.Get("extra"))

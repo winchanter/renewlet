@@ -104,7 +104,7 @@ func TestPrepareCustomHeadHTMLFSInjectsOnlyIndexAndReportsSize(t *testing.T) {
 	}
 	asset := []byte("console.log('app')")
 	prepared, err := prepareCustomHeadHTMLFS(fstest.MapFS{
-		"index.html":            {Data: []byte("<!doctype html><html><head><title>Renewlet</title></head><body></body></html>")},
+		"index.html":            {Data: []byte("<!doctype html><html><head><title>Renewo</title></head><body></body></html>")},
 		"assets/application.js": {Data: asset},
 	}, config)
 	if err != nil {
@@ -154,7 +154,7 @@ func TestPrepareCustomHeadHTMLFSRejectsHostWithoutHead(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = prepareCustomHeadHTMLFS(fstest.MapFS{
-		"index.html": {Data: []byte("<!doctype html><html><body>Renewlet</body></html>")},
+		"index.html": {Data: []byte("<!doctype html><html><body>Renewo</body></html>")},
 	}, config)
 	if err == nil {
 		t.Fatal("expected missing host head to fail")

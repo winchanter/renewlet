@@ -61,12 +61,12 @@ msgstr "AI 识别：当你主动使用 AI 识别添加订阅时，粘贴的文�
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:7
 msgid "legal.privacy.intro"
-msgstr "Renewlet 默认不注入自定义 head HTML。实例运营者可以启用拥有页面同源代码权限的可信片段；你使用某个部署实例时，该片段及其全部数据处理由实例运营者（可能是你自己）负责。"
+msgstr "Renewo 默认不注入自定义 head HTML。实例运营者可以启用拥有页面同源代码权限的可信片段；你使用某个部署实例时，该片段及其全部数据处理由实例运营者（可能是你自己）负责。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:26
 msgid "legal.terms.intro"
-msgstr "Renewlet（renewlet）是一个开源的订阅管理工具。本页面用于说明你在使用本项目或其部署实例时需要了解的基本规则。"
+msgstr "Renewo（renewlet）是一个开源的订阅管理工具。本页面用于说明你在使用本项目或其部署实例时需要了解的基本规则。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:10
@@ -106,7 +106,7 @@ msgstr "因使用本项目或其部署实例导致的任何损失，你应自行
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:17
 msgid "legal.privacy.thirdParty.icons"
-msgstr "图标搜索：手动搜索 Logo 时，服务名称可能会按你选择的 App Store 地区通过 Renewlet 后端发送到 Apple Search API，默认只查 US；浏览器可能加载 Apple CDN 图标，也可能加载外部 favicon/logo 备用候选。"
+msgstr "图标搜索：手动搜索 Logo 时，服务名称可能会按你选择的 App Store 地区通过 Renewo 后端发送到 Apple Search API，默认只查 US；浏览器可能加载 Apple CDN 图标，也可能加载外部 favicon/logo 备用候选。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:32
@@ -176,7 +176,7 @@ msgstr "部分功能会请求第三方服务（例如汇率 API、通知渠道�
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:20
 msgid "legal.privacy.thirdParty.customScript"
-msgstr "部署者自定义 head：统计、会话录屏或其他第三方脚本可能收集并发送页面与交互数据。实例运营者负责数据披露、隐私政策和法律要求的 consent signal；Renewlet 不内置 Clarity 专用逻辑或 CMP。"
+msgstr "部署者自定义 head：统计、会话录屏或其他第三方脚本可能收集并发送页面与交互数据。实例运营者负责数据披露、隐私政策和法律要求的 consent signal；Renewo 不内置 Clarity 专用逻辑或 CMP。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/legal.ts:5

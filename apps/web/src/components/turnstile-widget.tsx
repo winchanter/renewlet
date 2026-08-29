@@ -61,7 +61,7 @@ export function TurnstileWidget({ siteKey, theme, errorId, error, resetSignal, c
     void loadTurnstileScript()
       .then((turnstile) => {
         if (disposed || !containerRef.current) return;
-        // Turnstile 在第三方 iframe 内渲染，无法继承 Renewlet CSS token；必须传应用解析后的 light/dark，不能用跟系统偏好的 auto。
+        // Turnstile 在第三方 iframe 内渲染，无法继承 Renewo CSS token；必须传应用解析后的 light/dark，不能用跟系统偏好的 auto。
         widgetIdRef.current = turnstile.render(containerRef.current, {
           sitekey: siteKey,
           theme,

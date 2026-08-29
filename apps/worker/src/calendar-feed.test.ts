@@ -127,7 +127,7 @@ describe("calendar feed worker handlers", () => {
     const unfoldedSecondIcs = unfoldIcsText(secondIcs);
     expectCalendarIcsLineEndings(firstIcs);
     expectCalendarIcsLineEndings(secondIcs);
-    expect(unfoldedFirstIcs).toContain("NAME:Renewlet - Paused Plan");
+    expect(unfoldedFirstIcs).toContain("NAME:Renewo - Paused Plan");
     expect(unfoldedFirstIcs).toContain("SUMMARY:Paused Plan");
     expect(unfoldedFirstIcs).toContain("Category: Developer Tools");
     expect(unfoldedFirstIcs).toContain("Payment method: Credit Card");
@@ -177,7 +177,7 @@ describe("calendar feed worker handlers", () => {
     const unfoldedIcs = unfoldIcsText(ics);
 
     expectCalendarIcsLineEndings(ics);
-    expect(unfoldedIcs).toContain("NAME:Renewlet - Paused Plan");
+    expect(unfoldedIcs).toContain("NAME:Renewo - Paused Plan");
     expect(unfoldedIcs).toContain("SUMMARY:Paused Plan");
     expect(unfoldedIcs).toContain("Category: Developer Tools");
     expect(unfoldedIcs).toContain("Payment method: Credit Card");

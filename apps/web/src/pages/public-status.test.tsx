@@ -57,7 +57,7 @@ vi.mock("@/i18n/I18nProvider", () => ({
         "publicStatus.errorDescription": "请稍后刷新重试。",
         "publicStatus.errorTitle": "无法加载公开页",
         "publicStatus.generatedAt": `更新于 ${String(params?.["time"] ?? "")}`,
-        "publicStatus.headerMeta": `Renewlet · 更新于 ${String(params?.["time"] ?? "")}`,
+        "publicStatus.headerMeta": `Renewo · 更新于 ${String(params?.["time"] ?? "")}`,
         "publicStatus.inactiveCount": "非活跃",
         "publicStatus.inactiveSubtitle": "过期、暂停或取消",
         "publicStatus.listLabel": "公开订阅列表",
@@ -97,7 +97,7 @@ vi.mock("@/i18n/I18nProvider", () => ({
 
 const baseResponse: PublicStatusResponse = {
   page: {
-    title: "Renewlet",
+    title: "Renewo",
     showPrices: false,
     generatedAt: "2026-06-07T00:00:00.000Z",
     truncated: false,
@@ -156,7 +156,7 @@ describe("PublicStatusPage", () => {
 
     expect(document.querySelector('meta[name="robots"]')).toHaveAttribute("content", "noindex,nofollow");
     expect(screen.getByRole("heading", { name: "订阅状态" })).toBeInTheDocument();
-    expect(screen.getByText("Renewlet · 更新于 2026-06-07T00:00:00.000Z")).toBeInTheDocument();
+    expect(screen.getByText("Renewo · 更新于 2026-06-07T00:00:00.000Z")).toBeInTheDocument();
     expect(screen.queryByText("RENEWLET")).not.toBeInTheDocument();
     expect(screen.queryByText(/需要关注/)).not.toBeInTheDocument();
     expect(screen.queryByText("公开订阅状态正常")).not.toBeInTheDocument();

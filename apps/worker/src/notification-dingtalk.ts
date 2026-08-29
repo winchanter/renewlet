@@ -41,7 +41,7 @@ type DingTalkTextPayload = {
 
 type DingTalkPayload = DingTalkMarkdownPayload | DingTalkTextPayload;
 
-const DINGTALK_BRAND = "Renewlet";
+const DINGTALK_BRAND = "Renewo";
 const textEncoder = new TextEncoder();
 
 export async function sendDingTalk(settings: ApiAppSettings, message: NotificationEmailMessage, locale: AppLocale): Promise<void> {

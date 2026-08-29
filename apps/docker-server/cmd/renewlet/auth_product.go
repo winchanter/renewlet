@@ -30,8 +30,8 @@ const (
 	auditTouchInterval = 15 * time.Minute
 )
 
-// 本文件只签发 Renewlet 产品 session；PocketBase 原生 JWT 仅作为账号事实源存在，不能恢复为浏览器 bearer。
-// appAuthMiddleware 是 Renewlet 产品 API 的唯一登录态边界。
+// 本文件只签发 Renewo 产品 session；PocketBase 原生 JWT 仅作为账号事实源存在，不能恢复为浏览器 bearer。
+// appAuthMiddleware 是 Renewo 产品 API 的唯一登录态边界。
 // 它把产品 session token 提升成 e.Auth，避免前端继续依赖 PocketBase 原生 JWT 绕过 MFA。
 func appAuthMiddleware(app core.App) *hook.Handler[*core.RequestEvent] {
 	return &hook.Handler[*core.RequestEvent]{

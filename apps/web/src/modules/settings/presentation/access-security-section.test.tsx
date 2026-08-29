@@ -21,13 +21,13 @@ const translations: Record<string, string> = {
   "settings.turnstileDiscard": "放弃更改",
   "settings.turnstileEnable": "要求邮箱密码登录通过人机验证",
   "settings.turnstileEnableHelp": "启用后必须同时填写 Site key 和 Secret key，否则人机验证不会生效。",
-  "settings.turnstileHelp": "启用后，Renewlet 会在邮箱密码登录前校验 Turnstile，用于降低爆破和撞库风险；通行密钥、身份验证器二阶段和首次设置不受影响。",
+  "settings.turnstileHelp": "启用后，Renewo 会在邮箱密码登录前校验 Turnstile，用于降低爆破和撞库风险；通行密钥、身份验证器二阶段和首次设置不受影响。",
   "settings.turnstileSave": "保存 Turnstile 配置",
   "settings.turnstileSaving": "保存中...",
   "settings.turnstileTest": "测试 Turnstile 配置",
   "settings.turnstileTesting": "测试中...",
   "settings.turnstileTestDialogTitle": "测试 Turnstile 配置",
-  "settings.turnstileTestDialogDescription": "完成下方验证后，Renewlet 会检查当前 Site key 和 Secret key 是否可用。",
+  "settings.turnstileTestDialogDescription": "完成下方验证后，Renewo 会检查当前 Site key 和 Secret key 是否可用。",
   "settings.turnstileSecret": "Secret key",
   "settings.turnstileSecretConfigured": "密钥已配置",
   "settings.turnstileSecretConfiguredPlaceholder": "已保存，留空则保持不变",
@@ -169,7 +169,7 @@ describe("AccessSecuritySection", () => {
     expect(screen.getAllByRole("heading")).toHaveLength(1);
     expect(screen.getByText("已启用")).toBeInTheDocument();
     expect(screen.getByText("密钥已配置")).toBeInTheDocument();
-    expect(screen.getByText("启用后，Renewlet 会在邮箱密码登录前校验 Turnstile，用于降低爆破和撞库风险；通行密钥、身份验证器二阶段和首次设置不受影响。")).toBeInTheDocument();
+    expect(screen.getByText("启用后，Renewo 会在邮箱密码登录前校验 Turnstile，用于降低爆破和撞库风险；通行密钥、身份验证器二阶段和首次设置不受影响。")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "要求邮箱密码登录通过人机验证" })).toBeChecked();
     expect(screen.getByLabelText("Site key")).toHaveValue("site-key");
     expect(screen.getByLabelText("Secret key")).toHaveAttribute("placeholder", "已保存，留空则保持不变");
@@ -219,7 +219,7 @@ describe("AccessSecuritySection", () => {
     renderAccessSecuritySection(controller);
 
     expect(screen.getByRole("dialog", { name: "测试 Turnstile 配置" })).toBeInTheDocument();
-    expect(screen.getByText("完成下方验证后，Renewlet 会检查当前 Site key 和 Secret key 是否可用。")).toBeInTheDocument();
+    expect(screen.getByText("完成下方验证后，Renewo 会检查当前 Site key 和 Secret key 是否可用。")).toBeInTheDocument();
     expect(screen.getByTestId("turnstile-test-widget")).toHaveAttribute("data-site-key", "site-key");
     expect(screen.getByTestId("turnstile-test-widget")).toHaveAttribute("data-theme", "dark");
     expect(screen.getByTestId("turnstile-test-widget")).toHaveAttribute("data-error-id", "settings-turnstile-test-error");

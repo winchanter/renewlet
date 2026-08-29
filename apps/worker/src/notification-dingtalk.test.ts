@@ -12,7 +12,7 @@ vi.mock("./smtp", () => ({
 }));
 
 const baseMessage: NotificationEmailMessage = {
-  title: "Renewlet",
+  title: "Renewo",
   content: "即将到期：\n- GitHub：2026-08-01",
   timestamp: "2026-07-20 08:00 CST",
   hasPayload: true,
@@ -76,7 +76,7 @@ describe("Cloudflare DingTalk notification sender", () => {
 
     await sendDingTalk(settings({
       dingtalkWebhookUrl: "https://93.184.216.34/robot/send?access_token=ding-token",
-      dingtalkKeyword: "Renewlet",
+      dingtalkKeyword: "Renewo",
     }), baseMessage, "zh-CN");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -86,11 +86,11 @@ describe("Cloudflare DingTalk notification sender", () => {
     const payload = objectBody(init);
     expect(payload["msgtype"]).toBe("markdown");
     expect(payload["markdown"]).toMatchObject({
-      title: "Renewlet",
+      title: "Renewo",
       text: expect.stringContaining("GitHub"),
     });
     expect(payload["markdown"]).toMatchObject({
-      text: "Renewlet\n\n即将到期：\n- GitHub：2026-08-01\n\n2026-07-20 08:00 CST",
+      text: "Renewo\n\n即将到期：\n- GitHub：2026-08-01\n\n2026-07-20 08:00 CST",
     });
   });
 
@@ -103,12 +103,12 @@ describe("Cloudflare DingTalk notification sender", () => {
       dingtalkKeyword: "renewlet",
     }), {
       ...baseMessage,
-      title: "Renewlet 订阅提醒",
+      title: "Renewo 订阅提醒",
     }, "zh-CN");
 
     const payload = objectBody(fetchMock.mock.calls[0]?.[1]);
     expect(payload["markdown"]).toMatchObject({
-      text: "Renewlet 订阅提醒\n\n即将到期：\n- GitHub：2026-08-01\n\n2026-07-20 08:00 CST\n\nrenewlet",
+      text: "Renewo 订阅提醒\n\n即将到期：\n- GitHub：2026-08-01\n\n2026-07-20 08:00 CST\n\nrenewlet",
     });
   });
 
@@ -133,12 +133,12 @@ describe("Cloudflare DingTalk notification sender", () => {
 
     const payload = objectBody(fetchMock.mock.calls[0]?.[1]);
     expect(payload["markdown"]).toMatchObject({
-      title: "Renewlet · 订阅提醒 · {unknown}",
+      title: "Renewo · 订阅提醒 · {unknown}",
       text: expect.stringContaining("安全词\n订阅提醒"),
     });
     const text = (payload["markdown"] as { text: string }).text;
     expect(text.match(/安全词/g)).toHaveLength(1);
-    expect(text.endsWith("\n\nRenewlet")).toBe(true);
+    expect(text.endsWith("\n\nRenewo")).toBe(true);
     expect(JSON.stringify(payload["markdown"])).toContain("2");
     expect(JSON.stringify(payload["markdown"])).toContain("{unknown}");
     expect(JSON.stringify(payload["markdown"])).toContain("GitHub：{timestamp}");
@@ -167,7 +167,7 @@ describe("Cloudflare DingTalk notification sender", () => {
     const payload = objectBody(init);
     expect(payload["msgtype"]).toBe("text");
     expect(payload["text"]).toMatchObject({
-      content: "提醒\n\n正文\n\n2026-07-20 08:00 CST\n\nRenewlet · 自定义关键词",
+      content: "提醒\n\n正文\n\n2026-07-20 08:00 CST\n\nRenewo · 自定义关键词",
     });
 
     expect(caught).toBeInstanceOf(NotificationChannelError);

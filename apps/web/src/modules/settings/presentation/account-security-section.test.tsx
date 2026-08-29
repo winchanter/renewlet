@@ -186,7 +186,7 @@ describe("AccountSettingsSection account security dialogs", () => {
     mocks.mfaService.startTotpSetup.mockReset().mockResolvedValue({
       setupId: "setup-1",
       secret: "JBSWY3DPEHPK3PXP",
-      otpauthUrl: "otpauth://totp/Renewlet:alice@example.com?secret=JBSWY3DPEHPK3PXP",
+      otpauthUrl: "otpauth://totp/Renewo:alice@example.com?secret=JBSWY3DPEHPK3PXP",
       expiresAt: "2026-06-22T00:05:00.000Z",
     });
     mocks.mfaService.enableTotp.mockReset().mockResolvedValue(["ABCD-EFGH-IJKL"]);

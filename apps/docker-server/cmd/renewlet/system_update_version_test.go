@@ -1,73 +1,54 @@
 package main
 
-// 版本测试聚焦 Release feed、stable/RC 选择、上游错误回显和 Docker 能力矩阵，不执行真实下载或替换。
+// 版本测试聚焦 fork 本地部署脱钩后的版本检查行为、Release feed 的 stable/RC 选择逻辑和 Docker 能力矩阵，不执行真实下载或替换。
 
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
-// 上游 raw body 只能随当前管理员强制检查回显一次，缓存响应不得保留第三方响应明文。
-func TestSystemVersionFailureIncludesOneShotUpstreamDetailsWithoutCachingRawBody(t *testing.T) {
+// fork 本地部署脱钩上游后，版本检查只回显当前版本：不请求 release feed，也不产生更新提示。
+func TestForkVersionCheckReportsCurrentVersionWithoutUpstreamCall(t *testing.T) {
 	oldVersion, oldBuildType := Version, BuildType
-	Version, BuildType = "0.1.0", "release"
+	Version, BuildType = "0.1.0-rc.1", "release"
 	t.Cleanup(func() {
 		Version, BuildType = oldVersion, oldBuildType
 	})
+	t.Setenv("RENEWLET_SELF_UPDATE_ENABLED", "false")
 
-	service := newSystemUpdateService(&fakeSystemReleaseClient{release: &systemRelease{
-		TagName:     "v0.1.0",
-		Name:        "Renewlet 0.1.0",
-		PublishedAt: "2026-06-04T00:00:00Z",
-		HTMLURL:     "https://github.com/zhiyingzzhou/renewlet/releases/tag/v0.1.0",
-		Assets:      []systemReleaseAsset{},
-	}})
-	service.now = func() time.Time { return time.Unix(1_779_820_800, 0) }
-	if _, err := service.CheckVersion(context.Background(), localeZhCN, true); err != nil {
-		t.Fatal(err)
-	}
+	client := &fakeSystemReleaseClient{releases: []systemRelease{releaseFixture("v0.2.0-rc.2")}}
+	service := newSystemUpdateService(client)
 
-	service.client = &httpSystemReleaseClient{
-		metadataClient: &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: http.StatusForbidden,
-				Status:     "403 Forbidden",
-				Header:     http.Header{"Content-Type": []string{"text/plain"}},
-				Body:       io.NopCloser(strings.NewReader("release feed unavailable")),
-				Request:    request,
-			}, nil
-		})},
-	}
-
-	failed, err := service.CheckVersion(context.Background(), localeZhCN, true)
+	first, err := service.CheckVersion(context.Background(), localeZhCN, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if failed.ErrorDetails == nil || failed.ErrorDetails.RawResponseText == nil {
-		t.Fatalf("expected one-shot upstream details, got %#v", failed.ErrorDetails)
-	}
-	if *failed.ErrorDetails.RawResponseText != "release feed unavailable" {
-		t.Fatalf("expected redacted upstream body, got %#v", failed.ErrorDetails.RawResponseText)
-	}
-	if payload, _ := json.Marshal(failed.ErrorDetails); strings.Contains(string(payload), "Authorization") {
-		t.Fatalf("upstream details leaked request metadata: %s", payload)
-	}
-
-	cached, err := service.CheckVersion(context.Background(), localeZhCN, false)
+	second, err := service.CheckVersion(context.Background(), localeZhCN, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cached.ErrorDetails != nil {
-		t.Fatalf("cached version response must not keep raw upstream details: %#v", cached.ErrorDetails)
+	if got := atomic.LoadInt32(&client.fetchCount); got != 0 {
+		t.Fatalf("fork deployment must not call FetchReleases, calls = %d", got)
+	}
+	for name, response := range map[string]*systemVersionResponse{"force": first, "cached": second} {
+		if !response.CheckSucceeded || response.HasUpdate {
+			t.Fatalf("%s response should report current version: %#v", name, response)
+		}
+		if response.LatestVersion != "0.1.0-rc.1" {
+			t.Fatalf("%s latestVersion = %q, want current version", name, response.LatestVersion)
+		}
+		if response.ReleaseInfo != nil {
+			t.Fatalf("%s releaseInfo = %#v, want nil without upstream feed", name, response.ReleaseInfo)
+		}
+	}
+	if !second.Cached {
+		t.Fatal("second check should come from cache")
 	}
 }
 
@@ -164,70 +145,44 @@ func TestSelfUpdateCapabilityMatrix(t *testing.T) {
 }
 
 func TestStableVersionSkipsRCEntriesFromFeed(t *testing.T) {
-	oldVersion, oldBuildType := Version, BuildType
-	Version, BuildType = "0.1.0", "release"
-	t.Cleanup(func() {
-		Version, BuildType = oldVersion, oldBuildType
-	})
-
-	client := &fakeSystemReleaseClient{release: &systemRelease{
-		TagName: "v0.2.0-rc.1",
+	client := &fakeSystemReleaseClient{releases: []systemRelease{
+		{TagName: "v0.2.0-rc.1"},
 	}}
 	service := newSystemUpdateService(client)
 
-	response, err := service.CheckVersion(context.Background(), localeZhCN, true)
+	release, err := service.fetchLatestStableRelease(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := atomic.LoadInt32(&client.fetchCount); got != 1 {
 		t.Fatalf("FetchReleases calls = %d, want 1", got)
 	}
-	if !response.CheckSucceeded || response.HasUpdate {
-		t.Fatalf("stable version should not accept prerelease target: %#v", response)
+	if release != nil {
+		t.Fatalf("stable channel must skip prerelease entries, got %#v", release.dto)
 	}
 }
 
 func TestStableVersionSelectsLatestStableReleaseFromFeed(t *testing.T) {
-	oldVersion, oldBuildType := Version, BuildType
-	Version, BuildType = "0.1.0", "release"
-	t.Cleanup(func() {
-		Version, BuildType = oldVersion, oldBuildType
-	})
-
 	client := &fakeSystemReleaseClient{releases: []systemRelease{
 		releaseFixture("v0.2.0-rc.1"),
 		releaseFixture("v0.1.1"),
 	}}
 	service := newSystemUpdateService(client)
 
-	response, err := service.CheckVersion(context.Background(), localeZhCN, true)
+	release, err := service.fetchLatestStableRelease(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !response.CheckSucceeded || !response.HasUpdate {
-		t.Fatalf("expected stable update from feed, got %#v", response)
-	}
-	if response.LatestVersion != "0.1.1" {
-		t.Fatalf("latestVersion = %q, want 0.1.1", response.LatestVersion)
+	if release == nil || release.dto.Version != "0.1.1" {
+		t.Fatalf("expected latest stable 0.1.1 from feed, got %#v", release)
 	}
 }
 
 func TestRCVersionSelectsHighestNewerRC(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("self-update capability depends on linux Docker binary semantics")
-	}
-	tempDir := t.TempDir()
-	binaryPath := filepath.Join(tempDir, "renewlet")
-	if err := os.WriteFile(binaryPath, []byte("old"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("RENEWLET_SELF_UPDATE_ENABLED", "true")
-	t.Setenv("RENEWLET_SELF_UPDATE_BINARY", binaryPath)
-	t.Setenv("RENEWLET_SELF_UPDATE_BACKUP_DIR", filepath.Join(tempDir, "backups"))
-	oldVersion, oldBuildType := Version, BuildType
-	Version, BuildType = "0.1.0-rc.1", "release"
+	oldVersion := Version
+	Version = "0.1.0-rc.1"
 	t.Cleanup(func() {
-		Version, BuildType = oldVersion, oldBuildType
+		Version = oldVersion
 	})
 
 	client := &fakeSystemReleaseClient{releases: []systemRelease{
@@ -239,51 +194,46 @@ func TestRCVersionSelectsHighestNewerRC(t *testing.T) {
 	}}
 	service := newSystemUpdateService(client)
 
-	response, err := service.CheckVersion(context.Background(), localeZhCN, true)
+	release, err := service.fetchLatestRCRelease(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := atomic.LoadInt32(&client.fetchCount); got != 1 {
-		t.Fatalf("FetchReleases should be used for rc versions")
+		t.Fatalf("FetchReleases calls = %d, want 1", got)
 	}
-	if !response.CheckSucceeded || !response.HasUpdate {
-		t.Fatalf("expected rc version update, got %#v", response)
-	}
-	if !response.UpdateSupported {
-		t.Fatalf("expected rc version update to be installable, got %#v", response)
-	}
-	if response.LatestVersion != "0.2.0-rc.1" {
-		t.Fatalf("latestVersion = %q, want 0.2.0-rc.1", response.LatestVersion)
+	if release == nil || release.dto.Version != "0.2.0-rc.1" {
+		t.Fatalf("expected highest newer rc candidate 0.2.0-rc.1, got %#v", release)
 	}
 }
 
 func TestSystemVersionReleaseAssetsStayArrayWhenEmpty(t *testing.T) {
-	oldVersion, oldBuildType := Version, BuildType
-	Version, BuildType = "0.1.0-rc.1", "release"
+	oldVersion := Version
+	Version = "0.1.0-rc.1"
 	t.Cleanup(func() {
-		Version, BuildType = oldVersion, oldBuildType
+		Version = oldVersion
 	})
-	t.Setenv("RENEWLET_SELF_UPDATE_ENABLED", "false")
 
 	service := newSystemUpdateService(&fakeSystemReleaseClient{releases: []systemRelease{
 		{
 			TagName:     "v0.1.0-rc.2",
-			Name:        "Renewlet 0.1.0-rc.2",
+			Name:        "Renewo 0.1.0-rc.2",
 			PublishedAt: "2026-06-04T00:00:00Z",
 			HTMLURL:     "https://github.com/zhiyingzzhou/renewlet/releases/tag/v0.1.0-rc.2",
 			Assets:      nil,
 		},
 	}})
 
-	first, err := service.CheckVersion(context.Background(), localeZhCN, true)
+	release, err := service.fetchLatestRCRelease(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := service.CheckVersion(context.Background(), localeZhCN, false)
-	if err != nil {
-		t.Fatal(err)
+	if release == nil || release.dto == nil {
+		t.Fatal("expected rc candidate from feed")
 	}
-	for name, response := range map[string]*systemVersionResponse{"force": first, "cached": second} {
+	// ReleaseInfo 是前端 Zod 校验的 API 契约；空附件列表无论新构造还是缓存克隆都必须编成 []，不能是 null。
+	fresh := &systemVersionResponse{ReleaseInfo: release.dto}
+	cached := cloneSystemVersionResponse(fresh, true)
+	for name, response := range map[string]*systemVersionResponse{"fresh": fresh, "cached": cached} {
 		payload, err := json.Marshal(response)
 		if err != nil {
 			t.Fatal(err)
@@ -295,20 +245,9 @@ func TestSystemVersionReleaseAssetsStayArrayWhenEmpty(t *testing.T) {
 			t.Fatalf("%s response JSON = %s, must not encode assets as null", name, payload)
 		}
 	}
-	if !second.Cached {
-		t.Fatal("second check should come from cache")
-	}
 }
 
 func TestSystemVersionDisablesInAppUpdateWhenReleaseAssetsMissing(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("self-update capability depends on linux Docker binary semantics")
-	}
-	oldVersion, oldBuildType := Version, BuildType
-	t.Cleanup(func() {
-		Version, BuildType = oldVersion, oldBuildType
-	})
-
 	cases := []struct {
 		name           string
 		assets         []systemReleaseAsset
@@ -328,40 +267,12 @@ func TestSystemVersionDisablesInAppUpdateWhenReleaseAssetsMissing(t *testing.T) 
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tempDir := t.TempDir()
-			binaryPath := filepath.Join(tempDir, "renewlet")
-			if err := os.WriteFile(binaryPath, []byte("old"), 0o755); err != nil {
-				t.Fatal(err)
+			reason := systemUpdateAssetsUnsupportedReason(localeZhCN, tc.assets, "0.1.0-rc.2")
+			if reason == "" {
+				t.Fatal("expected unsupported reason when install asset is missing")
 			}
-			t.Setenv("RENEWLET_SELF_UPDATE_ENABLED", "true")
-			t.Setenv("RENEWLET_SELF_UPDATE_BINARY", binaryPath)
-			t.Setenv("RENEWLET_SELF_UPDATE_BACKUP_DIR", filepath.Join(tempDir, "backups"))
-			Version, BuildType = "0.1.0-rc.1", "release"
-
-			service := newSystemUpdateService(&fakeSystemReleaseClient{releases: []systemRelease{
-				{
-					TagName: "v0.1.0-rc.2",
-					Name:    "Renewlet 0.1.0-rc.2",
-					HTMLURL: "https://github.com/zhiyingzzhou/renewlet/releases/tag/v0.1.0-rc.2",
-					Assets:  tc.assets,
-				},
-			}})
-
-			response, err := service.CheckVersion(context.Background(), localeZhCN, true)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !response.CheckSucceeded || !response.HasUpdate {
-				t.Fatalf("expected newer release to be reported, got %#v", response)
-			}
-			if response.UpdateSupported {
-				t.Fatalf("UpdateSupported = true, want false when install asset is missing: %#v", response)
-			}
-			if !strings.Contains(response.UnsupportedReason, tc.wantReasonPart) {
-				t.Fatalf("UnsupportedReason = %q, want to contain %q", response.UnsupportedReason, tc.wantReasonPart)
-			}
-			if response.ReleaseInfo == nil || response.ReleaseInfo.HTMLURL == "" {
-				t.Fatalf("release info should stay available: %#v", response.ReleaseInfo)
+			if !strings.Contains(reason, tc.wantReasonPart) {
+				t.Fatalf("reason = %q, want to contain %q", reason, tc.wantReasonPart)
 			}
 		})
 	}

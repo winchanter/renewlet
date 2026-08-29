@@ -1,7 +1,7 @@
 package main
 
 // 导入导出测试保护 preview/apply 的事务边界、owner 隔离和跨来源字段归一化。
-// 这里的样例同时约束 AI/Wallos/Renewlet 导入进入 subscriptions 前必须复用同一持久层校验。
+// 这里的样例同时约束 AI/Wallos/Renewo 导入进入 subscriptions 前必须复用同一持久层校验。
 
 import (
 	"encoding/json"
@@ -148,11 +148,11 @@ func TestImportApplyMatchesRenewletSourceIdToCurrentRecordId(t *testing.T) {
 	}
 	registerRecordHooks(app)
 	user, token := createRouteTestUser(t, app, "user")
-	existing := saveSubscriptionRecord(t, app, user.Id, []interface{}{}, "Existing Renewlet")
+	existing := saveSubscriptionRecord(t, app, user.Id, []interface{}{}, "Existing Renewo")
 
 	res := serveTestRequest(t, app, http.MethodPost, "/api/app/import/apply", importRequestBodyWithSource("replace", "renewlet", existing.Id, 88), token)
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"replaces":1`) {
-		t.Fatalf("expected Renewlet id match to replace, got %d: %s", res.Code, res.Body.String())
+		t.Fatalf("expected Renewo id match to replace, got %d: %s", res.Code, res.Body.String())
 	}
 	rows, err := app.FindAllRecords("subscriptions", dbx.HashExp{"user": user.Id})
 	if err != nil {

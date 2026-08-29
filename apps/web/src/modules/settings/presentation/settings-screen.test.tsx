@@ -69,7 +69,7 @@ describe("SettingsScreen SMTP email settings", () => {
     expect(screen.queryByRole("spinbutton", { name: "SMTP 端口" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("SMTP 用户名")).toHaveValue("smtp-user");
     expect(screen.getByLabelText("SMTP 密码")).toHaveValue("smtp-password");
-    expect(screen.getByLabelText("发件人")).toHaveValue("Renewlet <noreply@example.com>");
+    expect(screen.getByLabelText("发件人")).toHaveValue("Renewo <noreply@example.com>");
     expect(screen.getByLabelText("回复地址")).toHaveValue("support@example.com");
     expect(screen.getByRole("button", { name: "测试邮件通知" })).toBeInTheDocument();
   });

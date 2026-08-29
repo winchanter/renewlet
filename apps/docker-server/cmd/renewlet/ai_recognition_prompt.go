@@ -86,7 +86,7 @@ func buildAIRecognitionUserPrompt(text string, timezone string, defaultCurrency 
 	lines = append(lines, formatAIRecognitionTags(configContext.Tags)...)
 	lines = append(lines,
 		"",
-		"Available Renewlet configuration options:",
+		"Available Renewo configuration options:",
 		"Categories:",
 	)
 	lines = append(lines, formatAIRecognitionConfigOptions(configContext.Categories)...)

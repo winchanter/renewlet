@@ -37,7 +37,7 @@ const skippedJob = {
       showExpired: true,
     },
     message: {
-      title: "Renewlet 订阅提醒",
+      title: "Renewo 订阅提醒",
       content: "今天没有需要提醒的订阅。",
       timestamp: "2026-05-17 08:00:00 UTC",
       hasPayload: false,

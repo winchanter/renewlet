@@ -88,7 +88,7 @@ vi.mock("@/i18n/I18nProvider", () => ({
         "settings.cloudBackupDeleteNamed": "删除「{name}」",
         "settings.cloudBackupDeletingNamed": "正在删除「{name}」",
         "settings.cloudBackupDeleteTitle": "删除「{name}」？",
-        "settings.cloudBackupDeleteDescription": "该操作会删除远端 ZIP 和 manifest，删除后无法通过 Renewlet 恢复。",
+        "settings.cloudBackupDeleteDescription": "该操作会删除远端 ZIP 和 manifest，删除后无法通过 Renewo 恢复。",
         "settings.cloudBackupUpstreamTitle": "云存储错误详情",
         "settings.cloudBackupUpstreamDescription": "接口返回的原始响应。",
         "settings.cloudBackupUpstreamOpen": "查看错误详情",

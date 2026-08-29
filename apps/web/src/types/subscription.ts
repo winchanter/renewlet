@@ -126,7 +126,7 @@ export const PAYMENT_METHODS = [
   'webmoney',
   'other',
 ] as const;
-/** 内置支付方式（图标固定，覆盖 Renewlet 与 Wallos 的默认支付方式并集）。 */
+/** 内置支付方式（图标固定，覆盖 Renewo 与 Wallos 的默认支付方式并集）。 */
 export type BuiltInPaymentMethod = (typeof PAYMENT_METHODS)[number];
 /**
  * 支付方式值。

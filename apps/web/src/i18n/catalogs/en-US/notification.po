@@ -156,12 +156,12 @@ msgstr "Mono"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/notification.ts:105
 msgid "notification.content.testTitle"
-msgstr "Renewlet test notification"
+msgstr "Renewo test notification"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/notification.ts:104
 msgid "notification.content.title"
-msgstr "Renewlet subscription reminder"
+msgstr "Renewo subscription reminder"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/notification.ts:54

@@ -3,11 +3,9 @@ package main
 // 系统版本 route 测试单独承载权限投影，避免通用 routes_test 继续膨胀并掩盖更新边界。
 
 import (
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -54,7 +52,8 @@ func TestSystemUpdateRouteReturnsAcceptedAndContinuesAfterRequest(t *testing.T) 
 	}
 	_, adminToken := createRouteTestUser(t, app, "admin")
 	service, client, _ := newExecutableSystemUpdateService(t, "1.0.0", "1.1.0")
-	client.fetchDelay = 500 * time.Millisecond
+	// fork 下 release 来自缓存；用下载延迟证明 route 立即返回而后台任务继续。
+	client.downloadDelay = 500 * time.Millisecond
 	oldService := defaultSystemUpdateService
 	defaultSystemUpdateService = service
 	t.Cleanup(func() { defaultSystemUpdateService = oldService })
@@ -127,6 +126,7 @@ func TestSystemVersionRouteIsReadableBySignedInUsers(t *testing.T) {
 	t.Setenv("RENEWLET_SELF_UPDATE_BACKUP_DIR", filepath.Join(tempDir, "backups"))
 	oldService, oldVersion, oldBuildType := defaultSystemUpdateService, Version, BuildType
 	Version, BuildType = "1.0.0", "release"
+	// fork 本地部署脱钩上游：fake client 永远不会被调用，版本事实就是当前构建版本。
 	release := releaseFixture("v1.1.0")
 	defaultSystemUpdateService = newSystemUpdateService(&fakeSystemReleaseClient{release: &release})
 	t.Cleanup(func() {
@@ -154,10 +154,10 @@ func TestSystemVersionRouteIsReadableBySignedInUsers(t *testing.T) {
 			}
 			if tc.name == "admin" {
 				body := decodeAPISuccessDataForTest[systemVersionResponse](t, res.Body.Bytes())
-				if !body.HasUpdate || body.LatestVersion != "1.1.0" {
-					t.Fatalf("expected admin version response to keep release facts, got %#v", body)
+				if body.HasUpdate || body.LatestVersion != "1.0.0" || body.ReleaseInfo != nil {
+					t.Fatalf("expected admin version response to report fork current version, got %#v", body)
 				}
-				if !body.UpdateSupported && body.UnsupportedReason == readOnlyReason {
+				if !body.UpdateSupported {
 					t.Fatalf("expected admin version response not to be projected as read-only, got %#v", body)
 				}
 			}
@@ -180,17 +180,8 @@ func TestSystemVersionRouteHidesRawDetailsFromNonAdmins(t *testing.T) {
 	_, userToken := createRouteTestUser(t, app, "user")
 	oldService, oldVersion, oldBuildType := defaultSystemUpdateService, Version, BuildType
 	Version, BuildType = "1.0.0", "release"
-	defaultSystemUpdateService = newSystemUpdateService(&httpSystemReleaseClient{
-		metadataClient: &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: http.StatusForbidden,
-				Status:     "403 Forbidden",
-				Header:     http.Header{"Content-Type": []string{"text/plain"}},
-				Body:       io.NopCloser(strings.NewReader("release feed unavailable")),
-				Request:    request,
-			}, nil
-		})},
-	})
+	// fork 本地部署不访问上游，也就不存在可回显的 upstream 错误详情；这里只保护详情对非管理员隐藏。
+	defaultSystemUpdateService = newSystemUpdateService(&fakeSystemReleaseClient{release: &systemRelease{TagName: "v1.1.0"}})
 	t.Cleanup(func() {
 		defaultSystemUpdateService = oldService
 		Version, BuildType = oldVersion, oldBuildType
@@ -201,8 +192,8 @@ func TestSystemVersionRouteHidesRawDetailsFromNonAdmins(t *testing.T) {
 		t.Fatalf("expected admin version status 200, got %d: %s", admin.Code, admin.Body.String())
 	}
 	adminBody := decodeAPISuccessDataForTest[systemVersionResponse](t, admin.Body.Bytes())
-	if adminBody.ErrorDetails == nil || adminBody.ErrorDetails.RawResponseText == nil || *adminBody.ErrorDetails.RawResponseText != "release feed unavailable" {
-		t.Fatalf("expected admin version response to keep one-shot raw details, got %#v", adminBody.ErrorDetails)
+	if adminBody.ErrorDetails != nil {
+		t.Fatalf("fork deployment has no upstream error details, got %#v", adminBody.ErrorDetails)
 	}
 
 	user := serveTestRequest(t, app, http.MethodGet, "/api/app/system/version?force=true", "", userToken)

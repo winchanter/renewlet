@@ -299,13 +299,13 @@ export function manualRenewBillingRecordRow(
   return billingRecordRowFromSnapshot(merged, {
     id: recordId,
     mode: body.mode === "restart" ? "manual_restart" : "manual_continue",
-    receiptAssetIds: body.receiptAssetIds ? JSON.stringify(body.receiptAssetIds) : undefined,
     // restart 的扣费日是用户选择的新购买日；continue 覆盖的是续订前已经落账的旧账单日。
     // 上游 renewSubscriptionRow 已拒绝缺少 startDate 的 restart，末级兜底只为满足类型不变式。
     billingDate: body.mode === "restart" ? body.startDate ?? merged.start_date ?? existing.next_billing_date : existing.next_billing_date,
     periodEndDate: merged.next_billing_date,
     amount: body.price,
     currency: body.currency,
+    ...(body.receiptAssetIds ? { receiptAssetIds: JSON.stringify(body.receiptAssetIds) } : {}),
   }, timestamp);
 }
 

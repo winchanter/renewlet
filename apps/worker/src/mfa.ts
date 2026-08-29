@@ -147,7 +147,7 @@ export async function startTotpSetup(env: Env, user: UserRow) {
 async function startTotpSetupUnsafe(env: Env, user: UserRow) {
   const secret = new OTPAuth.Secret({ size: 20 });
   const totp = new OTPAuth.TOTP({
-    issuer: "Renewlet",
+    issuer: "Renewo",
     label: user.email,
     algorithm: "SHA1",
     digits: 6,
@@ -295,7 +295,7 @@ async function startPasskeyRegistrationUnsafe(env: Env, request: Request, user: 
   const { origin, rpID } = webAuthnRuntime(request);
   const rows = await passkeyCredentialRows(env, user.id);
   const options = await generateRegistrationOptions({
-    rpName: "Renewlet",
+    rpName: "Renewo",
     rpID,
     userID: mfaTextEncoder.encode(user.id),
     userName: user.email,
@@ -531,8 +531,8 @@ async function consumeTotp(env: Env, userId: string, code: string): Promise<bool
 
 async function validateTotp(secretValue: string, code: string, lastAcceptedStep: number): Promise<{ ok: true; step: number } | { ok: false }> {
   const totp = new OTPAuth.TOTP({
-    issuer: "Renewlet",
-    label: "Renewlet",
+    issuer: "Renewo",
+    label: "Renewo",
     algorithm: "SHA1",
     digits: 6,
     period: MFA_TOTP_PERIOD_SECONDS,

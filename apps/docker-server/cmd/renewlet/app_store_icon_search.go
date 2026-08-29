@@ -2,7 +2,7 @@ package main
 
 // app_store_icon_search.go 是 Docker/Go 运行面的 App Store Logo 候选来源。
 //
-// Apple Search API 返回应用元数据和 artwork URL，不返回图片文件；Renewlet 只缓存窄 JSON，
+// Apple Search API 返回应用元数据和 artwork URL，不返回图片文件；Renewo 只缓存窄 JSON，
 // 不下载、不转存 Apple CDN 图标，最终仍由用户手动选择外链 URL 后持久化。
 import (
 	"context"
@@ -242,7 +242,7 @@ func fetchAppStoreIconResults(ctx context.Context, normalizedQuery string, count
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Renewlet/"+Version)
+	req.Header.Set("User-Agent", "Renewo/"+Version)
 	res, err := sendUpstreamHTTPRequest(req, upstreamHTTPRequestOptions{
 		Provider: appStoreIconHTTPProviderLabel,
 		Timeout:  appStoreIconFetchTimeout,

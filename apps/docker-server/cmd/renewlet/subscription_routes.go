@@ -29,7 +29,7 @@ type subscriptionDetailResponse struct {
 	UpdatedAt              string                 `json:"updatedAt,omitempty"`
 }
 
-// handleSubscriptionRenew 按用户选择延续或重开当前订阅；Renewlet 只更新账本状态，不生成付款流水。
+// handleSubscriptionRenew 按用户选择延续或重开当前订阅；Renewo 只更新账本状态，不生成付款流水。
 func handleSubscriptionRenew(app core.App, e *core.RequestEvent) error {
 	locale := requestLocale(e.Request)
 	body, err := decodeStrictJSON[subscriptionRenewRequest](e.Request, locale)

@@ -136,7 +136,7 @@ const publicStatusSubscriptionSchema = z.object({
 
 export const publicStatusPayloadSchema = z.object({
   page: z.object({
-    title: z.literal("Renewlet"),
+    title: z.literal("Renewo"),
     showPrices: z.boolean(),
     currency: z.string().trim().regex(/^[A-Z]{3}$/).optional(),
     exchangeRateBasis: exchangeRateSnapshotPublicBasisSchema.optional(),

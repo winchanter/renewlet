@@ -253,7 +253,7 @@ func TestGitHubReleaseFeedRequestUsesAtomWithoutAuthorization(t *testing.T) {
 	if got := captured.Header.Get("X-GitHub-Api-Version"); got != "" {
 		t.Fatalf("X-GitHub-Api-Version = %q", got)
 	}
-	if got := captured.Header.Get("User-Agent"); got == "" || !strings.HasPrefix(got, "Renewlet/") {
+	if got := captured.Header.Get("User-Agent"); got == "" || !strings.HasPrefix(got, "Renewo/") {
 		t.Fatalf("User-Agent = %q", got)
 	}
 	if got := captured.Header.Get("Authorization"); got != "" {

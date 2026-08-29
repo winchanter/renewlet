@@ -505,7 +505,7 @@ msgstr "OpenAI Compatible"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:260
 msgid "aiRecognition.thinkingUnsupportedCompatible"
-msgstr "OpenAI Compatible 没有统一 thinking 标准，Renewlet 不会传递思考控制。"
+msgstr "OpenAI Compatible 没有统一 thinking 标准，Renewo 不会传递思考控制。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:275
@@ -580,7 +580,7 @@ msgstr "Region"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:740
 msgid "settings.dingtalkKeywordPlaceholder"
-msgstr "Renewlet"
+msgstr "Renewo"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:484
@@ -923,6 +923,16 @@ msgid "settings.uploadedIconsDeleteBlockedByBoth"
 msgstr "仍被 {subscriptionCount} 个订阅和 {paymentMethodCount} 个支付方式使用，请先分别换掉 Logo 和支付方式图标。"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/settings.ts:225
+msgid "settings.uploadedIconsDeleteBlockedByBillingRecords"
+msgstr "仍被 {count} 条扣费记录的凭证使用，请先到历史记录里移除对应凭证。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/settings.ts:226
+msgid "settings.uploadedIconsDeleteBlockedByMixed"
+msgstr "仍被订阅 Logo、支付方式图标或扣费记录凭证引用，请先移除对应内容后再删除。"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:769
 msgid "settings.barkKeyHelp"
 msgstr "从 Bark iOS 应用中获取的设备 Key"
@@ -935,7 +945,7 @@ msgstr "从 Notifyx 平台获取的 API Key"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:780
 msgid "settings.pushplusHelp"
-msgstr "从 PushPlus 获取的消息令牌或用户令牌，Renewlet 使用文本模板发送。"
+msgstr "从 PushPlus 获取的消息令牌或用户令牌，Renewo 使用文本模板发送。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:688
@@ -955,7 +965,7 @@ msgstr "从未备份"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:719
 msgid "settings.dingtalkWebhookHelp"
-msgstr "从钉钉群自定义机器人获取，Renewlet 会按钉钉固定消息结构发送。"
+msgstr "从钉钉群自定义机器人获取，Renewo 会按钉钉固定消息结构发送。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:633
@@ -1514,7 +1524,7 @@ msgstr "发送负载 (JSON格式，可选)"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:724
 msgid "settings.dingtalkTemplateHelp"
-msgstr "变量：'{brand}'、'{keyword}'、'{title}'、'{content}'、'{timestamp}'、'{itemCount}'。这里只改标题和正文，不是 JSON body 模板；Renewlet 仍会生成钉钉官方 payload。"
+msgstr "变量：'{brand}'、'{keyword}'、'{title}'、'{content}'、'{timestamp}'、'{itemCount}'。这里只改标题和正文，不是 JSON body 模板；Renewo 仍会生成钉钉官方 payload。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:168
@@ -3069,7 +3079,7 @@ msgstr "测试连接"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:749
 msgid "settings.wechatModeTag"
-msgstr "消息前追加「Renewlet」标记"
+msgstr "消息前追加「Renewo」标记"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:747
@@ -3209,12 +3219,12 @@ msgstr "知道链接的人可访问；重新生成会让旧链接失效。"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:216
 msgid "settings.uploadedIconsDeleteDescription"
-msgstr "确定要删除「{name}」吗？删除后不能从 Renewlet 找回。"
+msgstr "确定要删除「{name}」吗？删除后不能从 Renewo 找回。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:217
 msgid "settings.uploadedIconsDeleteFallback"
-msgstr "确定要删除这个上传图标吗？删除后不能从 Renewlet 找回。"
+msgstr "确定要删除这个上传图标吗？删除后不能从 Renewo 找回。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:623
@@ -3464,7 +3474,7 @@ msgstr "该分类已被 {count} 个订阅使用，无法删除。请先在「订
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:535
 msgid "settings.cloudBackupDeleteDescription"
-msgstr "该操作会删除远端 ZIP 和 manifest，删除后无法通过 Renewlet 恢复。"
+msgstr "该操作会删除远端 ZIP 和 manifest，删除后无法通过 Renewo 恢复。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:108
@@ -3544,7 +3554,7 @@ msgstr "请稍后重试。"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:444
 msgid "settings.publicApiPlainTokenHelp"
-msgstr "请立即复制保存。关闭后 Renewlet 只会显示 prefix，无法再次查看明文。"
+msgstr "请立即复制保存。关闭后 Renewo 只会显示 prefix，无法再次查看明文。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:645
@@ -3764,7 +3774,7 @@ msgstr "通行密钥状态已失效，请重新选择。"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:170
 msgid "settings.onlineIconSource.appStore.help"
-msgstr "通过 Renewlet 后端查询 Apple Search API，返回应用图标 URL；默认只查 US，不会下载或转存图片。"
+msgstr "通过 Renewo 后端查询 Apple Search API，返回应用图标 URL；默认只查 US，不会下载或转存图片。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:761
@@ -3854,7 +3864,7 @@ msgstr "重试"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:742
 msgid "settings.dingtalkKeywordHelp"
-msgstr "钉钉关键词校验要求关键词出现在消息正文中；如果填写 Test1 这类随机词，通知里也会显示它。建议使用 Renewlet、订阅提醒、续费这类自然关键词；隐藏式安全校验请使用加签。"
+msgstr "钉钉关键词校验要求关键词出现在消息正文中；如果填写 Test1 这类随机词，通知里也会显示它。建议使用 Renewo、订阅提醒、续费这类自然关键词；隐藏式安全校验请使用加签。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:654

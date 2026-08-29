@@ -77,7 +77,7 @@ type WallosTableName = keyof typeof WALLOS_TABLE_COLUMNS;
 /**
  * Worker 消息入口。
  *
- * 主线程只传 ArrayBuffer 和映射上下文；Worker 返回 PreparedImport，不直接访问网络或 Renewlet API。
+ * 主线程只传 ArrayBuffer 和映射上下文；Worker 返回 PreparedImport，不直接访问网络或 Renewo API。
  */
 self.onmessage = (event: MessageEvent<WorkerJobRequest<WallosImportWorkerPayload>>) => {
   const message = event.data;

@@ -3,7 +3,7 @@ package main
 // ai_recognition_notes.go 清洗 AI 识别草稿中的长期备注。
 //
 // 业务边界：AI 输出的 notes 会在导入确认后进入订阅长期记录，因此这里只允许保留服务/网站简介，
-// 识别过程、低置信提醒、营销套话和“方便记录到 Renewlet”这类产品内视角都必须被剔除。
+// 识别过程、低置信提醒、营销套话和“方便记录到 Renewo”这类产品内视角都必须被剔除。
 import (
 	"net/url"
 	"strings"

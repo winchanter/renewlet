@@ -413,7 +413,7 @@ describe("Cloudflare cloud backup", () => {
     const sanitized = sanitizeSettingsForCloudBackup({
       ...createDefaultAppSettings(),
       discordWebhookUrl: "https://discord.com/api/webhooks/123/secret",
-      discordBotUsername: "Renewlet",
+      discordBotUsername: "Renewo",
       discordBotAvatarUrl: "https://cdn.example.com/avatar.png",
       pushplusToken: "push-token",
       dingtalkWebhookUrl: "https://oapi.dingtalk.com/robot/send?access_token=ding-token",

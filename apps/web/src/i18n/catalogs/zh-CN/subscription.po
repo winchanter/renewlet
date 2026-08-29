@@ -386,7 +386,7 @@ msgstr "Logo 上传失败，请移除异常 Logo 后重试。"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:55
 msgid "subscription.addToCalendarCalendarName"
-msgstr "Renewlet - {name}"
+msgstr "Renewo - {name}"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:426
@@ -1276,7 +1276,7 @@ msgstr "导入 {done}/{total}"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:403
 msgid "import.description"
-msgstr "导入 Renewlet 备份，或一键迁移 Wallos JSON、ZIP 备份和 SQLite 数据库。"
+msgstr "导入 Renewo 备份，或一键迁移 Wallos JSON、ZIP 备份和 SQLite 数据库。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:512
@@ -1931,7 +1931,7 @@ msgstr "支持"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:410
 msgid "import.fileHint"
-msgstr "支持 Renewlet ZIP/JSON、Wallos JSON、backup.zip、wallos.db。"
+msgstr "支持 Renewo ZIP/JSON、Wallos JSON、backup.zip、wallos.db。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:547
@@ -2016,7 +2016,7 @@ msgstr "无法优化这张图片，请换一张更小且清晰的截图。"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:505
 msgid "import.error.unrecognizedFile"
-msgstr "无法识别导入文件，请选择 Renewlet v1 导出或 Wallos 导出/备份。"
+msgstr "无法识别导入文件，请选择 Renewo v1 导出或 Wallos 导出/备份。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:666
@@ -2291,7 +2291,7 @@ msgstr "来源"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:493
 msgid "import.warning.lowConfidenceKey"
-msgstr "来源没有原始 ID，Renewlet 会按名称、网址、分类和周期查找已有记录。"
+msgstr "来源没有原始 ID，Renewo 会按名称、网址、分类和周期查找已有记录。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:494
@@ -2821,7 +2821,7 @@ msgstr "粘贴 JSON"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:413
 msgid "import.pastePlaceholder"
-msgstr "粘贴 Renewlet 或 Wallos JSON..."
+msgstr "粘贴 Renewo 或 Wallos JSON..."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:546
@@ -3086,7 +3086,7 @@ msgstr "订阅列表"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:514
 msgid "import.error.subscriptionInvalid"
-msgstr "订阅字段不符合 Renewlet 写入规则，请检查日期、Logo、网站或备注。"
+msgstr "订阅字段不符合 Renewo 写入规则，请检查日期、Logo、网站或备注。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/subscription.ts:516

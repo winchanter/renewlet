@@ -85,7 +85,7 @@ func TestSendServerChanPostsOfficialPayload(t *testing.T) {
 	settings := defaultAppSettings()
 	settings.ServerChanSendKey = "sctp456tabcdef"
 	err := sendServerChan(settings, notificationMessage{
-		Title:     "Renewlet 测试通知",
+		Title:     "Renewo 测试通知",
 		Content:   "如果你收到了这条消息，说明该通知渠道配置可用。",
 		Timestamp: "2026-05-14 08:00 UTC",
 	})
@@ -95,7 +95,7 @@ func TestSendServerChanPostsOfficialPayload(t *testing.T) {
 	if gotURL != "https://456.push.ft07.com/send/sctp456tabcdef.send" {
 		t.Fatalf("unexpected request URL %q", gotURL)
 	}
-	if gotBody.Title != "Renewlet 测试通知" {
+	if gotBody.Title != "Renewo 测试通知" {
 		t.Fatalf("unexpected title %q", gotBody.Title)
 	}
 	if gotBody.Desp != "如果你收到了这条消息，说明该通知渠道配置可用。\n\n2026-05-14 08:00 UTC" {

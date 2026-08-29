@@ -160,7 +160,7 @@ function addCashflowTrend(
   const windowEnd = lastBucket.endDate;
   let dueDate: DateOnly = subscription.nextBillingDate;
 
-  // autoRenew 只控制 Renewlet 是否后台推进日期，不代表第三方账单会停止；趋势按当前周期配置预测未来扣费。
+  // autoRenew 只控制 Renewo 是否后台推进日期，不代表第三方账单会停止；趋势按当前周期配置预测未来扣费。
   for (let occurrences = 0; compareDateOnly(dueDate, windowEnd) < 0 && occurrences < MAX_TREND_CASHFLOW_OCCURRENCES; occurrences += 1) {
     if (compareDateOnly(dueDate, windowStart) >= 0) {
       const bucket = bucketsByMonth.get(toMonthKey(dueDate));

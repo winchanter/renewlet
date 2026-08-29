@@ -21,7 +21,7 @@ func TestCloudBackupExportSettingsStripsExternalNotificationSecrets(t *testing.T
 	user, _ := createRouteTestUser(t, app, "cloud-backup-export")
 	settings := defaultAppSettings()
 	settings.DiscordWebhookURL = "https://discord.com/api/webhooks/123/secret"
-	settings.DiscordBotUsername = "Renewlet"
+	settings.DiscordBotUsername = "Renewo"
 	settings.DiscordBotAvatarURL = "https://cdn.example.com/avatar.png"
 	settings.PushPlusToken = "push-token"
 	settings.DingTalkWebhookURL = "https://oapi.dingtalk.com/robot/send?access_token=ding-token"

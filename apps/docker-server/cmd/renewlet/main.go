@@ -1,10 +1,10 @@
 package main
 
-// main.go 是 Renewlet 的 PocketBase 应用入口。
+// main.go 是 Renewo 的 PocketBase 应用入口。
 //
 // 架构位置：
 //   - 负责启动 PocketBase、注册 schema migration、record hooks、cron 和自定义 HTTP route。
-//   - 静态前端由 embedded FS 提供，自定义 API 使用 Renewlet 产品 session。
+//   - 静态前端由 embedded FS 提供，自定义 API 使用 Renewo 产品 session。
 //   - 具体请求/响应 DTO 在 api_contracts.go，通知任务在 notifications.go，文件资产在 assets.go。
 //
 // 注意： 跨运行面 wire shape 以 shared schema 为事实源；Go route 必须通过共享 fixture 与 Worker 保持同一契约。
@@ -187,7 +187,7 @@ func registerAuthHooks(app core.App) {
 }
 
 func disablePocketBaseInstaller(e *core.ServeEvent) {
-	// 首装状态机只属于 Renewlet /setup；PocketBase installer 会另开 /_/#/pbinstall，导致 E2E 和用户看到两套入口。
+	// 首装状态机只属于 Renewo /setup；PocketBase installer 会另开 /_/#/pbinstall，导致 E2E 和用户看到两套入口。
 	e.InstallerFunc = nil
 }
 

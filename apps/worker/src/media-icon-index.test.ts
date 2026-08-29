@@ -163,7 +163,7 @@ describe("Cloudflare media icon index", () => {
     expect(init?.headers).toMatchObject({
       accept: "application/atom+xml",
       "if-none-match": "\"cached\"",
-      "user-agent": "Renewlet/1.2.3",
+      "user-agent": "Renewo/1.2.3",
     });
   });
 

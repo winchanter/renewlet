@@ -89,7 +89,7 @@ export async function readPublicStatus(request: Request, env: Env, token: string
   const showPrices = intToBool(page.show_prices);
   const response = publicStatusPayloadSchema.parse({
     page: {
-      title: "Renewlet",
+      title: "Renewo",
       showPrices,
       ...(showPrices ? { currency: effectivePublicStatusCurrency(settings) } : {}),
       ...(showPrices ? { exchangeRateBasis: await getExchangeRatePublicBasis(env, page.user_id) } : {}),

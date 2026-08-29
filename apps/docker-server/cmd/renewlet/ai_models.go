@@ -2,7 +2,7 @@ package main
 
 // ai_models.go 是 Docker/Go 运行面的 AI 模型列表代理。
 //
-// 该端点只在用户显式刷新时访问第三方 /models；Renewlet 发出的 API key 不入库、不回显，
+// 该端点只在用户显式刷新时访问第三方 /models；Renewo 发出的 API key 不入库、不回显，
 // provider 原始响应只随当前认证错误返回，供设置页详情弹窗排查。
 import (
 	"context"

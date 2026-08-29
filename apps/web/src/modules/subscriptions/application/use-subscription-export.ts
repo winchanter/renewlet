@@ -17,7 +17,7 @@ async function loadExchangeRateSnapshotsForExport(signal: AbortSignal) {
   } catch (error) {
     if (signal.aborted) throw error;
     // 汇率快照是报表口径增强，不能因为读取失败阻断订阅/设置这份基础可恢复导出。
-    console.warn("Failed to include exchange-rate snapshots in Renewlet export:", error);
+    console.warn("Failed to include exchange-rate snapshots in Renewo export:", error);
     return [];
   }
 }

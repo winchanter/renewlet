@@ -145,7 +145,7 @@ describe("notification-content", () => {
       ],
     );
 
-    expect(content.title).toBe("Renewlet subscription reminder");
+    expect(content.title).toBe("Renewo subscription reminder");
     expect(content.content).toContain("Upcoming renewals");
     expect(content.content).toContain("3 days before");
   });

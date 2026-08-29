@@ -1,7 +1,7 @@
 /**
  * 产品认证适配层。
  *
- * Docker 与 Cloudflare 都只消费 Renewlet `/api/app/auth/*`；PocketBase SDK 不再参与登录态恢复，
+ * Docker 与 Cloudflare 都只消费 Renewo `/api/app/auth/*`；PocketBase SDK 不再参与登录态恢复，
  * 避免启用 MFA 后原生 `authWithPassword/authRefresh` 成为绕过口。
  */
 import {

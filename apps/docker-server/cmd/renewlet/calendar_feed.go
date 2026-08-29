@@ -5,7 +5,7 @@ package main
 // 架构位置：
 //   - 登录态 API 负责查看、生成和撤销私有 URL。
 //   - 公开 ICS route 不读登录态，只用订阅 URL token 定位用户、scope 和订阅数据。
-//   - ICS 内容只导出 Renewlet 当前 nextBillingDate，不生成 RRULE，避免外部日历复刻业务日期算法。
+//   - ICS 内容只导出 Renewo 当前 nextBillingDate，不生成 RRULE，避免外部日历复刻业务日期算法。
 import (
 	"crypto/rand"
 	"database/sql"
@@ -562,7 +562,7 @@ func buildCalendarFeedICS(options calendarFeedBuildOptions) string {
 	locale := normalizeAppLocale(options.Settings.Locale)
 	events := options.Events
 	cal := ics.NewCalendar()
-	cal.SetProductId("-//Renewlet//Renewal Calendar//EN")
+	cal.SetProductId("-//Renewo//Renewal Calendar//EN")
 	cal.SetCalscale("GREGORIAN")
 	cal.SetMethod(ics.MethodPublish)
 	cal.SetName(options.Name)
@@ -578,7 +578,7 @@ func buildCalendarFeedICS(options calendarFeedBuildOptions) string {
 		}
 		vevent := cal.AddEvent(event.UID)
 		vevent.SetDtStampTime(options.Now.UTC())
-		// ICS 只表达 Renewlet 已计算出的 date-only 下一次续费；不生成 RRULE，避免外部日历与 nextBillingDate 事实源漂移。
+		// ICS 只表达 Renewo 已计算出的 date-only 下一次续费；不生成 RRULE，避免外部日历与 nextBillingDate 事实源漂移。
 		vevent.SetAllDayStartAt(start)
 		vevent.SetAllDayEndAt(start.AddDate(0, 0, 1))
 		vevent.SetSummary(event.Summary)

@@ -47,7 +47,7 @@ const authenticationOptions = {
 };
 
 const registrationOptions = {
-  rp: { id: "renewlet.example", name: "Renewlet" },
+  rp: { id: "renewlet.example", name: "Renewo" },
   user: { id: "dXNlci0x", name: "passkey@example.com", displayName: "Passkey User" },
   challenge: "challenge-value",
   pubKeyCredParams: [{ alg: -7, type: "public-key" as const }],

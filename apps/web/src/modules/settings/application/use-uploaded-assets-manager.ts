@@ -107,16 +107,28 @@ function assetDeleteErrorMessage(
 ): string {
   const details = assetInUseDetails(error);
   if (details) {
-    if (details.subscriptionLogoCount > 0 && details.paymentMethodIconCount > 0) {
+    const hasSubscriptions = details.subscriptionLogoCount > 0;
+    const hasPaymentMethods = details.paymentMethodIconCount > 0;
+    const hasBillingRecords = details.billingRecordReceiptCount > 0;
+    // 凭证和其它来源同时存在时不罗列计数，避免组合爆炸；仅凭证引用时明确指向历史记录。
+    if (hasBillingRecords && (hasSubscriptions || hasPaymentMethods)) {
+      return t("settings.uploadedIconsDeleteBlockedByMixed");
+    }
+    if (hasSubscriptions && hasPaymentMethods) {
       return t("settings.uploadedIconsDeleteBlockedByBoth", {
         subscriptionCount: details.subscriptionLogoCount,
         paymentMethodCount: details.paymentMethodIconCount,
       });
     }
-    if (details.paymentMethodIconCount > 0) {
+    if (hasPaymentMethods) {
       return t("settings.uploadedIconsDeleteBlockedByPaymentMethods", { count: details.paymentMethodIconCount });
     }
-    return t("settings.uploadedIconsDeleteBlockedBySubscriptions", { count: details.subscriptionLogoCount });
+    if (hasSubscriptions) {
+      return t("settings.uploadedIconsDeleteBlockedBySubscriptions", { count: details.subscriptionLogoCount });
+    }
+    if (hasBillingRecords) {
+      return t("settings.uploadedIconsDeleteBlockedByBillingRecords", { count: details.billingRecordReceiptCount });
+    }
   }
   return getDisplayErrorMessage(error, fallback);
 }

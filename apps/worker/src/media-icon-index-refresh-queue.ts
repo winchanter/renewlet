@@ -136,7 +136,7 @@ function registryFetcher(env: Env): BuiltInIconRegistryFetcher {
     const response = await sendUpstreamRequest(url, {
       headers: {
         accept: "application/json",
-        "user-agent": `Renewlet/${env.RENEWLET_VERSION?.trim() || "cloudflare"}`,
+        "user-agent": `Renewo/${env.RENEWLET_VERSION?.trim() || "cloudflare"}`,
       },
     }, {
       provider: label,

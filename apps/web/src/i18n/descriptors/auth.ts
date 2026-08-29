@@ -45,7 +45,7 @@ export const messages = [
   msg({ id: "setup.name", message: "名称" }),
   msg({ id: "setup.loginEmail", message: "登录邮箱" }),
   msg({ id: "setup.displayName", message: "显示名称" }),
-  msg({ id: "setup.title", message: "初始化 Renewlet" }),
+  msg({ id: "setup.title", message: "初始化 Renewo" }),
   msg({ id: "setup.subtitle", message: "创建第一个管理员账号" }),
   msg({ id: "setup.completedTitle", message: "初始化已完成" }),
   msg({ id: "setup.completedDescription", message: "请用邮箱登录。" }),

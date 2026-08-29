@@ -327,12 +327,12 @@ var aiRecognitionGeneratedSchema = json.RawMessage(`{
           "oneTimeTermUnit": { "type": ["string", "null"] },
           "category": {
             "type": ["string", "null"],
-            "description": "Renewlet category value from provided options when possible; otherwise a concise user-facing category only when the service type is obvious."
+            "description": "Renewo category value from provided options when possible; otherwise a concise user-facing category only when the service type is obvious."
           },
           "status": { "type": ["string", "null"] },
           "paymentMethod": {
             "type": ["string", "null"],
-            "description": "Renewlet payment method value from provided options when possible; otherwise a concise user-facing payment method only when the input explicitly names one."
+            "description": "Renewo payment method value from provided options when possible; otherwise a concise user-facing payment method only when the input explicitly names one."
           },
           "startDate": { "type": ["string", "null"] },
           "nextBillingDate": { "type": ["string", "null"] },

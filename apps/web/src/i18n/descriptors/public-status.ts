@@ -3,7 +3,7 @@ import { msg } from "@lingui/core/macro";
 
 export const messages = [
   msg({ id: "publicStatus.title", message: "订阅状态" }),
-  msg({ id: "publicStatus.headerMeta", message: "Renewlet · 更新于 {time}" }),
+  msg({ id: "publicStatus.headerMeta", message: "Renewo · 更新于 {time}" }),
   msg({ id: "publicStatus.monthlyTotal", message: "月均总价" }),
   msg({ id: "publicStatus.monthlyTotalSubtitle", message: "日均 {amount} · {basis}" }),
   msg({ id: "publicStatus.annualTotal", message: "年化总价" }),

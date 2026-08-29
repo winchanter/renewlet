@@ -100,7 +100,7 @@ const WALLOS_PAYMENT_METHOD_BY_NAME: Record<string, string> = {
   other: "other",
 };
 
-// Wallos 默认分类在其源码中以英文落库；这里只为固定来源补双语 label，不改 Renewlet 内置分类，也不猜用户自定义翻译。
+// Wallos 默认分类在其源码中以英文落库；这里只为固定来源补双语 label，不改 Renewo 内置分类，也不猜用户自定义翻译。
 const WALLOS_DEFAULT_CATEGORY_LABELS = new Map<string, LocalizedLabels>([
   ["entertainment", CATEGORY_LABELS.entertainment],
   ["music", CATEGORY_LABELS.music],

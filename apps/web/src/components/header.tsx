@@ -111,7 +111,7 @@ export function Header({ onAddSubscription, availableTags, subscriptionActions }
                 href="/"
                 className={headerLayout.brandTitleLink}
               >
-                <h1 className={headerLayout.brandTitle}>Renewlet</h1>
+                <h1 className={headerLayout.brandTitle}>Renewo</h1>
               </Link>
               {isAuthenticated ? (
                 <SystemUpdateDialog

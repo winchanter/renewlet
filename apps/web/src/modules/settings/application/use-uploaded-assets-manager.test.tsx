@@ -42,6 +42,12 @@ vi.mock("@/i18n/I18nProvider", () => ({
       if (key === "settings.uploadedIconsDeleteBlockedByBoth") {
         return `仍被 ${String(params?.["subscriptionCount"])} 个订阅和 ${String(params?.["paymentMethodCount"])} 个支付方式使用，请先分别换掉 Logo 和支付方式图标。`;
       }
+      if (key === "settings.uploadedIconsDeleteBlockedByBillingRecords") {
+        return `仍被 ${String(params?.["count"])} 条扣费记录的凭证使用，请先到历史记录里移除对应凭证。`;
+      }
+      if (key === "settings.uploadedIconsDeleteBlockedByMixed") {
+        return "仍被订阅 Logo、支付方式图标或扣费记录凭证引用，请先移除对应内容后再删除。";
+      }
       if (key === "settings.uploadedIconsDeleted") {
         return `已删除 ${String(params?.["name"])}。`;
       }
@@ -217,7 +223,7 @@ describe("useUploadedAssetsManager", () => {
     mocks.delete.mockRejectedValue(new ApiError(
       "in use",
       409,
-      { usageCount: 2, subscriptionLogoCount: 2, paymentMethodIconCount: 0 },
+      { usageCount: 2, subscriptionLogoCount: 2, paymentMethodIconCount: 0, billingRecordReceiptCount: 0 },
       "ASSET_IN_USE",
     ));
     const { Wrapper, invalidateSpy } = createWrapper();
@@ -247,7 +253,7 @@ describe("useUploadedAssetsManager", () => {
     mocks.delete.mockRejectedValue(new ApiError(
       "in use",
       409,
-      { usageCount: 1, subscriptionLogoCount: 0, paymentMethodIconCount: 1 },
+      { usageCount: 1, subscriptionLogoCount: 0, paymentMethodIconCount: 1, billingRecordReceiptCount: 0 },
       "ASSET_IN_USE",
     ));
     const { Wrapper, invalidateSpy } = createWrapper();
@@ -274,7 +280,7 @@ describe("useUploadedAssetsManager", () => {
     mocks.delete.mockRejectedValue(new ApiError(
       "in use",
       409,
-      { usageCount: 3, subscriptionLogoCount: 2, paymentMethodIconCount: 1 },
+      { usageCount: 3, subscriptionLogoCount: 2, paymentMethodIconCount: 1, billingRecordReceiptCount: 0 },
       "ASSET_IN_USE",
     ));
     const { Wrapper } = createWrapper();
@@ -288,6 +294,55 @@ describe("useUploadedAssetsManager", () => {
     expect(result.current.deleteError).toEqual({
       assetId: "asset_logo",
       message: "仍被 2 个订阅和 1 个支付方式使用，请先分别换掉 Logo 和支付方式图标。",
+    });
+  });
+
+  it("keeps receipt-referenced assets in place and points users to billing records", async () => {
+    const logoAsset = asset();
+    mockListOnce(page([logoAsset]), page([]));
+    mocks.delete.mockRejectedValue(new ApiError(
+      "in use",
+      409,
+      { usageCount: 2, subscriptionLogoCount: 0, paymentMethodIconCount: 0, billingRecordReceiptCount: 2 },
+      "ASSET_IN_USE",
+    ));
+    const { Wrapper } = createWrapper();
+    const { result } = renderHook(() => useUploadedAssetsManager(), { wrapper: Wrapper });
+
+    await waitFor(() => expect(result.current.logo.readState.data).toHaveLength(1));
+    let deleted = true;
+    await act(async () => {
+      deleted = await result.current.deleteAsset(logoAsset);
+    });
+
+    expect(deleted).toBe(false);
+    expect(result.current.logo.readState.data?.map((item) => item.id)).toEqual(["asset_logo"]);
+    expect(result.current.deleteError).toEqual({
+      assetId: "asset_logo",
+      message: "仍被 2 条扣费记录的凭证使用，请先到历史记录里移除对应凭证。",
+    });
+  });
+
+  it("names mixed references without counts when receipts and other sources block deletion", async () => {
+    const logoAsset = asset();
+    mockListOnce(page([logoAsset]), page([]));
+    mocks.delete.mockRejectedValue(new ApiError(
+      "in use",
+      409,
+      { usageCount: 3, subscriptionLogoCount: 1, paymentMethodIconCount: 0, billingRecordReceiptCount: 2 },
+      "ASSET_IN_USE",
+    ));
+    const { Wrapper } = createWrapper();
+    const { result } = renderHook(() => useUploadedAssetsManager(), { wrapper: Wrapper });
+
+    await waitFor(() => expect(result.current.logo.readState.data).toHaveLength(1));
+    await act(async () => {
+      await result.current.deleteAsset(logoAsset);
+    });
+
+    expect(result.current.deleteError).toEqual({
+      assetId: "asset_logo",
+      message: "仍被订阅 Logo、支付方式图标或扣费记录凭证引用，请先移除对应内容后再删除。",
     });
   });
 });

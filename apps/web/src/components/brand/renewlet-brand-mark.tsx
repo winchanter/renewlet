@@ -32,7 +32,7 @@ type RenewletBrandMarkProps = {
 export function RenewletBrandMark({
   size = "md",
   href,
-  ariaLabel = "Renewlet",
+  ariaLabel = "Renewo",
   interactive = Boolean(href),
   className,
   "aria-label": nonInteractiveLabel,

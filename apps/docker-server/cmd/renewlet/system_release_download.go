@@ -191,7 +191,7 @@ func (downloader *systemReleaseDownloader) downloadAttempt(
 	}
 	// Range 偏移、Content-Length 和发布 checksum 必须基于同一原始字节序列，禁止透明内容编码改变表示。
 	request.Header.Set("Accept-Encoding", "identity")
-	request.Header.Set("User-Agent", "Renewlet/"+Version)
+	request.Header.Set("User-Agent", "Renewo/"+Version)
 	requestedOffset := state.offset
 	if requestedOffset > 0 {
 		request.Header.Set("Range", fmt.Sprintf("bytes=%d-", requestedOffset))

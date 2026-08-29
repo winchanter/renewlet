@@ -1,4 +1,4 @@
-// 滚动锁测试固定 Renewlet 的真实滚动根 #root、多锁计数和 inline style 恢复，避免弹层回退到 body/window 假设。
+// 滚动锁测试固定 Renewo 的真实滚动根 #root、多锁计数和 inline style 恢复，避免弹层回退到 body/window 假设。
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";

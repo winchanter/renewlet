@@ -505,7 +505,7 @@ msgstr "OpenAI Compatible"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:260
 msgid "aiRecognition.thinkingUnsupportedCompatible"
-msgstr "OpenAI Compatible has no unified thinking standard, so Renewlet will not pass thinking controls."
+msgstr "OpenAI Compatible has no unified thinking standard, so Renewo will not pass thinking controls."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:275
@@ -580,7 +580,7 @@ msgstr "Region"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:740
 msgid "settings.dingtalkKeywordPlaceholder"
-msgstr "Renewlet"
+msgstr "Renewo"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:484
@@ -923,6 +923,16 @@ msgid "settings.uploadedIconsDeleteBlockedByBoth"
 msgstr "Still used by {subscriptionCount} subscriptions and {paymentMethodCount} payment methods. Replace the Logo and payment method icon references first."
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/settings.ts:225
+msgid "settings.uploadedIconsDeleteBlockedByBillingRecords"
+msgstr "Still used as a receipt by {count} billing records. Remove it from those records in the history dialog first."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/settings.ts:226
+msgid "settings.uploadedIconsDeleteBlockedByMixed"
+msgstr "Still referenced by subscription logos, payment method icons or billing record receipts. Remove those references before deleting."
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:769
 msgid "settings.barkKeyHelp"
 msgstr "Device Key from the Bark iOS app"
@@ -935,7 +945,7 @@ msgstr "API Key from the Notifyx platform"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:780
 msgid "settings.pushplusHelp"
-msgstr "Message token or user token from PushPlus. Renewlet sends text-template messages."
+msgstr "Message token or user token from PushPlus. Renewo sends text-template messages."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:688
@@ -955,7 +965,7 @@ msgstr "Never backed up"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:719
 msgid "settings.dingtalkWebhookHelp"
-msgstr "Use the custom bot URL from a DingTalk group. Renewlet sends DingTalk's required message structure."
+msgstr "Use the custom bot URL from a DingTalk group. Renewo sends DingTalk's required message structure."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:633
@@ -1514,7 +1524,7 @@ msgstr "Payload (optional JSON)"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:724
 msgid "settings.dingtalkTemplateHelp"
-msgstr "Variables: '{brand}', '{keyword}', '{title}', '{content}', '{timestamp}', '{itemCount}'. This only customizes the title and body, not the JSON body; Renewlet still generates the official DingTalk payload."
+msgstr "Variables: '{brand}', '{keyword}', '{title}', '{content}', '{timestamp}', '{itemCount}'. This only customizes the title and body, not the JSON body; Renewo still generates the official DingTalk payload."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:168
@@ -1699,7 +1709,7 @@ msgstr "Fill in WeCom bot Webhook URL"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:744
 msgid "settings.dingtalkSecretHelp"
-msgstr "When set, Renewlet generates timestamp/sign before sending and overwrites any existing signature query parameters."
+msgstr "When set, Renewo generates timestamp/sign before sending and overwrites any existing signature query parameters."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:661
@@ -3069,7 +3079,7 @@ msgstr "Test connection"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:749
 msgid "settings.wechatModeTag"
-msgstr "Prefix messages with a Renewlet marker"
+msgstr "Prefix messages with a Renewo marker"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:747
@@ -3209,12 +3219,12 @@ msgstr "Anyone with the link can open it. Regenerate to invalidate the old link.
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:216
 msgid "settings.uploadedIconsDeleteDescription"
-msgstr "Delete \"{name}\"? It cannot be restored through Renewlet after deletion."
+msgstr "Delete \"{name}\"? It cannot be restored through Renewo after deletion."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:217
 msgid "settings.uploadedIconsDeleteFallback"
-msgstr "Delete this uploaded icon? It cannot be restored through Renewlet after deletion."
+msgstr "Delete this uploaded icon? It cannot be restored through Renewo after deletion."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:623
@@ -3464,7 +3474,7 @@ msgstr "This category is used by {count} subscriptions. Change those subscriptio
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:535
 msgid "settings.cloudBackupDeleteDescription"
-msgstr "This deletes the remote ZIP and manifest. It cannot be restored through Renewlet after deletion."
+msgstr "This deletes the remote ZIP and manifest. It cannot be restored through Renewo after deletion."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:108
@@ -3544,7 +3554,7 @@ msgstr "Try again later."
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:444
 msgid "settings.publicApiPlainTokenHelp"
-msgstr "Copy and store it now. After closing this, Renewlet will only show the prefix and cannot display the plain token again."
+msgstr "Copy and store it now. After closing this, Renewo will only show the prefix and cannot display the plain token again."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:645
@@ -3764,7 +3774,7 @@ msgstr "The selected passkey is no longer available. Choose it again."
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:170
 msgid "settings.onlineIconSource.appStore.help"
-msgstr "Queries Apple Search API through the Renewlet backend and returns App icon URLs; US is queried by default, and images are not downloaded or re-hosted."
+msgstr "Queries Apple Search API through the Renewo backend and returns App icon URLs; US is queried by default, and images are not downloaded or re-hosted."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:761
@@ -3854,7 +3864,7 @@ msgstr "Retry"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:742
 msgid "settings.dingtalkKeywordHelp"
-msgstr "DingTalk keyword checks require the keyword to appear in the message body. If you enter a random word like Test1, it will also show in notifications. Use natural keywords such as Renewlet, subscription reminder, or renewal; use signing for hidden security checks."
+msgstr "DingTalk keyword checks require the keyword to appear in the message body. If you enter a random word like Test1, it will also show in notifications. Use natural keywords such as Renewo, subscription reminder, or renewal; use signing for hidden security checks."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/settings.ts:654

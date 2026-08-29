@@ -62,7 +62,7 @@ export interface WallosDatabaseModel {
   logoFiles: Map<string, ImportAssetSource>;
 }
 
-/** ImportBuildBaseContext 提供导入映射需要的当前 Renewlet 设置、配置和日期上下文。 */
+/** ImportBuildBaseContext 提供导入映射需要的当前 Renewo 设置、配置和日期上下文。 */
 export interface ImportBuildBaseContext {
   config: CustomConfig;
   settings: AppSettings;
@@ -99,7 +99,7 @@ export function buildFromRenewletExport(
   context: ImportBuildBaseContext,
   assetFiles = new Map<string, ImportAssetSource>(),
 ): PreparedImport {
-  // Renewlet v1 备份中的资产路径必须先转为本地待上传资产，不能直接把 ZIP 内路径写回订阅 logo。
+  // Renewo v1 备份中的资产路径必须先转为本地待上传资产，不能直接把 ZIP 内路径写回订阅 logo。
   const warnings: string[] = [];
   const assets: ImportAssetRef[] = [];
   const subscriptions = data.data.subscriptions.map((subscription, index) => {
@@ -179,7 +179,7 @@ function prepareRenewletExportCustomConfig(
 }
 
 /**
- * buildFromWallosDatabase 将 Wallos SQLite 模型转换为 Renewlet 导入 payload。
+ * buildFromWallosDatabase 将 Wallos SQLite 模型转换为 Renewo 导入 payload。
  *
  * 多用户备份默认选择第一个用户；UI 可重新传 wallosUserId 重新解析同一个文件。
  */
@@ -349,7 +349,7 @@ function mapWallosRow(
     status: wallosStatus(row),
     billing,
     reminderDays: wallosReminderDays(row, localWarnings),
-    // Wallos auto_renew 是真实续订语义；字段缺失时遵循 Renewlet 默认关闭，不从 cycle 推断 consent。
+    // Wallos auto_renew 是真实续订语义；字段缺失时遵循 Renewo 默认关闭，不从 cycle 推断 consent。
     autoRenew: row["auto_renew"] !== undefined && Number(row["auto_renew"]) === 1 && Number(row["cycle"] ?? 3) !== 5,
     autoCalculateNextBillingDate: false,
     sourceId: `${String(row["user_id"] ?? "1")}:${String(row["id"] ?? stableHash(JSON.stringify(row)))}`,
@@ -454,7 +454,7 @@ function isExportAssetPath(value: string | undefined): boolean {
 function wallosBilling(row: WallosTableRow, warnings: string[]): ImportBillingCycle {
   const cycle = Number(row["cycle"] ?? 3);
   const frequency = Math.max(1, Number(row["frequency"] ?? 1) || 1);
-  // Wallos cycle=5 是买断/终身授权；Renewlet 用 one-time 表达计费模型，不再伪装成取消订阅。
+  // Wallos cycle=5 是买断/终身授权；Renewo 用 one-time 表达计费模型，不再伪装成取消订阅。
   if (cycle === 5) {
     warnings.push(IMPORT_MESSAGE_CODES.oneTime);
     return { billingCycle: "one-time" };

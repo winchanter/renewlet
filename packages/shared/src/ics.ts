@@ -16,7 +16,7 @@ export interface RenewalCalendarOptions {
 
 const CALENDAR_TTL_SECONDS = 60 * 60;
 const PROD_ID = {
-  company: "Renewlet",
+  company: "Renewo",
   language: "EN",
   product: "Renewal Calendar",
 } as const;

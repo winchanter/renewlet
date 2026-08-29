@@ -23,15 +23,15 @@ const messages: Record<string, string> = {
   "settings.channelConfig": "配置 {channel}",
   "settings.channelEnabledHelp": "该渠道已启用。",
   "settings.dingtalkKeyword": "自定义关键词（可选）",
-  "settings.dingtalkKeywordHelp": "钉钉关键词校验要求关键词出现在消息正文中；如果填写 Test1 这类随机词，通知里也会显示它。建议使用 Renewlet、订阅提醒、续费这类自然关键词；隐藏式安全校验请使用加签。",
-  "settings.dingtalkKeywordPlaceholder": "Renewlet",
+  "settings.dingtalkKeywordHelp": "钉钉关键词校验要求关键词出现在消息正文中；如果填写 Test1 这类随机词，通知里也会显示它。建议使用 Renewo、订阅提醒、续费这类自然关键词；隐藏式安全校验请使用加签。",
+  "settings.dingtalkKeywordPlaceholder": "Renewo",
   "settings.dingtalkSecret": "加签密钥（可选）",
   "settings.dingtalkSecretHelp": "填写后自动生成签名。",
   "settings.dingtalkTitleTemplate": "标题模板",
   "settings.dingtalkTitleTemplatePlaceholder": "例如：{brand} · {title}",
   "settings.dingtalkContentTemplate": "正文模板",
   "settings.dingtalkContentTemplatePlaceholder": "例如：{title}\n\n{content}\n\n{timestamp}",
-  "settings.dingtalkTemplateHelp": "变量：{brand}、{keyword}、{title}、{content}、{timestamp}、{itemCount}。这里只改标题和正文，不是 JSON body 模板；Renewlet 仍会生成钉钉官方 payload。",
+  "settings.dingtalkTemplateHelp": "变量：{brand}、{keyword}、{title}、{content}、{timestamp}、{itemCount}。这里只改标题和正文，不是 JSON body 模板；Renewo 仍会生成钉钉官方 payload。",
   "settings.dingtalkTemplateExamples": "模板示例",
   "settings.dingtalkTemplateExamplesOpen": "查看模板示例",
   "settings.dingtalkTemplateExamplesDescription": "选择一个示例后仍可继续编辑。",
@@ -47,7 +47,7 @@ const messages: Record<string, string> = {
   "settings.dingtalkTemplateExampleCount": "数量摘要",
   "settings.dingtalkTemplateExampleCountTitle": "{brand} · {itemCount} 项提醒",
   "settings.dingtalkTemplateExampleCountContent": "【{title}】\n\n{content}\n\n发送时间：{timestamp}",
-  "settings.dingtalkWebhookHelp": "Renewlet 会按钉钉固定消息结构发送。",
+  "settings.dingtalkWebhookHelp": "Renewo 会按钉钉固定消息结构发送。",
   "settings.dingtalkWebhookUrl": "机器人 Webhook URL",
   "settings.discordBotAvatarUrl": "机器人头像 URL（可选）",
   "settings.discordBotUsername": "机器人用户名（可选）",
@@ -124,11 +124,11 @@ describe("Discord and PushPlus notification settings", () => {
     );
 
     await user.type(screen.getByLabelText("Webhook URL"), "https://discord.com/api/webhooks/123/token");
-    await user.type(screen.getByLabelText("机器人用户名（可选）"), "Renewlet");
+    await user.type(screen.getByLabelText("机器人用户名（可选）"), "Renewo");
     await user.type(screen.getByLabelText("机器人头像 URL（可选）"), "https://cdn.example.com/avatar.png");
 
     expect(screen.getByLabelText("Webhook URL")).toHaveValue("https://discord.com/api/webhooks/123/token");
-    expect(screen.getByLabelText("机器人用户名（可选）")).toHaveValue("Renewlet");
+    expect(screen.getByLabelText("机器人用户名（可选）")).toHaveValue("Renewo");
     expect(screen.getByLabelText("机器人头像 URL（可选）")).toHaveValue("https://cdn.example.com/avatar.png");
     const discordIdentityRow = screen.getByLabelText("机器人用户名（可选）").closest('[data-slot="form-field-row"]');
     expect(discordIdentityRow).toHaveAttribute("data-align-at", "sm");
@@ -147,7 +147,7 @@ describe("Discord and PushPlus notification settings", () => {
       "href",
       "https://dingtalk.apifox.cn/doc-3550006.md",
     );
-    expect(screen.getByText("钉钉关键词校验要求关键词出现在消息正文中；如果填写 Test1 这类随机词，通知里也会显示它。建议使用 Renewlet、订阅提醒、续费这类自然关键词；隐藏式安全校验请使用加签。")).toBeInTheDocument();
+    expect(screen.getByText("钉钉关键词校验要求关键词出现在消息正文中；如果填写 Test1 这类随机词，通知里也会显示它。建议使用 Renewo、订阅提醒、续费这类自然关键词；隐藏式安全校验请使用加签。")).toBeInTheDocument();
     const templateExamplesTrigger = screen.getByRole("button", { name: "查看模板示例" });
     expect(templateExamplesTrigger).toHaveClass("h-8", "border", "border-border", "text-xs");
     expect(screen.queryByText("选择一个示例后仍可继续编辑。")).not.toBeInTheDocument();
@@ -174,15 +174,15 @@ describe("Discord and PushPlus notification settings", () => {
     await user.type(screen.getByLabelText("机器人 Webhook URL"), "https://oapi.dingtalk.com/robot/send?access_token=token");
     await user.clear(screen.getByLabelText("标题模板"));
     await user.clear(screen.getByLabelText("正文模板"));
-    await user.type(screen.getByLabelText("标题模板"), "Renewlet title template");
-    await user.type(screen.getByLabelText("正文模板"), "Renewlet body template");
-    await user.type(screen.getByLabelText("自定义关键词（可选）"), "Renewlet");
+    await user.type(screen.getByLabelText("标题模板"), "Renewo title template");
+    await user.type(screen.getByLabelText("正文模板"), "Renewo body template");
+    await user.type(screen.getByLabelText("自定义关键词（可选）"), "Renewo");
     await user.type(screen.getByLabelText("加签密钥（可选）"), "SECsecret");
 
     expect(screen.getByLabelText("机器人 Webhook URL")).toHaveValue("https://oapi.dingtalk.com/robot/send?access_token=token");
-    expect(screen.getByLabelText("标题模板")).toHaveValue("Renewlet title template");
-    expect(screen.getByLabelText("正文模板")).toHaveValue("Renewlet body template");
-    expect(screen.getByLabelText("自定义关键词（可选）")).toHaveValue("Renewlet");
+    expect(screen.getByLabelText("标题模板")).toHaveValue("Renewo title template");
+    expect(screen.getByLabelText("正文模板")).toHaveValue("Renewo body template");
+    expect(screen.getByLabelText("自定义关键词（可选）")).toHaveValue("Renewo");
     expect(screen.getByLabelText("加签密钥（可选）")).toHaveValue("SECsecret");
     const dingtalkTemplateRow = screen.getByLabelText("标题模板").closest('[data-slot="form-field-row"]');
     expect(dingtalkTemplateRow).toHaveAttribute("data-align-at", "sm");

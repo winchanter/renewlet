@@ -81,7 +81,7 @@ msgstr "Create admin"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/auth.ts:48
 msgid "setup.title"
-msgstr "Initialize Renewlet"
+msgstr "Initialize Renewo"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/auth.ts:55

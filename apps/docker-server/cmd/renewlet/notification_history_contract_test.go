@@ -24,7 +24,7 @@ func TestCreateJobResultUsesEmptyArraysForEmptyCollections(t *testing.T) {
 		},
 		defaultAppSettings(),
 		notificationMessage{
-			Title:      "Renewlet 订阅提醒",
+			Title:      "Renewo 订阅提醒",
 			Content:    "No subscriptions need reminders today.",
 			Timestamp:  "2026-05-17 08:00:00 UTC",
 			HasPayload: false,
@@ -104,7 +104,7 @@ func TestNotificationHistoryRouteDropsRawLegacyMalformedResult(t *testing.T) {
 			"showExpired":true
 		},
 		"message":{
-			"title":"Renewlet 订阅提醒",
+			"title":"Renewo 订阅提醒",
 			"content":"今天没有需要提醒的订阅。",
 			"timestamp":"2026-05-17 08:00:00 UTC",
 			"hasPayload":false,

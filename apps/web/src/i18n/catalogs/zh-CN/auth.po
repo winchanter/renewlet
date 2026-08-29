@@ -81,7 +81,7 @@ msgstr "创建管理员"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/auth.ts:48
 msgid "setup.title"
-msgstr "初始化 Renewlet"
+msgstr "初始化 Renewo"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/auth.ts:55

@@ -123,7 +123,7 @@ func TestDemoSubscriptionSeedsUseDeveloperDataAndRollingDates(t *testing.T) {
 			t.Fatalf("%s leaked old demo-only payment method %q", seed.Name, seed.PaymentMethod)
 		}
 		if strings.Contains(strings.ToLower(seed.Name), "renewlet") || strings.Contains(seed.Website, "renewlet.app") {
-			t.Fatalf("demo seed must not include Renewlet fake domain data: %#v", seed)
+			t.Fatalf("demo seed must not include Renewo fake domain data: %#v", seed)
 		}
 		if seed.Order != index+1 {
 			t.Fatalf("%s order should follow catalog position, got %d want %d", seed.Name, seed.Order, index+1)

@@ -45,7 +45,7 @@ describe("TurnstileWidget", () => {
     document.getElementById("renewlet-turnstile-api")?.remove();
   });
 
-  it("passes the resolved Renewlet theme to Cloudflare render options", async () => {
+  it("passes the resolved Renewo theme to Cloudflare render options", async () => {
     const api = installTurnstile();
 
     render(<TurnstileWidget siteKey="site-key" theme="dark" errorId="test-turnstile-error" resetSignal={0} onTokenChange={vi.fn()} />);

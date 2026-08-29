@@ -248,7 +248,7 @@ describe("ImportDataDialog", () => {
     renderImportDialog();
 
     await user.click(screen.getByRole("tab", { name: "粘贴 JSON" }));
-    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewlet 或 Wallos JSON..."), {
+    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewo 或 Wallos JSON..."), {
       target: {
         value: JSON.stringify([{
           Name: "GitHub Copilot Pro",
@@ -291,7 +291,7 @@ describe("ImportDataDialog", () => {
     const { rerenderOpen } = renderImportDialog();
 
     await user.click(screen.getByRole("tab", { name: "粘贴 JSON" }));
-    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewlet 或 Wallos JSON..."), {
+    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewo 或 Wallos JSON..."), {
       target: {
         value: JSON.stringify([{
           Name: "GitHub Copilot Pro",
@@ -327,7 +327,7 @@ describe("ImportDataDialog", () => {
     renderImportDialog();
 
     await user.click(screen.getByRole("tab", { name: "粘贴 JSON" }));
-    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewlet 或 Wallos JSON..."), {
+    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewo 或 Wallos JSON..."), {
       target: {
         value: JSON.stringify([{
           Name: "GitHub Copilot Pro",
@@ -355,7 +355,7 @@ describe("ImportDataDialog", () => {
     renderImportDialog();
 
     await user.click(screen.getByRole("tab", { name: "粘贴 JSON" }));
-    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewlet 或 Wallos JSON..."), {
+    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewo 或 Wallos JSON..."), {
       target: {
         value: JSON.stringify([{
           Name: "Manual Logo App",
@@ -383,7 +383,7 @@ describe("ImportDataDialog", () => {
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await user.click(screen.getByRole("tab", { name: "粘贴 JSON" }));
-    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewlet 或 Wallos JSON..."), {
+    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewo 或 Wallos JSON..."), {
       target: {
         value: JSON.stringify([{
           Name: "Uploaded Logo App",
@@ -416,7 +416,7 @@ describe("ImportDataDialog", () => {
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await user.click(screen.getByRole("tab", { name: "粘贴 JSON" }));
-    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewlet 或 Wallos JSON..."), {
+    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewo 或 Wallos JSON..."), {
       target: {
         value: JSON.stringify([{
           Name: "Plain Import App",
@@ -449,7 +449,7 @@ describe("ImportDataDialog", () => {
     renderImportDialog();
 
     await user.click(screen.getByRole("tab", { name: "粘贴 JSON" }));
-    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewlet 或 Wallos JSON..."), {
+    fireEvent.change(screen.getByPlaceholderText("粘贴 Renewo 或 Wallos JSON..."), {
       target: {
         value: JSON.stringify([{
           Name: "Backend Error App",

@@ -16,7 +16,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:6
 msgid "publicStatus.headerMeta"
-msgstr "Renewlet · Updated at {time}"
+msgstr "Renewo · Updated at {time}"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:11

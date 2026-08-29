@@ -1,10 +1,10 @@
 package main
 
-// routes.go 集中注册 Renewlet 自定义 HTTP API。
+// routes.go 集中注册 Renewo 自定义 HTTP API。
 //
 // 架构位置：
 //   - 公共 route 暴露 health/setup/password-reset 状态。
-//   - 认证 route 只签发 Renewlet 产品 session，并把请求体交给严格 decoder 和命名 request struct。
+//   - 认证 route 只签发 Renewo 产品 session，并把请求体交给严格 decoder 和命名 request struct。
 //   - route 返回的 response struct 是前端 Zod schema 的运行时契约。
 //
 // 请求流转：
@@ -340,7 +340,7 @@ func registerRoutes(app core.App, router *router.Router[*core.RequestEvent]) []a
 	auth.POST("/ai/subscriptions/recognize", func(e *core.RequestEvent) error { return handleAIRecognizeSubscriptions(app, e) })
 	auth.POST("/ai/subscriptions/test", func(e *core.RequestEvent) error { return handleAIRecognitionTestConnection(app, e) })
 	auth.POST("/ai/models/list", func(e *core.RequestEvent) error { return handleAIModelsList(app, e) })
-	// 业务数据统一经 Renewlet 产品 API；前端不得再直连 PocketBase collection REST，以免 Docker/Cloudflare 运行面漂移。
+	// 业务数据统一经 Renewo 产品 API；前端不得再直连 PocketBase collection REST，以免 Docker/Cloudflare 运行面漂移。
 	auth.GET("/api-tokens", func(e *core.RequestEvent) error { return handleAPITokensList(app, e) })
 	auth.POST("/api-tokens", func(e *core.RequestEvent) error { return handleAPITokenCreate(app, e) })
 	auth.DELETE("/api-tokens/{id}", func(e *core.RequestEvent) error { return handleAPITokenDelete(app, e) })

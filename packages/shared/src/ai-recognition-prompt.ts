@@ -88,7 +88,7 @@ export function buildAIRecognitionUserPrompt({
     "Existing user tags:",
     ...formatTagsForPrompt(configContext.tags),
     "",
-    "Available Renewlet configuration options:",
+    "Available Renewo configuration options:",
     "Categories:",
     ...formatConfigOptionsForPrompt(configContext.categories),
     "Payment methods:",

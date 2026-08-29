@@ -466,7 +466,7 @@ func TestMediaCandidatesSearchReturnsAppStoreBetweenBuiltInAndFavicon(t *testing
 			t.Fatalf("unexpected App Store params: %s", request.URL.RawQuery)
 		}
 		if country == "us" {
-			return jsonResponse(`{"resultCount":2,"results":[{"trackId":100,"trackName":"Renewlet Mobile","sellerName":"Renewlet","bundleId":"app.renewlet.mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image/us512.png","artworkUrl100":"https://is1-ssl.mzstatic.com/image/us100.png","artworkUrl60":"https://is1-ssl.mzstatic.com/image/us60.png","trackViewUrl":"https://apps.apple.com/us/app/renewlet/id100"},{"trackId":101,"trackName":"Renewlet Mobile Pro","sellerName":"Renewlet","bundleId":"app.renewlet.pro","artworkUrl100":"https://is1-ssl.mzstatic.com/image/pro100.png"}]}`), nil
+			return jsonResponse(`{"resultCount":2,"results":[{"trackId":100,"trackName":"Renewo Mobile","sellerName":"Renewo","bundleId":"app.renewlet.mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image/us512.png","artworkUrl100":"https://is1-ssl.mzstatic.com/image/us100.png","artworkUrl60":"https://is1-ssl.mzstatic.com/image/us60.png","trackViewUrl":"https://apps.apple.com/us/app/renewlet/id100"},{"trackId":101,"trackName":"Renewo Mobile Pro","sellerName":"Renewo","bundleId":"app.renewlet.pro","artworkUrl100":"https://is1-ssl.mzstatic.com/image/pro100.png"}]}`), nil
 		}
 		t.Fatalf("unexpected storefront for default App Store search: %s", country)
 		return nil, nil
@@ -476,7 +476,7 @@ func TestMediaCandidatesSearchReturnsAppStoreBetweenBuiltInAndFavicon(t *testing
 	bodyBytes, err := json.Marshal(mediaCandidateResolveRequest{
 		Kind:  "logo",
 		Mode:  "search",
-		Items: []mediaCandidateResolveItem{{ID: "renewlet-mobile", Name: "Renewlet Mobile"}},
+		Items: []mediaCandidateResolveItem{{ID: "renewlet-mobile", Name: "Renewo Mobile"}},
 		Limit: intPtr(5),
 	})
 	if err != nil {
@@ -527,14 +527,14 @@ func TestMediaCandidatesRespectsAppStoreStorefrontSettings(t *testing.T) {
 			restore := stubAppStoreIconHTTPClient(t, func(request *http.Request) (*http.Response, error) {
 				country := request.URL.Query().Get("country")
 				calls = append(calls, country)
-				return jsonResponse(`{"resultCount":1,"results":[{"trackId":200,"trackName":"Renewlet Mobile","sellerName":"Renewlet","bundleId":"app.renewlet.mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image/` + country + `.png"}]}`), nil
+				return jsonResponse(`{"resultCount":1,"results":[{"trackId":200,"trackName":"Renewo Mobile","sellerName":"Renewo","bundleId":"app.renewlet.mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image/` + country + `.png"}]}`), nil
 			})
 			defer restore()
 
 			bodyBytes, err := json.Marshal(mediaCandidateResolveRequest{
 				Kind:  "logo",
 				Mode:  "search",
-				Items: []mediaCandidateResolveItem{{ID: "renewlet-mobile", Name: "Renewlet Mobile"}},
+				Items: []mediaCandidateResolveItem{{ID: "renewlet-mobile", Name: "Renewo Mobile"}},
 				Limit: intPtr(5),
 			})
 			if err != nil {
@@ -570,11 +570,11 @@ func TestMediaCandidatesDoesNotUseAppStoreWhenDisabled(t *testing.T) {
 	callCount := 0
 	restore := stubAppStoreIconHTTPClient(t, func(request *http.Request) (*http.Response, error) {
 		callCount++
-		return jsonResponse(`{"resultCount":1,"results":[{"trackId":1,"trackName":"Renewlet Mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image.png"}]}`), nil
+		return jsonResponse(`{"resultCount":1,"results":[{"trackId":1,"trackName":"Renewo Mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image.png"}]}`), nil
 	})
 	defer restore()
 
-	tc := mediaCandidateResolveRequest{Kind: "logo", Mode: "search", Items: []mediaCandidateResolveItem{{ID: "disabled", Name: "Renewlet Mobile"}}, Limit: intPtr(5)}
+	tc := mediaCandidateResolveRequest{Kind: "logo", Mode: "search", Items: []mediaCandidateResolveItem{{ID: "disabled", Name: "Renewo Mobile"}}, Limit: intPtr(5)}
 	bodyBytes, err := json.Marshal(tc)
 	if err != nil {
 		t.Fatal(err)
@@ -601,13 +601,13 @@ func TestMediaCandidatesDoesNotUseAppStoreForAutoOrIconSearch(t *testing.T) {
 	callCount := 0
 	restore := stubAppStoreIconHTTPClient(t, func(request *http.Request) (*http.Response, error) {
 		callCount++
-		return jsonResponse(`{"resultCount":1,"results":[{"trackId":1,"trackName":"Renewlet Mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image.png"}]}`), nil
+		return jsonResponse(`{"resultCount":1,"results":[{"trackId":1,"trackName":"Renewo Mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image.png"}]}`), nil
 	})
 	defer restore()
 
 	for _, tc := range []mediaCandidateResolveRequest{
-		{Kind: "logo", Mode: "auto", Items: []mediaCandidateResolveItem{{ID: "auto", Name: "Renewlet Mobile"}}, Limit: intPtr(5)},
-		{Kind: "icon", Mode: "search", Items: []mediaCandidateResolveItem{{ID: "icon", Name: "Renewlet Mobile"}}, Limit: intPtr(5)},
+		{Kind: "logo", Mode: "auto", Items: []mediaCandidateResolveItem{{ID: "auto", Name: "Renewo Mobile"}}, Limit: intPtr(5)},
+		{Kind: "icon", Mode: "search", Items: []mediaCandidateResolveItem{{ID: "icon", Name: "Renewo Mobile"}}, Limit: intPtr(5)},
 	} {
 		bodyBytes, err := json.Marshal(tc)
 		if err != nil {
@@ -636,7 +636,7 @@ func TestMediaCandidatesDoesNotUseAppStoreForBatchSearch(t *testing.T) {
 	callCount := 0
 	restore := stubAppStoreIconHTTPClient(t, func(request *http.Request) (*http.Response, error) {
 		callCount++
-		return jsonResponse(`{"resultCount":1,"results":[{"trackId":1,"trackName":"Renewlet Mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image.png"}]}`), nil
+		return jsonResponse(`{"resultCount":1,"results":[{"trackId":1,"trackName":"Renewo Mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image.png"}]}`), nil
 	})
 	defer restore()
 
@@ -644,7 +644,7 @@ func TestMediaCandidatesDoesNotUseAppStoreForBatchSearch(t *testing.T) {
 		Kind: "logo",
 		Mode: "search",
 		Items: []mediaCandidateResolveItem{
-			{ID: "one", Name: "Renewlet Mobile"},
+			{ID: "one", Name: "Renewo Mobile"},
 			{ID: "two", Name: "Another Mobile"},
 		},
 		Limit: intPtr(5),
@@ -671,17 +671,17 @@ func TestAppStoreIconProviderCachesAndFallsBackToStaleResults(t *testing.T) {
 	callCount := 0
 	restore := stubAppStoreIconHTTPClient(t, func(request *http.Request) (*http.Response, error) {
 		callCount++
-		return jsonResponse(`{"resultCount":1,"results":[{"trackId":200,"trackName":"Renewlet Mobile","sellerName":"Renewlet","bundleId":"app.renewlet.mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image/cache.png"}]}`), nil
+		return jsonResponse(`{"resultCount":1,"results":[{"trackId":200,"trackName":"Renewo Mobile","sellerName":"Renewo","bundleId":"app.renewlet.mobile","artworkUrl512":"https://is1-ssl.mzstatic.com/image/cache.png"}]}`), nil
 	})
 	defer restore()
-	candidates, err := searchAppStoreIconCandidates(t.Context(), "logo", "Renewlet Mobile", 4, appStoreDefaultStorefronts)
+	candidates, err := searchAppStoreIconCandidates(t.Context(), "logo", "Renewo Mobile", 4, appStoreDefaultStorefronts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(candidates) != 1 || candidates[0].URL != "https://is1-ssl.mzstatic.com/image/cache.png" {
 		t.Fatalf("unexpected cached App Store candidates: %#v", candidates)
 	}
-	candidates, err = searchAppStoreIconCandidates(t.Context(), "logo", "Renewlet Mobile", 4, appStoreDefaultStorefronts)
+	candidates, err = searchAppStoreIconCandidates(t.Context(), "logo", "Renewo Mobile", 4, appStoreDefaultStorefronts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -698,7 +698,7 @@ func TestAppStoreIconProviderCachesAndFallsBackToStaleResults(t *testing.T) {
 		appStoreIconsCache.entries[key] = entry
 	}
 	appStoreIconsCache.mu.Unlock()
-	candidates, err = searchAppStoreIconCandidates(t.Context(), "logo", "Renewlet Mobile", 4, appStoreDefaultStorefronts)
+	candidates, err = searchAppStoreIconCandidates(t.Context(), "logo", "Renewo Mobile", 4, appStoreDefaultStorefronts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -719,11 +719,11 @@ func TestAppStoreIconProviderRejectsOversizedResponses(t *testing.T) {
 }
 
 func TestAppStoreIconProviderRejectsUnsafeArtworkURLs(t *testing.T) {
-	candidates := appStoreResultsToCandidates("logo", "renewlet mobile", []appStoreCountryResult{{
+	candidates := appStoreResultsToCandidates("logo", "renewo mobile", []appStoreCountryResult{{
 		country: "us",
 		results: []appStoreAPIResult{
-			{TrackID: 1, TrackName: "Renewlet Mobile", ArtworkURL512: "https://example.com/not-apple.png"},
-			{TrackID: 2, TrackName: "Renewlet Mobile", ArtworkURL100: "https://is1-ssl.mzstatic.com/image/safe.png"},
+			{TrackID: 1, TrackName: "Renewo Mobile", ArtworkURL512: "https://example.com/not-apple.png"},
+			{TrackID: 2, TrackName: "Renewo Mobile", ArtworkURL100: "https://is1-ssl.mzstatic.com/image/safe.png"},
 		},
 	}}, 4)
 

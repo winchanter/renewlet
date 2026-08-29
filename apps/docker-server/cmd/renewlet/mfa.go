@@ -116,7 +116,7 @@ func productAuthProtectedForUser(app core.App, userID string) (bool, error) {
 func startTOTPSetup(app core.App, user *core.Record) (mfaTotpSetupResponse, error) {
 	// TOTP seed 先进入短期 setup ticket；只有启用接口校验当前密码和验证码后才会成为正式凭据。
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "Renewlet",
+		Issuer:      "Renewo",
 		AccountName: user.Email(),
 		Period:      mfaTOTPPeriodSeconds,
 		SecretSize:  20,

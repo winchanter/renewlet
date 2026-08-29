@@ -244,7 +244,7 @@ describe("wallos import", () => {
     expect(prepared.payload.subscriptions.map((subscription) => subscription.reminderDays)).toEqual([-1, 7]);
   });
 
-  it("imports Wallos categories with localized labels without rewriting Renewlet built-ins", async () => {
+  it("imports Wallos categories with localized labels without rewriting Renewo built-ins", async () => {
     const prepared = await parseJsonText(JSON.stringify({
       success: true,
       subscriptions: [{
@@ -389,7 +389,7 @@ describe("wallos import", () => {
     expect(subscription?.notes).toContain("Wallos paid by: Alex");
   });
 
-  it("maps Wallos default payment methods to Renewlet built-ins", async () => {
+  it("maps Wallos default payment methods to Renewo built-ins", async () => {
     const wallosDefaults = [
       ["Direct Debit", "direct_debit"],
       ["Money", "money"],
@@ -480,7 +480,7 @@ describe("wallos import", () => {
     expect(formatted.join("\n")).not.toContain("IMPORT_WARNING_WALLOS");
   });
 
-  it("maps Wallos empty category names to Renewlet other without adding a custom category", async () => {
+  it("maps Wallos empty category names to Renewo other without adding a custom category", async () => {
     const prepared = await parseJsonText(JSON.stringify([{
       Name: "Unsorted",
       "Payment Cycle": "Monthly",

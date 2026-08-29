@@ -93,7 +93,7 @@ function versionFixture(overrides: Record<string, unknown> = {}) {
     releaseInfo: {
       tagName: "v1.1.0",
       version: "1.1.0",
-      name: "Renewlet 1.1.0",
+      name: "Renewo 1.1.0",
       body: "更新日志",
       publishedAt: "2026-05-26T00:00:00Z",
       htmlUrl: "https://github.com/zhiyingzzhou/renewlet/releases/tag/v1.1.0",
@@ -392,7 +392,7 @@ describe("SystemUpdateDialog", () => {
       releaseInfo: {
         tagName: "v1.1.0",
         version: "1.1.0",
-        name: "Renewlet 1.1.0",
+        name: "Renewo 1.1.0",
         body: "",
         publishedAt: "2026-05-26T00:00:00Z",
         htmlUrl: "https://github.com/zhiyingzzhou/renewlet/releases/tag/v1.1.0",
@@ -450,7 +450,7 @@ describe("SystemUpdateDialog", () => {
       releaseInfo: {
         tagName: "v1.1.0",
         version: "1.1.0",
-        name: "Renewlet 1.1.0",
+        name: "Renewo 1.1.0",
         body: "",
         publishedAt: "2026-05-26T00:00:00Z",
         htmlUrl: "https://github.com/zhiyingzzhou/renewlet/releases/tag/v1.1.0",
@@ -491,7 +491,7 @@ describe("SystemUpdateDialog", () => {
       releaseInfo: {
         tagName: "v0.1.1",
         version: "0.1.1",
-        name: "Renewlet 0.1.1",
+        name: "Renewo 0.1.1",
         body: "",
         publishedAt: "2026-06-09T00:00:00Z",
         htmlUrl: "https://github.com/zhiyingzzhou/renewlet/releases/tag/v0.1.1",
@@ -644,7 +644,7 @@ describe("SystemUpdateDialog", () => {
       if (input.startsWith("/api/app/system/version")) return Promise.resolve(versionFixture());
       if (input === "/api/app/admin/system/update/status") return Promise.resolve({ operation: null });
       if (input === "/api/app/admin/system/update" && init?.method === "POST") {
-        return Promise.reject(new ApiError("无法连接到 Renewlet 服务", 0, undefined, "network"));
+        return Promise.reject(new ApiError("无法连接到 Renewo 服务", 0, undefined, "network"));
       }
       return Promise.reject(new Error(`Unexpected request ${input}`));
     });
@@ -655,10 +655,10 @@ describe("SystemUpdateDialog", () => {
     await user.click(await screen.findByRole("button", { name: "打开系统更新" }));
     await user.click(await screen.findByRole("button", { name: "立即更新" }));
 
-    expect(await screen.findByText("无法连接到 Renewlet 服务")).toBeInTheDocument();
+    expect(await screen.findByText("无法连接到 Renewo 服务")).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "错误响应详情" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "查看错误响应" }));
-    expect(await screen.findByRole("dialog", { name: "错误响应详情" })).toHaveTextContent("无法连接到 Renewlet 服务");
+    expect(await screen.findByRole("dialog", { name: "错误响应详情" })).toHaveTextContent("无法连接到 Renewo 服务");
   });
 
   it("keeps a retry POST failure separate from the stale operation error", async () => {

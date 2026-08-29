@@ -319,7 +319,8 @@ export function generateFaviconCandidates(
 ): MediaCandidate[] {
   // favicon 候选只生成确定性 URL，不在后端抓取页面或图片；浏览器展示阶段自行决定是否加载成功。
   if (limit <= 0) return [];
-  const tlds = resolver.config.favicon.fallbackTlds[kind];
+  // favicon 候选只服务 logo/icon；receipt 凭证不走域名推断，配置也不声明对应 fallbackTlds。
+  const tlds = kind === "receipt" ? [] : resolver.config.favicon.fallbackTlds[kind];
   const domains = candidateDomains(resolver, name, website, tlds).slice(0, resolver.config.limits.maxCandidateDomains);
   const candidates: MediaCandidate[] = [];
   for (const item of domains) {

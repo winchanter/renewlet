@@ -27,7 +27,7 @@ describe("RenewletBrandMark", () => {
       </MemoryRouter>,
     );
 
-    const mark = screen.getByRole("link", { name: "Renewlet" });
+    const mark = screen.getByRole("link", { name: "Renewo" });
     expect(mark).toHaveClass(
       "bg-brand-mark",
       "text-brand-mark-foreground",
@@ -43,11 +43,11 @@ describe("RenewletBrandMark", () => {
 
 describe("RenewletBrandLockup", () => {
   it("keeps the mark decorative while exposing the visible title", () => {
-    render(<RenewletBrandLockup title="Renewlet" subtitle="Subscription manager" />);
+    render(<RenewletBrandLockup title="Renewo" subtitle="Subscription manager" />);
 
-    expect(screen.getByRole("heading", { name: "Renewlet" })).toHaveClass("truncate");
+    expect(screen.getByRole("heading", { name: "Renewo" })).toHaveClass("truncate");
     expect(screen.getByText("Subscription manager")).toHaveClass("truncate", "text-muted-foreground");
-    expect(screen.getByText("Renewlet").closest("div")?.previousElementSibling).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("Renewo").closest("div")?.previousElementSibling).toHaveAttribute("aria-hidden", "true");
   });
 
   it("accepts explicit undefined class props under exact optional property types", () => {
@@ -55,7 +55,7 @@ describe("RenewletBrandLockup", () => {
 
     render(
       <RenewletBrandLockup
-        title="Renewlet"
+        title="Renewo"
         subtitle={undefined}
         className={optionalClassName}
         markClassName={optionalClassName}
@@ -65,6 +65,6 @@ describe("RenewletBrandLockup", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Renewlet" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Renewo" })).toBeInTheDocument();
   });
 });

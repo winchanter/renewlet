@@ -55,7 +55,7 @@ function editableSettingsFromPublicView(settings: PublicAppSettings): AppSetting
   };
 }
 
-/** 设置服务统一调用 Renewlet 产品 API；Docker 端也不能回退到 PocketBase collection REST。 */
+/** 设置服务统一调用 Renewo 产品 API；Docker 端也不能回退到 PocketBase collection REST。 */
 export const settingsService = {
   async get(signal?: AbortSignal): Promise<SettingsReadModel> {
     const userId = getCurrentUserId();

@@ -91,7 +91,7 @@ func aiModelListShapeForProtocol(transportProtocol string) string {
 
 func aiProviderAuthHeaders(transportProtocol string, apiKey string) http.Header {
 	headers := http.Header{}
-	// 鉴权头由 canonical 协议决定；OpenAI-compatible 在 Renewlet 内固定走 OpenAI Chat，不再混发其它平台 header。
+	// 鉴权头由 canonical 协议决定；OpenAI-compatible 在 Renewo 内固定走 OpenAI Chat，不再混发其它平台 header。
 	switch transportProtocol {
 	case aiProtocolAnthropicMessages:
 		if apiKey != "" {

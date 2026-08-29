@@ -1,6 +1,6 @@
 package main
 
-// app_data_routes.go 承载 Docker/Go 运行面的 Renewlet 产品数据 API。
+// app_data_routes.go 承载 Docker/Go 运行面的 Renewo 产品数据 API。
 //
 // 前端业务数据统一走 `/api/app/*`，不再按 Docker/Cloudflare 分叉到 PocketBase collection REST。
 // Route 只处理严格 JSON、owner 查询和响应 DTO；最终写入仍交给 PocketBase hooks 做持久层规范化。

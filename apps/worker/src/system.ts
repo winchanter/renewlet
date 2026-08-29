@@ -195,7 +195,7 @@ function releaseCheckDeferred(currentVersion: string, locale: ReturnType<typeof 
 async function fetchLatestStableRelease(env: Env): Promise<SystemReleaseEntry | null> {
   const headers: HeadersInit = {
     accept: "application/atom+xml",
-    "user-agent": `Renewlet/${env.RENEWLET_VERSION?.trim() || rootPackageJson.version}`,
+    "user-agent": `Renewo/${env.RENEWLET_VERSION?.trim() || rootPackageJson.version}`,
   };
   let response: Response;
   response = await sendUpstreamRequest(SYSTEM_RELEASE_FEED_URL, { headers }, {

@@ -19,7 +19,7 @@ type apiErrorBody struct {
 	RequestID string `json:"requestId,omitempty"`
 }
 
-// apiErrorMiddleware 只挂在 Renewlet 产品 API 上；PocketBase Admin UI 和静态资源继续使用平台原生响应。
+// apiErrorMiddleware 只挂在 Renewo 产品 API 上；PocketBase Admin UI 和静态资源继续使用平台原生响应。
 func apiErrorMiddleware(e *core.RequestEvent) error {
 	err := e.Next()
 	if err == nil || e.Written() {
@@ -79,7 +79,7 @@ type apiRouteContract struct {
 	Methods []string
 }
 
-// API catch-all 只覆盖 Renewlet 产品 API 前缀和公开 feed，不接管 PocketBase Admin UI 或嵌入式静态资源。
+// API catch-all 只覆盖 Renewo 产品 API 前缀和公开 feed，不接管 PocketBase Admin UI 或嵌入式静态资源。
 func registerAPIFallbacks(api *pbrouter.RouterGroup[*core.RequestEvent], registry *productRouteRegistry) {
 	api.Any("/api/app", func(e *core.RequestEvent) error { return apiFallbackError(registry, e) })
 	api.Any("/api/app/{path...}", func(e *core.RequestEvent) error { return apiFallbackError(registry, e) })

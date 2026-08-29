@@ -396,7 +396,7 @@ describe("SettingsScreen section navigation", () => {
     confirmSpy.mockRestore();
   });
 
-  it("uses the Renewlet confirmation dialog for unsaved in-app navigation", async () => {
+  it("uses the Renewo confirmation dialog for unsaved in-app navigation", async () => {
     const user = userEvent.setup();
     const controller = createControllerState({
       hasUnsavedChanges: true,
@@ -407,7 +407,7 @@ describe("SettingsScreen section navigation", () => {
     window.history.replaceState(null, "", "/settings");
     renderSettingsScreen();
     const linkContainer = document.createElement("div");
-    linkContainer.innerHTML = `<a href="${window.location.origin}/" data-testid="test-logo-link">Renewlet</a>`;
+    linkContainer.innerHTML = `<a href="${window.location.origin}/" data-testid="test-logo-link">Renewo</a>`;
     document.body.appendChild(linkContainer);
     const link = screen.getByTestId("test-logo-link");
 

@@ -1,4 +1,4 @@
-// PocketBase 运行时认证测试保护“彻底切换”：Docker 前端也只能走 Renewlet 产品认证 API。
+// PocketBase 运行时认证测试保护“彻底切换”：Docker 前端也只能走 Renewo 产品认证 API。
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";

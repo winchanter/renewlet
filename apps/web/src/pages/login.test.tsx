@@ -95,13 +95,6 @@ function getShouldPersistSession(options: unknown): (session: unknown) => boolea
 
 describe("Login page", () => {
   beforeEach(() => {
-    // 登录页的条件式 Passkey UI 是浏览器级异步能力；这里固定为不可用，避免它抢跑密码/MFA 路径断言。
-    Object.defineProperty(window, "PublicKeyCredential", {
-      configurable: true,
-      value: {
-        isConditionalMediationAvailable: vi.fn().mockResolvedValue(false),
-      },
-    });
     mocks.signInEmail.mockReset();
     mocks.signInEmail.mockResolvedValue({ error: null });
     mocks.signInPasskey.mockReset();
@@ -200,31 +193,22 @@ describe("Login page", () => {
     expect(localStorage.getItem(rememberedLoginEmailStorageKey)).toBe("alice@example.com");
   });
 
-  it("does not start conditional passkey sign-in after password login has begun", async () => {
-    const user = userEvent.setup();
-    const availability = createDeferred<boolean>();
+  it("does not start passkey sign-in automatically on page load", async () => {
+    // 回归守卫：即使浏览器报告支持条件式 Passkey UI，登录页也必须等用户显式点击才发起 ceremony。
     Object.defineProperty(window, "PublicKeyCredential", {
       configurable: true,
       value: {
-        isConditionalMediationAvailable: vi.fn().mockReturnValue(availability.promise),
+        isConditionalMediationAvailable: vi.fn().mockResolvedValue(true),
       },
     });
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "alice@example.com");
-    await user.type(screen.getByLabelText("Password"), "password123");
-    await user.click(screen.getByRole("button", { name: "Log in" }));
-    await waitFor(() => {
-      expect(mocks.signInEmail).toHaveBeenCalled();
-    });
-
-    availability.resolve(true);
+    await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
 
     expect(mocks.signInPasskey).not.toHaveBeenCalled();
-    expect(mocks.cancelPasskeyCeremony).toHaveBeenCalled();
-    expect(localStorage.getItem(rememberedLoginEmailStorageKey)).toBe("alice@example.com");
+    expect(mocks.cancelPasskeyCeremony).not.toHaveBeenCalled();
   });
 
   it("cancels the browser passkey ceremony as soon as password login starts", async () => {
@@ -249,97 +233,22 @@ describe("Login page", () => {
     expect(mocks.cancelPasskeyCeremony).toHaveBeenCalledTimes(2);
   });
 
-  it("ignores stale conditional passkey results after password login succeeds", async () => {
-    const user = userEvent.setup();
-    const passkey = createDeferred<Awaited<ReturnType<typeof mocks.signInPasskey>>>();
-    Object.defineProperty(window, "PublicKeyCredential", {
-      configurable: true,
-      value: {
-        isConditionalMediationAvailable: vi.fn().mockResolvedValue(true),
-      },
-    });
-    mocks.signInPasskey.mockReturnValue(passkey.promise);
-    renderLogin();
-
-    await waitFor(() => {
-      expect(mocks.signInPasskey).toHaveBeenCalled();
-    });
-    const passkeyOptions = mocks.signInPasskey.mock.calls[0]?.[0] as {
-      useBrowserAutofill?: boolean;
-      shouldPersistSession?: (session: unknown) => boolean;
-    };
-    expect(passkeyOptions.useBrowserAutofill).toBe(true);
-    expect(passkeyOptions.shouldPersistSession).toEqual(expect.any(Function));
-    await user.type(screen.getByLabelText("Email"), "alice@example.com");
-    await user.type(screen.getByLabelText("Password"), "password123");
-    await user.click(screen.getByRole("button", { name: "Log in" }));
-    await waitFor(() => {
-      expect(localStorage.getItem(rememberedLoginEmailStorageKey)).toBe("alice@example.com");
-    });
-
-    expect(mocks.cancelPasskeyCeremony).toHaveBeenCalled();
-    expect(passkeyOptions.shouldPersistSession?.({})).toBe(false);
-    passkey.resolve({
-      data: {
-        type: "session",
-        session: { expiresAt: "2026-07-01T00:00:00.000Z" },
-        user: { id: "user-1", email: "passkey@example.com", name: "Passkey", role: "user", banned: false },
-      },
-      error: null,
-      cancelled: false,
-    });
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(localStorage.getItem(rememberedLoginEmailStorageKey)).toBe("alice@example.com");
-    expect(mocks.reportClientError).not.toHaveBeenCalled();
-  });
-
-  it("keeps password input focus while a conditional passkey flow is pending", async () => {
-    const user = userEvent.setup();
-    const passkey = createDeferred<Awaited<ReturnType<typeof mocks.signInPasskey>>>();
-    Object.defineProperty(window, "PublicKeyCredential", {
-      configurable: true,
-      value: {
-        isConditionalMediationAvailable: vi.fn().mockResolvedValue(true),
-      },
-    });
-    mocks.signInPasskey.mockReturnValue(passkey.promise);
-    renderLogin();
-
-    await waitFor(() => {
-      expect(mocks.signInPasskey).toHaveBeenCalledTimes(1);
-    });
-    const passwordInput = screen.getByLabelText("Password");
-
-    await user.click(passwordInput);
-    expect(passwordInput).toHaveFocus();
-    await user.type(passwordInput, "password123");
-
-    expect(passwordInput).toHaveFocus();
-    expect(passwordInput).toHaveValue("password123");
-    expect(mocks.signInPasskey).toHaveBeenCalledTimes(1);
-  });
-
   it("cancels the browser passkey ceremony when the login page unmounts", async () => {
+    const user = userEvent.setup();
     const passkey = createDeferred<Awaited<ReturnType<typeof mocks.signInPasskey>>>();
-    Object.defineProperty(window, "PublicKeyCredential", {
-      configurable: true,
-      value: {
-        isConditionalMediationAvailable: vi.fn().mockResolvedValue(true),
-      },
-    });
     mocks.signInPasskey.mockReturnValue(passkey.promise);
     const { unmount } = renderLogin();
 
+    await user.click(screen.getByRole("button", { name: "Sign in with passkey" }));
     await waitFor(() => {
       expect(mocks.signInPasskey).toHaveBeenCalledTimes(1);
     });
-    expect(mocks.cancelPasskeyCeremony).not.toHaveBeenCalled();
+    // 显式发起 Passkey 登录时会先取消旧 ceremony。
+    expect(mocks.cancelPasskeyCeremony).toHaveBeenCalledTimes(1);
 
     unmount();
 
-    expect(mocks.cancelPasskeyCeremony).toHaveBeenCalledTimes(1);
+    expect(mocks.cancelPasskeyCeremony).toHaveBeenCalledTimes(2);
   });
 
   it("does not remember the email when login fails", async () => {

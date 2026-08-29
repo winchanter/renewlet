@@ -73,8 +73,6 @@ const Login = () => {
   const mountedRef = useRef(false);
   const passkeyFlowRef = useRef(0);
   const mfaVerifyFlowRef = useRef(0);
-  const suppressConditionalPasskeyRef = useRef(false);
-  const handlePasskeyLoginRef = useRef<((options?: { useBrowserAutofill?: boolean; silent?: boolean }) => Promise<void>) | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
@@ -117,7 +115,6 @@ const Login = () => {
 
   useEffect(() => {
     mountedRef.current = true;
-    suppressConditionalPasskeyRef.current = false;
     return () => {
       mountedRef.current = false;
       cancelPasskeyCeremony();
@@ -171,7 +168,6 @@ const Login = () => {
   };
 
   const finishSuccessfulSession = useCallback((loginEmail: string) => {
-    suppressConditionalPasskeyRef.current = true;
     cancelPasskeyCeremony();
     invalidateMfaVerifyFlows();
     if (rememberEmail) {
@@ -194,78 +190,34 @@ const Login = () => {
     if (token) clearError("turnstile");
   }, []);
 
-  const handlePasskeyLogin = useCallback(async (options: { useBrowserAutofill?: boolean; silent?: boolean } = {}) => {
-    if (!options.silent) {
-      cancelPasskeyCeremony();
-    }
+  const handlePasskeyLogin = useCallback(async () => {
+    cancelPasskeyCeremony();
     const flowId = passkeyFlowRef.current + 1;
     passkeyFlowRef.current = flowId;
-    if (!options.silent) {
-      suppressConditionalPasskeyRef.current = true;
-      invalidateMfaVerifyFlows();
-      // 显式 Passkey 可从 MFA 弹窗启动；启动 ceremony 时不能清 mfaState，否则取消会丢掉“密码已通过”的上下文。
-      setIsPasskeyLoading(true);
-    }
-    const isCurrentFlow = () => isPasskeyFlowActive(flowId);
+    invalidateMfaVerifyFlows();
+    // 显式 Passkey 可从 MFA 弹窗启动；启动 ceremony 时不能清 mfaState，否则取消会丢掉“密码已通过”的上下文。
+    setIsPasskeyLoading(true);
     try {
-      const passkeyOptions = typeof options.useBrowserAutofill === "boolean"
-        ? { useBrowserAutofill: options.useBrowserAutofill }
-        : {};
-      // 条件式 Passkey Promise 可能晚于密码登录返回；silent 模式用持久化守卫阻止旧流程写 session。
-      const { data, error, cancelled } = await authClient.signIn.passkey(options.silent
-        ? { ...passkeyOptions, shouldPersistSession: () => isCurrentFlow() }
-        : passkeyOptions);
-      if (!isCurrentFlow()) return;
-      if (cancelled) return;
+      const { data, error, cancelled } = await authClient.signIn.passkey();
+      if (!isPasskeyFlowActive(flowId) || cancelled) return;
       if (error) {
-        if (!options.silent) {
-          reportClientError(error, { source: "login-passkey" });
-          toast.error(t("auth.loginFailed"), {
-            description: getAuthDisplayMessage(error),
-          });
-        }
+        reportClientError(error, { source: "login-passkey" });
+        toast.error(t("auth.loginFailed"), {
+          description: getAuthDisplayMessage(error),
+        });
         return;
       }
       if (data?.user.email) finishSuccessfulSession(data.user.email);
     } catch (err: unknown) {
-      if (!isCurrentFlow()) return;
-      if (!options.silent) {
-        reportClientError(err, { source: "login-passkey" });
-        toast.error(t("auth.loginFailed"), {
-          description: getAuthDisplayMessage(err),
-        });
-      }
+      if (!isPasskeyFlowActive(flowId)) return;
+      reportClientError(err, { source: "login-passkey" });
+      toast.error(t("auth.loginFailed"), {
+        description: getAuthDisplayMessage(err),
+      });
     } finally {
-      if (!options.silent && mountedRef.current) setIsPasskeyLoading(false);
+      if (mountedRef.current) setIsPasskeyLoading(false);
     }
   }, [cancelPasskeyCeremony, finishSuccessfulSession, invalidateMfaVerifyFlows, isPasskeyFlowActive, t]);
-
-  useEffect(() => {
-    handlePasskeyLoginRef.current = handlePasskeyLogin;
-  }, [handlePasskeyLogin]);
-
-  useEffect(() => {
-    if (mfaState || typeof window === "undefined" || !("PublicKeyCredential" in window)) return;
-    const credentialCtor = window.PublicKeyCredential as typeof PublicKeyCredential & {
-      isConditionalMediationAvailable?: () => Promise<boolean>;
-    };
-    let cancelled = false;
-    const flowGeneration = passkeyFlowRef.current;
-    void (async () => {
-      try {
-        const available = await credentialCtor.isConditionalMediationAvailable?.();
-        if (available && !cancelled && !suppressConditionalPasskeyRef.current && passkeyFlowRef.current === flowGeneration) {
-          // 条件式 Passkey UI 是浏览器悬挂的认证前流程；密码输入会频繁 render，但同一密码阶段只能启动一次。
-          await handlePasskeyLoginRef.current?.({ useBrowserAutofill: true, silent: true });
-        }
-      } catch {
-        // 浏览器/平台不支持条件式 UI 时保留普通密码表单和显式 Passkey 按钮。
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [mfaState]);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -276,7 +228,6 @@ const Login = () => {
       return;
     }
 
-    suppressConditionalPasskeyRef.current = true;
     cancelPasskeyCeremony();
     setIsLoading(true);
     setErrors({});
@@ -326,7 +277,6 @@ const Login = () => {
   const handleMfaSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!mfaState) return;
-    suppressConditionalPasskeyRef.current = true;
     cancelPasskeyCeremony();
     const flowId = mfaVerifyFlowRef.current + 1;
     mfaVerifyFlowRef.current = flowId;

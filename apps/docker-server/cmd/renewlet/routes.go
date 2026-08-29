@@ -381,6 +381,13 @@ func registerRoutes(app core.App, router *router.Router[*core.RequestEvent]) []a
 	auth.PATCH("/public-status-page", func(e *core.RequestEvent) error { return handlePublicStatusPageUpdate(app, e) })
 	auth.DELETE("/public-status-page", func(e *core.RequestEvent) error { return handlePublicStatusPageDelete(app, e) })
 	auth.POST("/subscriptions/{id}/renew", func(e *core.RequestEvent) error { return handleSubscriptionRenew(app, e) })
+	// 账号库：凭据 CRUD 与显式 reveal；密码/备注只在服务端加解密，明文仅经 reveal 返回并写审计。
+	auth.GET("/vault/credentials", func(e *core.RequestEvent) error { return handleVaultCredentialsList(app, e) })
+	auth.GET("/vault/credentials/{id}", func(e *core.RequestEvent) error { return handleVaultCredentialGet(app, e) })
+	auth.POST("/vault/credentials", func(e *core.RequestEvent) error { return handleVaultCredentialCreate(app, e) })
+	auth.PATCH("/vault/credentials/{id}", func(e *core.RequestEvent) error { return handleVaultCredentialUpdate(app, e) })
+	auth.DELETE("/vault/credentials/{id}", func(e *core.RequestEvent) error { return handleVaultCredentialDelete(app, e) })
+	auth.POST("/vault/credentials/{id}/reveal", func(e *core.RequestEvent) error { return handleVaultCredentialReveal(app, e) })
 	// 扣费记录历史：GET 走 (billing_date, id) keyset 分页；PATCH 只开放事实修正字段，归属/来源字段不可改。
 	auth.GET("/subscriptions/{id}/billing-records", func(e *core.RequestEvent) error { return handleSubscriptionBillingRecordsList(app, e) })
 	auth.PATCH("/billing-records/{id}", func(e *core.RequestEvent) error { return handleBillingRecordPatch(app, e) })

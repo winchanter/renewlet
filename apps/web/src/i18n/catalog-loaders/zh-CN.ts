@@ -11,6 +11,7 @@ import { messages as publicStatus } from "../catalogs/zh-CN/public-status.po";
 import { messages as settingsAccessSecurity } from "../catalogs/zh-CN/settings-access-security.po";
 import { messages as settings } from "../catalogs/zh-CN/settings.po";
 import { messages as subscription } from "../catalogs/zh-CN/subscription.po";
+import { messages as vault } from "../catalogs/zh-CN/vault.po";
 
 export const messages = {
   ...admin,
@@ -25,4 +26,5 @@ export const messages = {
   ...settingsAccessSecurity,
   ...settings,
   ...subscription,
+  ...vault,
 } satisfies Messages;

@@ -370,7 +370,9 @@ export const SERVER_I18N_CATALOGS = {
     "url.mustUseHttpsGeneric": "URL 必须使用 https://",
     "url.privateOrLocalNotAllowed": "{label} 不允许指向内网或本机地址",
     "url.privateOrLocalNotAllowedGeneric": "URL 不允许指向内网或本机地址",
-    "validation.jsonParseFailed": "JSON 解析失败：请检查格式是否正确"
+    "validation.jsonParseFailed": "JSON 解析失败：请检查格式是否正确",
+    "vault.notFound": "凭据不存在",
+    "vault.subscriptionNotFound": "关联订阅不存在"
   },
   "en-US": {
     "admin.createFailed": "Failed to create admin",
@@ -732,7 +734,9 @@ export const SERVER_I18N_CATALOGS = {
     "url.mustUseHttpsGeneric": "URL must use https://",
     "url.privateOrLocalNotAllowed": "{label} cannot point to private or localhost addresses",
     "url.privateOrLocalNotAllowedGeneric": "URL cannot point to private or localhost addresses",
-    "validation.jsonParseFailed": "JSON parsing failed. Check the format."
+    "validation.jsonParseFailed": "JSON parsing failed. Check the format.",
+    "vault.notFound": "Credential not found",
+    "vault.subscriptionNotFound": "Linked subscription not found"
   }
 } as const satisfies Record<ServerI18nLocale, ServerI18nCatalog>;
 

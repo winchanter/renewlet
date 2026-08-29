@@ -29,6 +29,7 @@
     "./schemas/telegram-bot": "./src/schemas/telegram-bot.ts",
     "./schemas/upstream": "./src/schemas/upstream.ts",
     "./schemas/uploads": "./src/schemas/uploads.ts",
+    "./schemas/vault": "./src/schemas/vault.ts",
     "./ai-recognition-notes": "./src/ai-recognition-notes.ts",
     "./ai-provider-endpoints": "./src/ai-provider-endpoints.ts",
     "./ai-recognition-prompt": "./src/ai-recognition-prompt.ts",

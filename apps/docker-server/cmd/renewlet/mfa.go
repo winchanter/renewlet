@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -10,7 +8,6 @@ import (
 	"database/sql"
 	"encoding/base32"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -534,20 +531,7 @@ func encryptMFASecret(app core.App, plaintext string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	block, err := aes.NewCipher(ring.totpSeed)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return "", err
-	}
-	ciphertext := gcm.Seal(nil, nonce, []byte(plaintext), nil)
-	return "v1." + base64.RawURLEncoding.EncodeToString(nonce) + "." + base64.RawURLEncoding.EncodeToString(ciphertext), nil
+	return encryptAESGCMWithKey(ring.totpSeed, plaintext)
 }
 
 func decryptMFASecret(app core.App, value string) (string, error) {
@@ -555,31 +539,7 @@ func decryptMFASecret(app core.App, value string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	parts := strings.Split(value, ".")
-	if len(parts) != 3 || parts[0] != "v1" {
-		return "", errors.New("invalid MFA ciphertext")
-	}
-	nonce, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return "", err
-	}
-	ciphertext, err := base64.RawURLEncoding.DecodeString(parts[2])
-	if err != nil {
-		return "", err
-	}
-	block, err := aes.NewCipher(ring.totpSeed)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return "", err
-	}
-	return string(plaintext), nil
+	return decryptAESGCMWithKey(ring.totpSeed, value)
 }
 
 func recoveryCodeHash(app core.App, code string) (string, error) {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/hkdf"
 	"crypto/rand"
 	"crypto/sha256"
@@ -10,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -32,6 +35,7 @@ type accountSecurityKeyRing struct {
 	recoveryCode     []byte
 	mfaTicket        []byte
 	passkeyChallenge []byte
+	vaultData        []byte
 }
 
 type accountSecurityKeyFile struct {
@@ -148,16 +152,69 @@ func deriveAccountSecurityKeyRing(master []byte) (*accountSecurityKeyRing, error
 	if err != nil {
 		return nil, err
 	}
+	// vault 凭据（密码/备注）与 TOTP seed 同级隔离：专用派生键让 vault 泄密面不与认证面耦合。
+	vaultData, err := deriveAccountSecurityKey(prk, "vault-data-aes-gcm")
+	if err != nil {
+		return nil, err
+	}
 	return &accountSecurityKeyRing{
 		totpSeed:         totpSeed,
 		recoveryCode:     recoveryCode,
 		mfaTicket:        mfaTicket,
 		passkeyChallenge: passkeyChallenge,
+		vaultData:        vaultData,
 	}, nil
 }
 
 func deriveAccountSecurityKey(prk []byte, info string) ([]byte, error) {
 	return hkdf.Expand(sha256.New, prk, info, accountSecurityKeyBytes)
+}
+
+// encryptAESGCMWithKey 用 AES-256-GCM 加密并输出 v1.nonce.ciphertext 密文；nonce 每次随机。
+// MFA seed 与 vault 密码/备注共用该格式，便于将来统一做密文版本轮换。
+func encryptAESGCMWithKey(key []byte, plaintext string) (string, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
+	ciphertext := gcm.Seal(nil, nonce, []byte(plaintext), nil)
+	return "v1." + base64.RawURLEncoding.EncodeToString(nonce) + "." + base64.RawURLEncoding.EncodeToString(ciphertext), nil
+}
+
+func decryptAESGCMWithKey(key []byte, value string) (string, error) {
+	parts := strings.Split(value, ".")
+	if len(parts) != 3 || parts[0] != "v1" {
+		return "", errors.New("invalid account security ciphertext")
+	}
+	nonce, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", err
+	}
+	ciphertext, err := base64.RawURLEncoding.DecodeString(parts[2])
+	if err != nil {
+		return "", err
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(plaintext), nil
 }
 
 func accountSecurityKeyPath(dataDir string) string {

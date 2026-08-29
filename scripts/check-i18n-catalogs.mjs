@@ -45,6 +45,7 @@ const domains = [
   "labels",
   "admin",
   "error",
+  "vault",
 ];
 const poFormatter = formatter({ origins: false });
 const forbiddenProductionRawMessages = [

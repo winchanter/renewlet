@@ -1,0 +1,278 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-08-29 23:17+0800\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: zh-CN\n"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:14
+msgid "vault.count"
+msgstr "{count} 个账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:25
+msgid "vault.form.urlPlaceholder"
+msgstr "https://example.com"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:35
+msgid "vault.form.subscriptionNone"
+msgstr "不关联订阅"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:23
+msgid "vault.form.titlePlaceholder"
+msgstr "例如 Netflix 主账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:37
+msgid "vault.form.submitUpdate"
+msgstr "保存修改"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:31
+msgid "vault.form.passwordClearHint"
+msgstr "保存后将清空已存密码"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:36
+msgid "vault.form.submitCreate"
+msgstr "保存账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:10
+msgid "vault.filter.all"
+msgstr "全部"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:34
+msgid "vault.form.subscriptionLabel"
+msgstr "关联订阅"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:46
+msgid "vault.card.linkedTo"
+msgstr "关联订阅"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:55
+msgid "vault.detail.linkedAccounts"
+msgstr "关联账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:42
+msgid "vault.delete.title"
+msgstr "删除账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:22
+msgid "vault.form.titleLabel"
+msgstr "名称"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:58
+msgid "vault.detail.manageInVault"
+msgstr "在账号库中管理"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:32
+msgid "vault.form.notesLabel"
+msgstr "备注"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:51
+msgid "vault.card.copyFailed"
+msgstr "复制失败"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:53
+msgid "vault.card.copyPassword"
+msgstr "复制密码"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:52
+msgid "vault.card.copyUsername"
+msgstr "复制用户名"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:28
+msgid "vault.form.passwordLabel"
+msgstr "密码"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:21
+msgid "vault.form.description"
+msgstr "密码与备注会使用账号安全密钥加密后保存，不会以明文形式存储在数据库。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:49
+msgid "vault.card.revealFailed"
+msgstr "密码读取失败"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:30
+msgid "vault.form.passwordEditPlaceholder"
+msgstr "已保存密码；输入新值可替换"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:11
+msgid "vault.filter.linked"
+msgstr "已关联订阅"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:50
+msgid "vault.card.copied"
+msgstr "已复制"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:33
+msgid "vault.form.notesPlaceholder"
+msgstr "恢复码、安全提示等敏感信息会同样加密保存"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:54
+msgid "vault.card.visitSite"
+msgstr "打开网址"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:9
+msgid "vault.searchPlaceholder"
+msgstr "搜索名称、用户名或网址"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:57
+msgid "vault.detail.addLinked"
+msgstr "新增关联账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:7
+msgid "vault.addCredential"
+msgstr "新增账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:19
+msgid "vault.form.createTitle"
+msgstr "新增账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:47
+msgid "vault.card.showPassword"
+msgstr "显示密码"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:18
+msgid "vault.empty.search"
+msgstr "没有匹配的账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:17
+msgid "vault.empty.description"
+msgstr "点击「新增账号」，把订阅服务的账号密码安全地存进账号库。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:12
+msgid "vault.filter.standalone"
+msgstr "独立账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:13
+msgid "vault.group.standalone"
+msgstr "独立账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:27
+msgid "vault.form.usernamePlaceholder"
+msgstr "用于登录的账号或邮箱"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:26
+msgid "vault.form.usernameLabel"
+msgstr "用户名 / 邮箱"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:29
+msgid "vault.form.passwordPlaceholder"
+msgstr "留空表示不保存密码"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:43
+msgid "vault.delete.description"
+msgstr "确定要删除「{title}」吗？删除后无法恢复。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:8
+msgid "vault.editCredential"
+msgstr "编辑账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:20
+msgid "vault.form.editTitle"
+msgstr "编辑账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:24
+msgid "vault.form.urlLabel"
+msgstr "网址"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:40
+msgid "vault.create.failed"
+msgstr "账号保存失败"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:45
+msgid "vault.delete.failed"
+msgstr "账号删除失败"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:38
+msgid "vault.create.success"
+msgstr "账号已保存"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:44
+msgid "vault.delete.success"
+msgstr "账号已删除"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:39
+msgid "vault.update.success"
+msgstr "账号已更新"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:5
+msgid "vault.title"
+msgstr "账号库"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:15
+msgid "vault.loadFailed"
+msgstr "账号库加载失败"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:41
+msgid "vault.update.failed"
+msgstr "账号更新失败"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:16
+msgid "vault.empty.title"
+msgstr "还没有保存的账号"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:56
+msgid "vault.detail.linkedAccountsEmpty"
+msgstr "还没有关联这个订阅的账号。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:48
+msgid "vault.card.hidePassword"
+msgstr "隐藏密码"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:6
+msgid "vault.description"
+msgstr "集中管理订阅服务的账号与密码；密码与备注在服务端加密存储，查看明文会记录审计日志。"

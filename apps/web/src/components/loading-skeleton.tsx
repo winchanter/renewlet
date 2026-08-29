@@ -30,7 +30,7 @@ function HeaderSkeleton({ showAddAction = false }: { showAddAction?: boolean }) 
             </div>
           </div>
           <nav className={headerLayout.desktopNav} data-testid="app-header-desktop-nav-skeleton">
-            {range(5).map((index) => (
+            {range(6).map((index) => (
               <div key={index} className={getHeaderDesktopNavSkeletonItemClass()}>
                 <SkeletonBox className="h-4 w-4 rounded" />
                 <SkeletonBox className={headerLayout.desktopNavSkeletonLabel} />
@@ -45,7 +45,7 @@ function HeaderSkeleton({ showAddAction = false }: { showAddAction?: boolean }) 
         </div>
       </div>
       <nav className={headerLayout.mobileNav} data-testid="app-header-mobile-nav-skeleton">
-        {range(5).map((index) => (
+        {range(6).map((index) => (
           <div key={index} className="flex flex-1 flex-col items-center gap-1 py-3">
             <SkeletonBox className="h-5 w-5 rounded" />
             <SkeletonBox className="h-3 w-10" />
@@ -498,6 +498,48 @@ export function AdminUsersPageSkeleton({ withPageShell = true }: PageSkeletonPro
     <PageShellSkeleton testId="admin-users-page-skeleton">{content}</PageShellSkeleton>
   ) : (
     <div aria-hidden="true" data-testid="admin-users-skeleton">{content}</div>
+  );
+}
+
+function VaultContentSkeleton() {
+  return (
+    <>
+      <PageTitleSkeleton withActions subtitleWidth="w-72" />
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <SkeletonBox className="h-10 w-full rounded-md sm:max-w-sm" />
+        <div className="flex gap-2">
+          <SkeletonBox className="h-9 w-20 rounded-full" />
+          <SkeletonBox className="h-9 w-24 rounded-full" />
+          <SkeletonBox className="h-9 w-20 rounded-full" />
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {range(6).map((index) => (
+          <div key={index} className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="grid min-w-0 flex-1 gap-2">
+                <SkeletonBox className="h-5 w-32" />
+                <SkeletonBox className="h-4 w-40 max-w-full" />
+              </div>
+              <SkeletonBox className="h-9 w-9 rounded-md" />
+            </div>
+            <div className="mt-4 grid gap-2">
+              <SkeletonBox className="h-4 w-3/4" />
+              <SkeletonBox className="h-4 w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+export function VaultPageSkeleton({ withPageShell = true }: PageSkeletonProps) {
+  const content = <VaultContentSkeleton />;
+  return withPageShell ? (
+    <PageShellSkeleton testId="vault-page-skeleton">{content}</PageShellSkeleton>
+  ) : (
+    <div aria-hidden="true" data-testid="vault-skeleton">{content}</div>
   );
 }
 

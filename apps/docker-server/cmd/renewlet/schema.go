@@ -49,6 +49,10 @@ var schemaAutodateCollections = []string{
 	"telegram_bot_bindings",
 	"cloud_backup_targets",
 	"media_icon_indexes",
+	"vault_credentials",
+	"vault_access_codes",
+	"vault_access_requests",
+	"vault_access_logs",
 	authSecurityCollectionName,
 }
 
@@ -119,6 +123,9 @@ func ensureCollectionsSchema(app core.App) error {
 		return err
 	}
 	if err := ensureCloudBackupTargetsCollection(app, users); err != nil {
+		return err
+	}
+	if err := ensureVaultCollections(app, users); err != nil {
 		return err
 	}
 	if err := ensureAuthSecuritySettingsCollection(app); err != nil {

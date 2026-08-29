@@ -49,6 +49,7 @@ export const messages = [
   msg({ id: "nav.subscriptions", message: "订阅列表" }),
   msg({ id: "nav.calendar", message: "日历" }),
   msg({ id: "nav.statistics", message: "统计" }),
+  msg({ id: "nav.vault", message: "账号库" }),
   msg({ id: "nav.settings", message: "设置" }),
   msg({ id: "header.toggleTheme", message: "切换主题" }),
   msg({ id: "header.logout", message: "退出登录" }),

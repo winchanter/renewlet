@@ -11,6 +11,7 @@ import { messages as publicStatus } from "../catalogs/en-US/public-status.po";
 import { messages as settingsAccessSecurity } from "../catalogs/en-US/settings-access-security.po";
 import { messages as settings } from "../catalogs/en-US/settings.po";
 import { messages as subscription } from "../catalogs/en-US/subscription.po";
+import { messages as vault } from "../catalogs/en-US/vault.po";
 
 export const messages = {
   ...admin,
@@ -25,4 +26,5 @@ export const messages = {
   ...settingsAccessSecurity,
   ...settings,
   ...subscription,
+  ...vault,
 } satisfies Messages;

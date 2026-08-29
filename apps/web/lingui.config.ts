@@ -14,6 +14,7 @@ const catalogDomains = [
   "labels",
   "admin",
   "error",
+  "vault",
 ] as const;
 
 export default defineConfig({

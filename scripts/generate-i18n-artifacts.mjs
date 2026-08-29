@@ -31,6 +31,7 @@ const domains = [
   "labels",
   "admin",
   "error",
+  "vault",
 ];
 const poFormatter = formatter({ origins: false });
 const checkOnly = process.argv.includes("--check");

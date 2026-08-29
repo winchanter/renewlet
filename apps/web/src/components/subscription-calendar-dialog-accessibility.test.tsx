@@ -1,6 +1,7 @@
 // 日历弹窗可访问性测试保护移动/桌面详情弹层的标题、焦点和订阅入口语义。
 import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { assertDateOnly } from "@/lib/time/date-only";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -63,6 +64,14 @@ vi.mock("@/hooks/use-calendar-feed", () => ({
   }),
 }));
 
+vi.mock("@/services/vault-service", () => ({
+  createVaultCredential: vi.fn(),
+  deleteVaultCredential: vi.fn(),
+  listVaultCredentials: vi.fn().mockResolvedValue([]),
+  revealVaultCredentialPassword: vi.fn(),
+  updateVaultCredential: vi.fn(),
+}));
+
 function subscription(overrides: SubscriptionOverrides = {}): Subscription {
   const base: SubscriptionBaseFixture = {
     id: "sub-1",
@@ -105,15 +114,17 @@ function renderCalendar(subscriptions: Subscription[]) {
     queryClient.setQueryData(subscriptionQueryKeys.detail(item.id), item);
   }
   return render(
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={0}>
-        <SubscriptionCalendar
-          subscriptions={subscriptions}
-          currentMonth={new Date(2026, 4, 1)}
-          onCurrentMonthChange={vi.fn()}
-        />
-      </TooltipProvider>
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <SubscriptionCalendar
+            subscriptions={subscriptions}
+            currentMonth={new Date(2026, 4, 1)}
+            onCurrentMonthChange={vi.fn()}
+          />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 

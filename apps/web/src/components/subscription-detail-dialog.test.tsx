@@ -1,5 +1,7 @@
 // 订阅详情测试保护列表/仪表盘/日历共用的只读详情入口，避免备注和网站再次只能在编辑表单中阅读。
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { assertDateOnly } from "@/lib/time/date-only";
@@ -65,6 +67,14 @@ vi.mock("@/hooks/use-calendar-feed", () => ({
   }),
 }));
 
+vi.mock("@/services/vault-service", () => ({
+  createVaultCredential: vi.fn(),
+  deleteVaultCredential: vi.fn(),
+  listVaultCredentials: vi.fn().mockResolvedValue([]),
+  revealVaultCredentialPassword: vi.fn(),
+  updateVaultCredential: vi.fn(),
+}));
+
 const baseSubscription: Subscription = {
   id: "sub-1",
   name: "Fastmail",
@@ -126,22 +136,26 @@ function renderDetailDialog({
   return {
     onOpenChange,
     ...render(
-      <TooltipProvider delayDuration={0}>
-        <SubscriptionDetailDialog
-          open={open}
-          onOpenChange={onOpenChange}
-          subscription={subscription}
-          loadingPreview={loadingPreview}
-          today={assertDateOnly("2026-05-18")}
-          currencyConvert={testCurrencyConvert}
-          currencyRatesReady={true}
-          priceReferenceCurrency={priceReferenceCurrency}
-          loading={loading}
-          {...(onEditSubscription ? { onEditSubscription } : {})}
-          {...(onRenewSubscription ? { onRenewSubscription } : {})}
-          {...(onViewBillingRecords ? { onViewBillingRecords } : {})}
-        />
-      </TooltipProvider>,
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+          <TooltipProvider delayDuration={0}>
+            <SubscriptionDetailDialog
+              open={open}
+              onOpenChange={onOpenChange}
+              subscription={subscription}
+              loadingPreview={loadingPreview}
+              today={assertDateOnly("2026-05-18")}
+              currencyConvert={testCurrencyConvert}
+              currencyRatesReady={true}
+              priceReferenceCurrency={priceReferenceCurrency}
+              loading={loading}
+              {...(onEditSubscription ? { onEditSubscription } : {})}
+              {...(onRenewSubscription ? { onRenewSubscription } : {})}
+              {...(onViewBillingRecords ? { onViewBillingRecords } : {})}
+            />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
     ),
   };
 }
@@ -183,20 +197,24 @@ describe("SubscriptionDetailDialog", () => {
     expect(screen.getByTestId("subscription-detail-data-loading")).toBeInTheDocument();
 
     rerender(
-      <TooltipProvider delayDuration={0}>
-        <SubscriptionDetailDialog
-          open
-          onOpenChange={onOpenChange}
-          subscription={baseSubscription}
-          loadingPreview={preview}
-          today={assertDateOnly("2026-05-18")}
-          currencyConvert={testCurrencyConvert}
-          currencyRatesReady
-          priceReferenceCurrency="CNY"
-          onEditSubscription={vi.fn()}
-          loading={false}
-        />
-      </TooltipProvider>,
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+          <TooltipProvider delayDuration={0}>
+            <SubscriptionDetailDialog
+              open
+              onOpenChange={onOpenChange}
+              subscription={baseSubscription}
+              loadingPreview={preview}
+              today={assertDateOnly("2026-05-18")}
+              currencyConvert={testCurrencyConvert}
+              currencyRatesReady
+              priceReferenceCurrency="CNY"
+              onEditSubscription={vi.fn()}
+              loading={false}
+            />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
     );
 
     expect(screen.getByRole("dialog", { name: "Fastmail" })).toBe(dialog);

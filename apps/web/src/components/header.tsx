@@ -11,7 +11,7 @@
 
 import Link, { NavLink } from '@/components/router-link';
 import { useRouter } from '@/lib/router';
-import { LayoutDashboard, List, CalendarDays, BarChart3, Settings, Sun, Moon, LogOut } from 'lucide-react';
+import { LayoutDashboard, List, CalendarDays, BarChart3, KeyRound, Settings, Sun, Moon, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import type { SubscriptionFormSubmission } from '@/types/subscription';
@@ -37,7 +37,7 @@ interface HeaderProps {
   subscriptionActions?: ReactNode;
 }
 
-type NavIconKey = "dashboard" | "subscriptions" | "calendar" | "statistics" | "settings";
+type NavIconKey = "dashboard" | "subscriptions" | "calendar" | "statistics" | "vault" | "settings";
 
 /** 导航项配置：路径 / 文案 / 图标 key。 */
 const navItems: Array<{ path: string; labelKey: MessageKey; icon: NavIconKey }> = [
@@ -45,6 +45,7 @@ const navItems: Array<{ path: string; labelKey: MessageKey; icon: NavIconKey }> 
   { path: '/subscriptions', labelKey: 'nav.subscriptions', icon: "subscriptions" },
   { path: '/calendar', labelKey: 'nav.calendar', icon: "calendar" },
   { path: '/statistics', labelKey: 'nav.statistics', icon: "statistics" },
+  { path: '/vault', labelKey: 'nav.vault', icon: "vault" },
   { path: '/settings', labelKey: 'nav.settings', icon: "settings" },
 ];
 
@@ -58,6 +59,8 @@ function renderNavIcon(icon: NavIconKey, className: string) {
       return <CalendarDays className={className} />;
     case "statistics":
       return <BarChart3 className={className} />;
+    case "vault":
+      return <KeyRound className={className} />;
     case "settings":
       return <Settings className={className} />;
   }

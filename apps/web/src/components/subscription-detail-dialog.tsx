@@ -15,6 +15,7 @@ import {
 import { AddToCalendarDialog } from "@/components/add-to-calendar-dialog";
 import { preloadRenewSubscriptionDialog } from "@/components/renew-subscription-dialog-loader";
 import { preloadBillingRecordsDialog } from "@/components/billing-records-dialog-loader";
+import { LinkedAccountsSection } from "@/components/vault/linked-accounts-section";
 import { SubscriptionLogo } from "@/components/subscription-logo";
 import {
   createSubscriptionDetailLoadingSlots,
@@ -390,6 +391,7 @@ function SubscriptionDetailContent({
               </div>
             </div>
           ) : null}
+          <LinkedAccountsSection subscriptionId={subscription.id} />
         </>
       )}
       actions={(

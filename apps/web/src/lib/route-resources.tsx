@@ -9,6 +9,7 @@ import {
   SettingsPageSkeleton,
   StatisticsPageSkeleton,
   SubscriptionsPageSkeleton,
+  VaultPageSkeleton,
 } from "@/components/loading-skeleton";
 import { readProductSession } from "@/services/product-session";
 
@@ -37,6 +38,7 @@ const loadSubscriptions = () => import("@/pages/subscriptions");
 const loadCalendar = () => import("@/pages/calendar");
 const loadStatistics = () => import("@/pages/statistics");
 const loadSettings = () => import("@/pages/settings");
+const loadVault = () => import("@/pages/vault");
 const loadSetup = () => import("@/pages/setup");
 const loadLogin = () => import("@/pages/login");
 const loadPrivacy = () => import("@/pages/privacy");
@@ -74,6 +76,10 @@ function SettingsRouteFallback() {
 
 function AdminUsersRouteFallback() {
   return <AdminUsersPageSkeleton />;
+}
+
+function VaultRouteFallback() {
+  return <VaultPageSkeleton />;
 }
 
 function DocumentRouteFallback() {
@@ -124,6 +130,12 @@ export const routeResources = {
     path: "/admin/users",
     load: loadAdminUsers,
     fallback: AdminUsersRouteFallback,
+    usesPrivateShell: true,
+  },
+  vault: {
+    path: "/vault",
+    load: loadVault,
+    fallback: VaultRouteFallback,
     usesPrivateShell: true,
   },
   setup: {

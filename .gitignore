@@ -38,6 +38,9 @@ wrangler.generated.jsonc
 /apps/website/tests/__screenshots__/
 /tmp/
 
+# 本地导出的 Docker 镜像包
+*.tar
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -141,6 +141,18 @@ export const vaultAccessCodeRedeemPayloadSchema = z.object({
 export const vaultAccessCodeRedeemResponseSchema = apiSuccessResponseSchema(vaultAccessCodeRedeemPayloadSchema);
 export type VaultAccessCodeRedeemPayload = z.infer<typeof vaultAccessCodeRedeemPayloadSchema>;
 
+// ============== P3：公开页访客兑换 ==============
+
+/**
+ * 公开页兑换授权码：复用站内 redeem 契约（码本身绑定账号），但仅限
+ * token 对应页面所有者的码，且受 IP 限流约束。响应同 vaultAccessCodeRedeemPayloadSchema。
+ */
+export const vaultPublicRedeemRequestSchema = vaultAccessCodeRedeemRequestSchema;
+export type VaultPublicRedeemRequest = VaultAccessCodeRedeemRequest;
+export const vaultPublicRedeemPayloadSchema = vaultAccessCodeRedeemPayloadSchema;
+export type VaultPublicRedeemPayload = VaultAccessCodeRedeemPayload;
+export const vaultPublicRedeemResponseSchema = vaultAccessCodeRedeemResponseSchema;
+
 // ============== P2-B：访问申请与审批 ==============
 
 export const vaultAccessRequestStatusSchema = z.enum(["pending", "approved", "declined", "expired", "closed"]);

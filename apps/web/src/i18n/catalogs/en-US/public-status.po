@@ -39,6 +39,11 @@ msgid "publicStatus.visibleMoneySubtitle"
 msgstr "{count} included in totals"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:67
+msgid "publicStatus.vault.requestAgain"
+msgstr "Request another"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:27
 msgid "publicStatus.nextBillingDate"
 msgstr "Due/renewal: {date}"
@@ -49,9 +54,44 @@ msgid "publicStatus.upcomingSubtitle"
 msgstr "Due or renewing soon"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:45
+msgid "publicStatus.vault.fieldTitle"
+msgstr "Name"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:49
+msgid "publicStatus.vault.fieldNotes"
+msgstr "Notes"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:52
+msgid "publicStatus.vault.copy"
+msgstr "Copy"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:54
+msgid "publicStatus.vault.copyFailed"
+msgstr "Copy failed"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:47
+msgid "publicStatus.vault.fieldPassword"
+msgstr "Password"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:14
 msgid "publicStatus.visibleCount"
 msgstr "Visible subscriptions"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:53
+msgid "publicStatus.vault.copied"
+msgstr "Copied"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:42
+msgid "publicStatus.vault.redeemSuccessToast"
+msgstr "Account unlocked"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:9
@@ -64,6 +104,11 @@ msgid "publicStatus.startDate"
 msgstr "Start: {date}"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:35
+msgid "publicStatus.vault.description"
+msgstr "Redeem an access code to unlock the linked account, or request access and wait for approval."
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:12
 msgid "publicStatus.moneySubtitleLive"
 msgstr "Summed in {currency} with live rates"
@@ -72,6 +117,31 @@ msgstr "Summed in {currency} with live rates"
 #: src/i18n/descriptors/public-status.ts:10
 msgid "publicStatus.moneySubtitle"
 msgstr "Summed in {currency}"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:38
+msgid "publicStatus.vault.codeLabel"
+msgstr "Access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:62
+msgid "publicStatus.vault.requestSubmitting"
+msgstr "Submitting…"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:64
+msgid "publicStatus.vault.requestFailed"
+msgstr "Failed to submit"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:61
+msgid "publicStatus.vault.requestSubmit"
+msgstr "Submit request"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:57
+msgid "publicStatus.vault.subscriptionSearch"
+msgstr "Search subscriptions"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:31
@@ -87,6 +157,11 @@ msgstr "Daily {amount}"
 #: src/i18n/descriptors/public-status.ts:8
 msgid "publicStatus.monthlyTotalSubtitle"
 msgstr "Daily {amount} · {basis}"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:50
+msgid "publicStatus.vault.revealPassword"
+msgstr "Show password"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:24
@@ -114,9 +189,69 @@ msgid "publicStatus.ratesLoading"
 msgstr "Updating rates"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:58
+msgid "publicStatus.vault.subscriptionEmpty"
+msgstr "No subscriptions available"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:16
 msgid "publicStatus.activeCount"
 msgstr "Active/trial"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:46
+msgid "publicStatus.vault.fieldUsername"
+msgstr "Username"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:65
+msgid "publicStatus.vault.requestSuccessTitle"
+msgstr "Request submitted"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:37
+msgid "publicStatus.vault.tabRequest"
+msgstr "Request access"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:59
+msgid "publicStatus.vault.noteLabel"
+msgstr "Note (optional)"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:66
+msgid "publicStatus.vault.requestSuccessDescription"
+msgstr "Once approved, the owner will generate a new access code; get it from them through the original channel."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:39
+msgid "publicStatus.vault.codePlaceholder"
+msgstr "Paste the access code shared by the owner"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:48
+msgid "publicStatus.vault.fieldUrl"
+msgstr "URL"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:40
+msgid "publicStatus.vault.redeemSubmit"
+msgstr "Unlock"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:41
+msgid "publicStatus.vault.redeeming"
+msgstr "Unlocking…"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:43
+msgid "publicStatus.vault.redeemFailed"
+msgstr "Failed to unlock"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:36
+msgid "publicStatus.vault.tabRedeem"
+msgstr "Unlock account"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:23
@@ -134,9 +269,34 @@ msgid "publicStatus.updatedAt"
 msgstr "Record updated: {time}"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:63
+msgid "publicStatus.vault.requestSuccessToast"
+msgstr "Access request submitted"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:68
+msgid "publicStatus.vault.requestEmpty"
+msgstr "This page has no subscriptions open for access requests."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:60
+msgid "publicStatus.vault.notePlaceholder"
+msgstr "Explain why you need access so the owner can review your request."
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:32
 msgid "publicStatus.errorDescription"
 msgstr "Refresh and try again later."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:44
+msgid "publicStatus.vault.resultTitle"
+msgstr "Account details"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:34
+msgid "publicStatus.vault.title"
+msgstr "Account access"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:20
@@ -147,6 +307,21 @@ msgstr "Expired, paused, or cancelled"
 #: src/i18n/descriptors/public-status.ts:30
 msgid "publicStatus.notFoundDescription"
 msgstr "This link does not exist, has been revoked, or has been regenerated."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:56
+msgid "publicStatus.vault.subscriptionPlaceholder"
+msgstr "Select the subscription to request"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:55
+msgid "publicStatus.vault.subscriptionLabel"
+msgstr "Choose subscription"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:51
+msgid "publicStatus.vault.hidePassword"
+msgstr "Hide password"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:19

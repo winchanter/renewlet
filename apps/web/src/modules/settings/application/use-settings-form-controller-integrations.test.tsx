@@ -642,7 +642,7 @@ describe("useSettingsFormController integrations", () => {
     await act(async () => {
       await enabledResult.current.publicStatusPage.updateShowPrices(true);
     });
-    expect(mocks.updatePublicStatusPageMutateAsync).toHaveBeenCalledWith(true);
+    expect(mocks.updatePublicStatusPageMutateAsync).toHaveBeenCalledWith({ showPrices: true, vaultEnabled: false });
     await act(async () => {
       await enabledResult.current.publicStatusPage.regenerate();
     });

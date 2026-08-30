@@ -1,13 +1,17 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   Activity,
   AlertCircle,
   CalendarClock,
+  Check,
   Clock3,
+  Copy,
   CreditCard,
   Eye,
   EyeOff,
   Gauge,
+  KeyRound,
+  Link2,
   Monitor,
   Moon,
   Sun,
@@ -15,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useParams } from "react-router";
+import { toast } from "@/components/ui/sonner";
 import { SubscriptionLogo } from "@/components/subscription-logo";
 import { SubscriptionStatusBadge } from "@/components/subscription-status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -26,12 +31,17 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { TruncatedTooltipText } from "@/components/ui/truncated-tooltip-text";
 import { ApiError } from "@/lib/api-client";
 import { colorWithAlpha } from "@/lib/color";
 import { formatCompactCurrencyAmount } from "@/lib/currency";
+import { getDisplayErrorMessage } from "@/lib/display-error";
 import { useTheme } from "@/lib/theme-provider";
 import { daysBetweenDateOnly, todayDateOnlyInTimeZone } from "@/lib/time/date-only";
 import { usePublicStatus } from "@/hooks/use-public-status-page";
@@ -39,12 +49,15 @@ import { useExchangeRates } from "@/hooks/use-exchange-rates";
 import { useI18n } from "@/i18n/I18nProvider";
 import { localizedLabel, type Locale } from "@/i18n/locales";
 import { translate, type MessageKey } from "@/i18n/messages";
+import { publicStatusService } from "@/services/public-status-service";
+import { copyTextToClipboard } from "@/shared/browser/clipboard";
 import {
   customCycleUnitLabelKey,
   toDailyAmountFromMonthly,
   toMonthlyAmount,
 } from "@/lib/subscription-billing";
-import type { PublicStatusResponse } from "@/lib/api/schemas/public-status";
+import type { PublicStatusResponse, PublicStatusVault } from "@/lib/api/schemas/public-status";
+import type { VaultPublicRedeemPayload } from "@/lib/api/schemas/vault";
 import { CYCLE_LABELS } from "@/types/subscription";
 import type { ThemeMode } from "@/types/theme";
 import { moneyToNumber } from "@renewlet/shared/money";
@@ -528,6 +541,317 @@ function PublicSubscriptionCard({ subscription }: { subscription: PublicStatusSu
   );
 }
 
+// ================== P3：公开页账号访问（vault） ==================
+
+function PublicVaultFieldRow({
+  label,
+  value,
+  secret = false,
+  link = false,
+}: {
+  label: string;
+  value: string;
+  secret?: boolean;
+  link?: boolean;
+}) {
+  const { t } = useI18n();
+  const [visible, setVisible] = useState(false);
+  const displayValue = secret && !visible ? "•".repeat(Math.max(value.length, 8)) : value;
+  const handleCopy = async () => {
+    const copyResult = await copyTextToClipboard(value);
+    if (copyResult.ok) {
+      toast.success(t("publicStatus.vault.copied"));
+    } else {
+      toast.error(t("publicStatus.vault.copyFailed"));
+    }
+  };
+  return (
+    <div className="grid gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <div className="flex items-center gap-1">
+          {secret ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+              onClick={() => setVisible((previous) => !previous)}
+              aria-label={visible ? t("publicStatus.vault.hidePassword") : t("publicStatus.vault.revealPassword")}
+            >
+              {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {visible ? t("publicStatus.vault.hidePassword") : t("publicStatus.vault.revealPassword")}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+            onClick={() => void handleCopy()}
+            aria-label={t("publicStatus.vault.copy")}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            {t("publicStatus.vault.copy")}
+          </Button>
+        </div>
+      </div>
+      {link && value ? (
+        <a
+          href={value}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-w-0 items-center gap-1.5 break-all text-sm text-primary hover:underline"
+        >
+          <Link2 className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{displayValue}</span>
+        </a>
+      ) : (
+        <p className="min-w-0 break-all font-mono text-sm text-foreground">
+          {displayValue || <span className="font-sans text-muted-foreground">—</span>}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PublicVaultRedeemResult({ result }: { result: VaultPublicRedeemPayload }) {
+  const { t } = useI18n();
+  return (
+    <div className="grid gap-4 rounded-lg border border-border bg-background/60 p-4">
+      <div className="flex items-center gap-2">
+        <Check className="h-4 w-4 text-primary" />
+        <p className="text-sm font-medium text-foreground">{t("publicStatus.vault.resultTitle")}</p>
+      </div>
+      <PublicVaultFieldRow label={t("publicStatus.vault.fieldTitle")} value={result.title} />
+      {result.username ? (
+        <PublicVaultFieldRow label={t("publicStatus.vault.fieldUsername")} value={result.username} />
+      ) : null}
+      {result.password ? (
+        <PublicVaultFieldRow label={t("publicStatus.vault.fieldPassword")} value={result.password} secret />
+      ) : null}
+      {result.url ? (
+        <PublicVaultFieldRow label={t("publicStatus.vault.fieldUrl")} value={result.url} link />
+      ) : null}
+      {result.notes ? (
+        <PublicVaultFieldRow label={t("publicStatus.vault.fieldNotes")} value={result.notes} />
+      ) : null}
+    </div>
+  );
+}
+
+function PublicVaultRedeemForm({ token }: { token: string }) {
+  const { t } = useI18n();
+  const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<VaultPublicRedeemPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting) return;
+    const trimmedCode = code.trim();
+    if (!trimmedCode) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const payload = await publicStatusService.redeemPublicVaultCode(token, { code: trimmedCode });
+      setResult(payload);
+      setCode("");
+      toast.success(t("publicStatus.vault.redeemSuccessToast"));
+    } catch (submitError) {
+      // 失败只刷新错误条，已解锁结果保持展示，避免误触表单清空访客刚拿到的凭据。
+      setError(getDisplayErrorMessage(submitError, t("publicStatus.vault.redeemFailed")));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form className="grid gap-3" onSubmit={(event) => void handleSubmit(event)}>
+      <div className="grid gap-1.5">
+        <label htmlFor="public-vault-code" className="text-sm font-medium text-foreground">
+          {t("publicStatus.vault.codeLabel")}
+        </label>
+        <Input
+          id="public-vault-code"
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
+          placeholder={t("publicStatus.vault.codePlaceholder")}
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          disabled={submitting}
+          className="h-9 border-border bg-background font-mono"
+        />
+      </div>
+      <Button type="submit" size="sm" disabled={submitting || !code.trim()} className="w-full justify-center gap-2 sm:w-fit">
+        <KeyRound className="h-4 w-4" />
+        {submitting ? t("publicStatus.vault.redeeming") : t("publicStatus.vault.redeemSubmit")}
+      </Button>
+      {error ? (
+        <p role="alert" className="text-sm leading-5 text-destructive">
+          {error}
+        </p>
+      ) : null}
+      {result ? <PublicVaultRedeemResult result={result} /> : null}
+    </form>
+  );
+}
+
+function PublicVaultRequestForm({
+  token,
+  subscriptions,
+}: {
+  token: string;
+  subscriptions: PublicStatusVault["subscriptions"];
+}) {
+  const { t } = useI18n();
+  const [subscriptionId, setSubscriptionId] = useState("");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const options = subscriptions.map((subscription) => ({ value: subscription.id, label: subscription.name }));
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting || !subscriptionId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const trimmedNote = note.trim();
+      await publicStatusService.createPublicVaultAccessRequest(token, {
+        subscriptionId,
+        ...(trimmedNote ? { note: trimmedNote } : {}),
+      });
+      setSubmitted(true);
+      toast.success(t("publicStatus.vault.requestSuccessToast"));
+    } catch (submitError) {
+      setError(getDisplayErrorMessage(submitError, t("publicStatus.vault.requestFailed")));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="grid gap-2 rounded-lg border border-border bg-background/60 p-4">
+        <div className="flex items-center gap-2">
+          <Check className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium text-foreground">{t("publicStatus.vault.requestSuccessTitle")}</p>
+        </div>
+        <p className="text-sm leading-6 text-muted-foreground">{t("publicStatus.vault.requestSuccessDescription")}</p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit justify-center border-border"
+          onClick={() => {
+            setSubmitted(false);
+            setSubscriptionId("");
+            setNote("");
+          }}
+        >
+          {t("publicStatus.vault.requestAgain")}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form className="grid gap-3" onSubmit={(event) => void handleSubmit(event)}>
+      <div className="grid gap-1.5">
+        <label htmlFor="public-vault-subscription" className="text-sm font-medium text-foreground">
+          {t("publicStatus.vault.subscriptionLabel")}
+        </label>
+        <SearchableSelect
+          id="public-vault-subscription"
+          value={subscriptionId}
+          onValueChange={setSubscriptionId}
+          options={options}
+          placeholder={t("publicStatus.vault.subscriptionPlaceholder")}
+          searchPlaceholder={t("publicStatus.vault.subscriptionSearch")}
+          emptyMessage={t("publicStatus.vault.subscriptionEmpty")}
+          disabled={submitting}
+          className="h-9 w-full border-border bg-background"
+          aria-label={t("publicStatus.vault.subscriptionLabel")}
+        />
+      </div>
+      <div className="grid gap-1.5">
+        <label htmlFor="public-vault-note" className="text-sm font-medium text-foreground">
+          {t("publicStatus.vault.noteLabel")}
+        </label>
+        <Textarea
+          id="public-vault-note"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          placeholder={t("publicStatus.vault.notePlaceholder")}
+          rows={3}
+          maxLength={500}
+          disabled={submitting}
+          className="resize-none border-border bg-background"
+        />
+      </div>
+      <Button type="submit" size="sm" disabled={submitting || !subscriptionId} className="w-full justify-center gap-2 sm:w-fit">
+        {submitting ? t("publicStatus.vault.requestSubmitting") : t("publicStatus.vault.requestSubmit")}
+      </Button>
+      {error ? (
+        <p role="alert" className="text-sm leading-5 text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
+/**
+ * 公开页「账号访问」区块：授权码解锁 + 访问申请。
+ *
+ * 安全边界：未开启（vault.enabled=false）不渲染；订阅摘要只含 id/name，
+ * 由服务端在开关开启时输出，前端不回退本地订阅数据。
+ */
+function PublicVaultAccessSection({ token, vault }: { token: string; vault: PublicStatusVault }) {
+  const { t } = useI18n();
+  const hasRequestableSubscriptions = vault.subscriptions.length > 0;
+  return (
+    <section
+      aria-label={t("publicStatus.vault.title")}
+      className="rounded-xl border border-border bg-card p-5 shadow-card"
+    >
+      <div className="mb-4 flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-primary">
+          <KeyRound className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="font-semibold text-foreground">{t("publicStatus.vault.title")}</h2>
+          <p className="mt-0.5 text-sm leading-5 text-muted-foreground">{t("publicStatus.vault.description")}</p>
+        </div>
+      </div>
+      <Tabs defaultValue="redeem">
+        <TabsList className="w-full justify-stretch sm:w-fit">
+          <TabsTrigger value="redeem" className="flex-1 sm:flex-none">
+            {t("publicStatus.vault.tabRedeem")}
+          </TabsTrigger>
+          <TabsTrigger value="request" className="flex-1 sm:flex-none">
+            {t("publicStatus.vault.tabRequest")}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="redeem" className="mt-4">
+          <PublicVaultRedeemForm token={token} />
+        </TabsContent>
+        <TabsContent value="request" className="mt-4">
+          {hasRequestableSubscriptions ? (
+            <PublicVaultRequestForm token={token} subscriptions={vault.subscriptions} />
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground">{t("publicStatus.vault.requestEmpty")}</p>
+          )}
+        </TabsContent>
+      </Tabs>
+    </section>
+  );
+}
+
 export default function PublicStatusPage() {
   useNoIndexMeta();
   const { token } = useParams<{ token: string }>();
@@ -544,6 +868,7 @@ export default function PublicStatusPage() {
   }
 
   const data = query.data;
+  const normalizedToken = token?.trim() ?? "";
 
   return (
     <PublicStatusFrame>
@@ -578,6 +903,8 @@ export default function PublicStatusPage() {
             ))}
           </section>
         )}
+
+        {data.vault.enabled ? <PublicVaultAccessSection token={normalizedToken} vault={data.vault} /> : null}
       </div>
     </PublicStatusFrame>
   );

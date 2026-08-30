@@ -24,11 +24,12 @@ const (
 // publicStatusPageStatus 是登录用户设置页看到的公开展示页状态。
 // PageURL 是唯一可复制凭据；token 不拆字段出站，避免进入 settings/export 等持久配置。
 type publicStatusPageStatus struct {
-	Enabled    bool   `json:"enabled"`
-	CreatedAt  string `json:"createdAt,omitempty"`
-	PageURL    string `json:"pageUrl,omitempty"`
-	ShowPrices bool   `json:"showPrices"`
-	UpdatedAt  string `json:"updatedAt,omitempty"`
+	Enabled      bool   `json:"enabled"`
+	CreatedAt    string `json:"createdAt,omitempty"`
+	PageURL      string `json:"pageUrl,omitempty"`
+	ShowPrices   bool   `json:"showPrices"`
+	VaultEnabled bool   `json:"vaultEnabled"`
+	UpdatedAt    string `json:"updatedAt,omitempty"`
 }
 
 // publicStatusPageStatusResponse 保持 settings 页读取的 root key；前端 schema 依赖 publicStatusPage 包裹层。
@@ -38,11 +39,12 @@ type publicStatusPageStatusResponse struct {
 
 // publicStatusPageCreateStatus 是创建/复用 token 后的完整状态。
 type publicStatusPageCreateStatus struct {
-	Enabled    bool   `json:"enabled"`
-	CreatedAt  string `json:"createdAt"`
-	PageURL    string `json:"pageUrl"`
-	ShowPrices bool   `json:"showPrices"`
-	UpdatedAt  string `json:"updatedAt"`
+	Enabled      bool   `json:"enabled"`
+	CreatedAt    string `json:"createdAt"`
+	PageURL      string `json:"pageUrl"`
+	ShowPrices   bool   `json:"showPrices"`
+	VaultEnabled bool   `json:"vaultEnabled"`
+	UpdatedAt    string `json:"updatedAt"`
 }
 
 // publicStatusPageCreateResponse 与读取响应保持同一 root key，避免创建后缓存写入需要单独分支。
@@ -53,25 +55,40 @@ type publicStatusPageCreateResponse struct {
 // publicStatusPageCreateRequest 只允许空对象；公开 token 始终由服务端生成。
 type publicStatusPageCreateRequest struct{}
 
-// publicStatusPageUpdateRequest 只允许切换金额公开开关，不允许客户端提交 token 或 URL。
+// publicStatusPageUpdateRequest 只允许切换公开开关（金额/账号访问），不允许客户端提交 token 或 URL。
 type publicStatusPageUpdateRequest struct {
-	ShowPrices bool `json:"showPrices"`
+	ShowPrices   bool `json:"showPrices"`
+	VaultEnabled bool `json:"vaultEnabled"`
 }
 
 // publicStatusResponse 是公开 API 的 allowlist 投影，不能直接返回订阅 record。
 type publicStatusResponse struct {
 	Page          publicStatusPageView           `json:"page"`
 	Subscriptions []publicStatusSubscriptionView `json:"subscriptions"`
+	Vault         publicStatusVaultView          `json:"vault"`
 }
 
 // publicStatusPageView 描述公开页元信息；Currency 只有 showPrices=true 时才出现。
 type publicStatusPageView struct {
 	Title             string                   `json:"title"`
 	ShowPrices        bool                     `json:"showPrices"`
+	VaultEnabled      bool                     `json:"vaultEnabled"`
 	Currency          string                   `json:"currency,omitempty"`
 	ExchangeRateBasis *exchangeRatePublicBasis `json:"exchangeRateBasis,omitempty"`
 	GeneratedAt       string                   `json:"generatedAt"`
 	Truncated         bool                     `json:"truncated"`
+}
+
+// publicStatusVaultView 是公开页账号访问区块；Enabled=false 时 Subscriptions 必须为空。
+type publicStatusVaultView struct {
+	Enabled      bool                           `json:"enabled"`
+	Subscriptions []publicStatusVaultSubscriptionView `json:"subscriptions"`
+}
+
+// publicStatusVaultSubscriptionView 只暴露申请访问必需的 id 与名称。
+type publicStatusVaultSubscriptionView struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // publicStatusSubscriptionView 是公开订阅字段白名单。
@@ -127,11 +144,12 @@ func handlePublicStatusPageCreate(app core.App, e *core.RequestEvent) error {
 	}
 	// 创建接口可重复调用；已存在 token 时只回显状态，避免刷新页面意外轮换公开 URL。
 	return apiSuccessJSON(e, http.StatusOK, publicStatusPageCreateResponse{PublicStatusPage: publicStatusPageCreateStatus{
-		Enabled:    true,
-		CreatedAt:  record.GetDateTime("created").Time().UTC().Format(time.RFC3339),
-		PageURL:    publicStatusPageURL(e.Request, record.GetString("token")),
-		ShowPrices: record.GetBool("showPrices"),
-		UpdatedAt:  record.GetDateTime("updated").Time().UTC().Format(time.RFC3339),
+		Enabled:      true,
+		CreatedAt:    record.GetDateTime("created").Time().UTC().Format(time.RFC3339),
+		PageURL:      publicStatusPageURL(e.Request, record.GetString("token")),
+		ShowPrices:   record.GetBool("showPrices"),
+		VaultEnabled: record.GetBool("vaultEnabled"),
+		UpdatedAt:    record.GetDateTime("updated").Time().UTC().Format(time.RFC3339),
 	}})
 }
 
@@ -149,6 +167,7 @@ func handlePublicStatusPageUpdate(app core.App, e *core.RequestEvent) error {
 		return e.NotFoundError(serverText(locale, "common.notFound"), nil)
 	}
 	record.Set("showPrices", body.ShowPrices)
+	record.Set("vaultEnabled", body.VaultEnabled)
 	if err := app.Save(record); err != nil {
 		return e.InternalServerError(serverText(locale, "common.internalError"), err)
 	}
@@ -246,6 +265,7 @@ func ensurePublicStatusPage(app core.App, userID string) (*core.Record, error) {
 		}
 		record.Set("token", token)
 		record.Set("showPrices", false)
+		record.Set("vaultEnabled", false)
 	}
 	if err := app.Save(record); err != nil {
 		return nil, err
@@ -255,14 +275,15 @@ func ensurePublicStatusPage(app core.App, userID string) (*core.Record, error) {
 
 func publicStatusPageStatusFromRecord(request *http.Request, record *core.Record) publicStatusPageStatus {
 	if record == nil {
-		return publicStatusPageStatus{Enabled: false, ShowPrices: false}
+		return publicStatusPageStatus{Enabled: false, ShowPrices: false, VaultEnabled: false}
 	}
 	return publicStatusPageStatus{
-		Enabled:    true,
-		CreatedAt:  record.GetDateTime("created").Time().UTC().Format(time.RFC3339),
-		PageURL:    publicStatusPageURL(request, record.GetString("token")),
-		ShowPrices: record.GetBool("showPrices"),
-		UpdatedAt:  record.GetDateTime("updated").Time().UTC().Format(time.RFC3339),
+		Enabled:      true,
+		CreatedAt:    record.GetDateTime("created").Time().UTC().Format(time.RFC3339),
+		PageURL:      publicStatusPageURL(request, record.GetString("token")),
+		ShowPrices:   record.GetBool("showPrices"),
+		VaultEnabled: record.GetBool("vaultEnabled"),
+		UpdatedAt:    record.GetDateTime("updated").Time().UTC().Format(time.RFC3339),
 	}
 }
 
@@ -284,20 +305,44 @@ func buildPublicStatusResponse(app core.App, request *http.Request, page *core.R
 		return publicStatusResponse{}, err
 	}
 	showPrices := page.GetBool("showPrices")
+	vaultEnabled := page.GetBool("vaultEnabled")
 	view := publicStatusPageView{
-		Title:       "Renewo",
-		ShowPrices:  showPrices,
-		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
-		Truncated:   truncated,
+		Title:        "Renewo",
+		ShowPrices:   showPrices,
+		VaultEnabled: vaultEnabled,
+		GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+		Truncated:    truncated,
 	}
 	if showPrices {
 		view.Currency = effectivePublicStatusCurrency(settings)
 		basis := exchangeRatePublicBasisForUser(app, userID, time.Now().UTC())
 		view.ExchangeRateBasis = &basis
 	}
+	vault := publicStatusVaultView{Enabled: vaultEnabled, Subscriptions: []publicStatusVaultSubscriptionView{}}
+	if vaultEnabled {
+		// 申请访问的选项口径与页面可见订阅一致（publicHidden=false）；仅暴露 id 与名称。
+		rows, err := app.FindRecordsByFilter(
+			"subscriptions",
+			"user = {:user} && publicHidden = false",
+			"-pinned,-created,-id",
+			publicStatusSubscriptionLimit+1,
+			0,
+			dbx.Params{"user": userID},
+		)
+		if err != nil {
+			return publicStatusResponse{}, err
+		}
+		for _, row := range rows {
+			vault.Subscriptions = append(vault.Subscriptions, publicStatusVaultSubscriptionView{
+				ID:   row.Id,
+				Name: row.GetString("name"),
+			})
+		}
+	}
 	return publicStatusResponse{
 		Page:          view,
 		Subscriptions: items,
+		Vault:         vault,
 	}, nil
 }
 

@@ -10,6 +10,15 @@ import {
   type PublicStatusPageUpdateRequest,
   type PublicStatusResponse,
 } from "@/lib/api/schemas/public-status";
+import {
+  vaultAccessRequestCreatePublicBodySchema,
+  vaultAccessRequestCreatedResponseSchema,
+  vaultPublicRedeemRequestSchema,
+  vaultPublicRedeemResponseSchema,
+  type VaultAccessRequestCreatePublicBody,
+  type VaultPublicRedeemPayload,
+  type VaultPublicRedeemRequest,
+} from "@/lib/api/schemas/vault";
 
 /**
  * 公开展示页服务。
@@ -51,5 +60,31 @@ export const publicStatusService = {
       authMode: "none",
       ...(signal ? { signal } : {}),
     });
+  },
+
+  /** 访客凭授权码解锁账号；服务端按页面所有者限定码归属并做 IP 限流。 */
+  async redeemPublicVaultCode(token: string, body: VaultPublicRedeemRequest): Promise<VaultPublicRedeemPayload> {
+    return await apiFetch(`/api/public/status/${encodeURIComponent(token)}/vault/redeem`, vaultPublicRedeemResponseSchema, {
+      authMode: "none",
+      method: "POST",
+      body: JSON.stringify(vaultPublicRedeemRequestSchema.parse(body)),
+    });
+  },
+
+  /** 访客对指定订阅发起访问申请；审批通过后管理员侧生成新授权码。 */
+  async createPublicVaultAccessRequest(
+    token: string,
+    body: VaultAccessRequestCreatePublicBody,
+  ): Promise<{ id: string; status: "pending" }> {
+    const data = await apiFetch(
+      `/api/public/status/${encodeURIComponent(token)}/vault/request`,
+      vaultAccessRequestCreatedResponseSchema,
+      {
+        authMode: "none",
+        method: "POST",
+        body: JSON.stringify(vaultAccessRequestCreatePublicBodySchema.parse(body)),
+      },
+    );
+    return data;
   },
 };

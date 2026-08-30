@@ -401,6 +401,7 @@ func registerRoutes(app core.App, router *router.Router[*core.RequestEvent]) []a
 	auth.GET("/vault/access-logs", func(e *core.RequestEvent) error { return handleVaultAccessLogsList(app, e) })
 	// 公开页面：申请访问 + 凭授权码解锁凭据（P2 公开入口）
 	api.POST("/api/public/status/{token}/vault/request", func(e *core.RequestEvent) error { return handleVaultAccessRequestCreatePublic(app, e) })
+	api.POST("/api/public/status/{token}/vault/redeem", func(e *core.RequestEvent) error { return handleVaultAccessCodeRedeemPublic(app, e) })
 	// 扣费记录历史：GET 走 (billing_date, id) keyset 分页；PATCH 只开放事实修正字段，归属/来源字段不可改。
 	auth.GET("/subscriptions/{id}/billing-records", func(e *core.RequestEvent) error { return handleSubscriptionBillingRecordsList(app, e) })
 	auth.PATCH("/billing-records/{id}", func(e *core.RequestEvent) error { return handleBillingRecordPatch(app, e) })

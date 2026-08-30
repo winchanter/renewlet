@@ -347,6 +347,7 @@ export function SettingsAdvancedSections({
         onOpenPage={publicStatusPage.openPage}
         onRegenerate={publicStatusPage.regenerate}
         onShowPricesChange={publicStatusPage.updateShowPrices}
+        onVaultEnabledChange={publicStatusPage.updateVaultEnabled}
         onPublicStatusCurrencyChange={(value) => updateSetting("publicStatusCurrency", value as PublicStatusCurrency)}
       />
 

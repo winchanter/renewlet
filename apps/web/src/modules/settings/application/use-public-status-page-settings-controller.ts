@@ -25,6 +25,7 @@ export interface SettingsPublicStatusPageController {
   regenerate: () => Promise<boolean>;
   revoke: () => Promise<boolean>;
   updateShowPrices: (checked: boolean) => Promise<void>;
+  updateVaultEnabled: (checked: boolean) => Promise<void>;
 }
 
 export function usePublicStatusPageSettingsController(
@@ -106,14 +107,32 @@ export function usePublicStatusPageSettingsController(
   const handleUpdatePublicStatusShowPrices = useCallback(async (checked: boolean) => {
     if (!publicStatusPageStatus.data?.enabled) return;
     try {
-      await updatePublicStatusPage.mutateAsync(checked);
+      await updatePublicStatusPage.mutateAsync({
+        showPrices: checked,
+        vaultEnabled: publicStatusPageStatus.data?.vaultEnabled ?? false,
+      });
       toast.success(checked ? t("settings.publicStatusPricesEnabled") : t("settings.publicStatusPricesDisabled"));
     } catch (error) {
       toast.error(t("settings.publicStatusFailed"), {
         description: getDisplayErrorMessage(error, t("settings.publicStatusUpdateFailedDescription")),
       });
     }
-  }, [publicStatusPageStatus.data?.enabled, t, updatePublicStatusPage]);
+  }, [publicStatusPageStatus.data?.enabled, publicStatusPageStatus.data?.vaultEnabled, t, updatePublicStatusPage]);
+
+  const handleUpdatePublicStatusVaultEnabled = useCallback(async (checked: boolean) => {
+    if (!publicStatusPageStatus.data?.enabled) return;
+    try {
+      await updatePublicStatusPage.mutateAsync({
+        showPrices: publicStatusPageStatus.data?.showPrices ?? false,
+        vaultEnabled: checked,
+      });
+      toast.success(checked ? t("settings.publicStatusVaultEnabledToast") : t("settings.publicStatusVaultDisabledToast"));
+    } catch (error) {
+      toast.error(t("settings.publicStatusFailed"), {
+        description: getDisplayErrorMessage(error, t("settings.publicStatusUpdateFailedDescription")),
+      });
+    }
+  }, [publicStatusPageStatus.data?.enabled, publicStatusPageStatus.data?.showPrices, t, updatePublicStatusPage]);
 
   return {
     status: toSettingsReadState(publicStatusPageStatus),
@@ -127,5 +146,6 @@ export function usePublicStatusPageSettingsController(
     regenerate: handleRegeneratePublicStatusPage,
     revoke: handleRevokePublicStatusPage,
     updateShowPrices: handleUpdatePublicStatusShowPrices,
+    updateVaultEnabled: handleUpdatePublicStatusVaultEnabled,
   };
 }

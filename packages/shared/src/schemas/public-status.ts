@@ -22,6 +22,7 @@ export const publicStatusPageSchema = z.object({
   createdAt: z.string().optional(),
   pageUrl: z.string().trim().url().max(4096).optional(),
   showPrices: z.boolean(),
+  vaultEnabled: z.boolean(),
   updatedAt: z.string().optional(),
 }).strict();
 
@@ -38,6 +39,7 @@ export const publicStatusPageCreatePayloadSchema = z.object({
     createdAt: z.string().trim().min(1),
     pageUrl: z.string().trim().url().max(4096),
     showPrices: z.boolean(),
+    vaultEnabled: z.boolean(),
     updatedAt: z.string().trim().min(1),
   }).strict(),
 }).strict();
@@ -45,6 +47,7 @@ export const publicStatusPageCreateResponseSchema = apiSuccessResponseSchema(pub
 
 export const publicStatusPageUpdateRequestSchema = z.object({
   showPrices: z.boolean(),
+  vaultEnabled: z.boolean(),
 }).strict();
 
 export const publicStatusPageDeleteResponseSchema = okResponseSchema;
@@ -134,17 +137,40 @@ const publicStatusSubscriptionSchema = z.object({
   message: "Billing cycle fields are inconsistent",
 });
 
+/** 公开页账号访问区块：访客申请访问所需的订阅摘要（id+name）。仅 vaultEnabled 开启时输出，列表必须为空。 */
+export const publicStatusVaultSubscriptionSchema = z.object({
+  id: z.string().trim().min(1).max(128),
+  name: z.string().trim().min(1).max(120),
+}).strict();
+export type PublicStatusVaultSubscription = z.infer<typeof publicStatusVaultSubscriptionSchema>;
+
+export const publicStatusVaultSchema = z.object({
+  enabled: z.boolean(),
+  subscriptions: z.array(publicStatusVaultSubscriptionSchema).max(500),
+}).strict();
+export type PublicStatusVault = z.infer<typeof publicStatusVaultSchema>;
+
 export const publicStatusPayloadSchema = z.object({
   page: z.object({
     title: z.literal("Renewo"),
     showPrices: z.boolean(),
+    vaultEnabled: z.boolean(),
     currency: z.string().trim().regex(/^[A-Z]{3}$/).optional(),
     exchangeRateBasis: exchangeRateSnapshotPublicBasisSchema.optional(),
     generatedAt: z.string().trim().min(1),
     truncated: z.boolean(),
   }).strict(),
   subscriptions: z.array(publicStatusSubscriptionSchema).max(500),
+  vault: publicStatusVaultSchema,
 }).strict().superRefine((value, context) => {
+  // 账号访问关闭时不允许携带订阅摘要，避免访客从关闭页面枚举订阅 id。
+  if (!value.vault.enabled && value.vault.subscriptions.length > 0) {
+    context.addIssue({
+      code: "custom",
+      path: ["vault", "subscriptions"],
+      message: "Vault subscriptions must be hidden when vault access is disabled",
+    });
+  }
   // showPrices 是公开页隐私开关，金额相关字段必须整组出现或整组隐藏，避免半公开响应被前端误展示。
   if (value.page.showPrices && !value.page.currency) {
     context.addIssue({

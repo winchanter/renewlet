@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pocketbase/dbx"
@@ -652,10 +653,9 @@ func handleVaultAccessCodeRevoke(app core.App, e *core.RequestEvent) error {
 	return apiEmptySuccessJSON(e, http.StatusOK)
 }
 
-// handleVaultAccessCodeRedeemByCode 支持两种调用方：
-//   - 公开页面（匿名）：使用 /api/public/status 路径；校验通过后 reveal 一次密码并消耗码。
-//   - 归属用户后台：auth 路径，等同自己 reveal 但带 code 审计。
-func vaultAccessCodeRedeemCore(app core.App, e *core.RequestEvent, body vaultAccessCodeRedeemRequest, userID string, source string) error {
+// vaultAccessCodeRedeemCore 兑换授权码。ownerScope 非空时（公开页调用）码必须属于该用户，
+// 不匹配一律按「码不存在」处理，避免公开 token 成为跨用户码枚举探针。
+func vaultAccessCodeRedeemCore(app core.App, e *core.RequestEvent, body vaultAccessCodeRedeemRequest, userID string, source string, ownerScope string) error {
 	locale := requestLocale(e.Request)
 	codeText := strings.ToLower(strings.TrimSpace(body.Code))
 	if codeText == "" {
@@ -671,8 +671,12 @@ func vaultAccessCodeRedeemCore(app core.App, e *core.RequestEvent, body vaultAcc
 	ip := clientIP(e.Request)
 	ua := e.Request.UserAgent()
 	resultAction := vaultLogActionCodeRedeemed
-	if findErr != nil || code == nil {
-		writeVaultAccessLog(app, "", resultAction, source, vaultLogResultFailure, "", "", "", ip, ua, map[string]any{"reason": "code not found"})
+	if findErr != nil || code == nil || (ownerScope != "" && code.GetString("user") != ownerScope) {
+		logOwner := ""
+		if code != nil {
+			logOwner = code.GetString("user")
+		}
+		writeVaultAccessLog(app, logOwner, resultAction, source, vaultLogResultFailure, "", "", "", ip, ua, map[string]any{"reason": "code not found"})
 		return e.BadRequestError(serverText(locale, "vault.codeInvalid"), nil)
 	}
 	attempts := int(code.GetInt("attempts"))
@@ -753,7 +757,70 @@ func handleVaultAccessCodeRedeemAuth(app core.App, e *core.RequestEvent) error {
 	if err != nil {
 		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
 	}
-	return vaultAccessCodeRedeemCore(app, e, body, e.Auth.Id, vaultLogSourceAdmin)
+	return vaultAccessCodeRedeemCore(app, e, body, e.Auth.Id, vaultLogSourceAdmin, "")
+}
+
+// ================== P3：公开页访客兑换 ==================
+
+const (
+	vaultPublicRedeemRateLimitMax     = 10
+	vaultPublicRedeemRateLimitWindow  = time.Minute
+)
+
+type vaultPublicRedeemBucket struct {
+	Count   int
+	ResetAt time.Time
+}
+
+var (
+	vaultPublicRedeemMu    sync.Mutex
+	vaultPublicRedeemLimit = map[string]vaultPublicRedeemBucket{}
+)
+
+// checkVaultPublicRedeemRateLimit 按 IP 限制公开兑换尝试频率；防跨码枚举与撞码。
+func checkVaultPublicRedeemRateLimit(e *core.RequestEvent) bool {
+	now := time.Now()
+	key := clientIP(e.Request)
+	vaultPublicRedeemMu.Lock()
+	defer vaultPublicRedeemMu.Unlock()
+	if bucket, ok := vaultPublicRedeemLimit[key]; ok {
+		if now.Before(bucket.ResetAt) {
+			if bucket.Count >= vaultPublicRedeemRateLimitMax {
+				return false
+			}
+			bucket.Count++
+			vaultPublicRedeemLimit[key] = bucket
+			return true
+		}
+	}
+	vaultPublicRedeemLimit[key] = vaultPublicRedeemBucket{Count: 1, ResetAt: now.Add(vaultPublicRedeemRateLimitWindow)}
+	// map 淘汰：条目超量时清一遍过期桶，避免长期运行内存泄漏。
+	if len(vaultPublicRedeemLimit) > 4096 {
+		for k, v := range vaultPublicRedeemLimit {
+			if now.After(v.ResetAt) {
+				delete(vaultPublicRedeemLimit, k)
+			}
+		}
+	}
+	return true
+}
+
+// handleVaultAccessCodeRedeemPublic 访客通过公开状态页 token 兑换授权码；未登录。
+// 页面未开启账号访问时返回 404，不暴露功能存在性。
+func handleVaultAccessCodeRedeemPublic(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	page, pageErr := findPublicStatusPageByToken(app, strings.TrimSpace(e.Request.PathValue("token")))
+	if pageErr != nil || page == nil || !page.GetBool("vaultEnabled") {
+		return e.NotFoundError(serverText(locale, "common.notFound"), nil)
+	}
+	if !checkVaultPublicRedeemRateLimit(e) {
+		return e.TooManyRequestsError(serverText(locale, "vault.publicRedeemRateLimited"), nil)
+	}
+	body, err := decodeStrictJSON[vaultAccessCodeRedeemRequest](e.Request, locale)
+	if err != nil {
+		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
+	}
+	return vaultAccessCodeRedeemCore(app, e, body, "", vaultLogSourcePublic, page.GetString("user"))
 }
 
 // ================== P2-B：访问申请与审批 ==================
@@ -872,12 +939,13 @@ func handleVaultAccessRequestCreatePublic(app core.App, e *core.RequestEvent) er
 		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
 	}
 	subscriptionID := strings.TrimSpace(body.SubscriptionID)
-	pageID := strings.TrimSpace(e.Request.PathValue("token"))
-	if subscriptionID == "" || pageID == "" {
+	token := strings.TrimSpace(e.Request.PathValue("token"))
+	if subscriptionID == "" || token == "" {
 		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
 	}
-	// 公开页 token 对应 pageID，需验证存在且与 subscription 匹配。
-	page, pageErr := app.FindFirstRecordByFilter("public_status_pages", "id = {:id}", dbx.Params{"id": pageID})
+	// 公开页 URL 携带的是 bearer token（与 status 读取路由一致），必须按 token 解析页面记录；
+	// 直接把 token 当记录 ID 查会导致合法申请永远 404。
+	page, pageErr := findPublicStatusPageByToken(app, token)
 	if pageErr != nil || page == nil {
 		return e.NotFoundError(serverText(locale, "publicStatus.pageNotFound"), nil)
 	}
@@ -902,7 +970,7 @@ func handleVaultAccessRequestCreatePublic(app core.App, e *core.RequestEvent) er
 	record := core.NewRecord(collection)
 	record.Set("user", subs.GetString("user"))
 	record.Set("subscription", subscriptionID)
-	record.Set("publicStatusPage", pageID)
+	record.Set("publicStatusPage", page.Id)
 	record.Set("note", body.Note)
 	record.Set("status", vaultRequestStatusPending)
 	record.Set("sourceIp", clientIP(e.Request))

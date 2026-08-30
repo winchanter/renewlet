@@ -8,15 +8,20 @@ import { appSettingsSchema } from "./settings";
 
 const success = <T>(data: T) => ({ ok: true, data });
 
+// P3 起公开页 payload 必带 vault 区块；测试默认关闭且不带订阅摘要。
+const disabledVault = { enabled: false, subscriptions: [] };
+const publicPage = (overrides: Record<string, unknown> = {}) => ({
+  title: "Renewo",
+  vaultEnabled: false,
+  generatedAt: "2026-06-07T00:00:00.000Z",
+  truncated: false,
+  ...overrides,
+});
+
 describe("public status schemas", () => {
   it("accepts minimal public status rows without prices", () => {
     expect(publicStatusResponseSchema.parse(success({
-      page: {
-        title: "Renewo",
-        showPrices: false,
-        generatedAt: "2026-06-07T00:00:00.000Z",
-        truncated: false,
-      },
+      page: publicPage({ showPrices: false }),
       subscriptions: [{
         name: "Netflix",
         logo: "https://example.com/netflix.png",
@@ -26,21 +31,18 @@ describe("public status schemas", () => {
         nextBillingDate: "2026-07-01",
         updatedAt: "2026-06-07T00:00:00.000Z",
       }],
+      vault: disabledVault,
     })).data.subscriptions[0]?.price).toBeUndefined();
     expect(publicStatusResponseSchema.safeParse({
-      page: { title: "Renewo", showPrices: false, generatedAt: "2026-06-07T00:00:00.000Z", truncated: false },
+      page: publicPage({ showPrices: false }),
       subscriptions: [],
+      vault: disabledVault,
     }).success).toBe(false);
   });
 
   it("accepts public status rows with unknown recurring start dates", () => {
     expect(publicStatusResponseSchema.parse(success({
-      page: {
-        title: "Renewo",
-        showPrices: false,
-        generatedAt: "2026-06-07T00:00:00.000Z",
-        truncated: false,
-      },
+      page: publicPage({ showPrices: false }),
       subscriptions: [{
         name: "QQ Music",
         category: { value: "streaming", label: "Streaming" },
@@ -49,19 +51,14 @@ describe("public status schemas", () => {
         nextBillingDate: "2026-07-01",
         updatedAt: "2026-06-07T00:00:00.000Z",
       }],
+      vault: disabledVault,
     })).data.subscriptions[0]?.startDate).toBeNull();
   });
 
   it("requires price and currency to be exposed together", () => {
     // showPrices 是公开账单字段唯一开关；schema 让金额、币种和周期同进同出，避免半公开账单信息。
     expect(publicStatusResponseSchema.safeParse(success({
-      page: {
-        title: "Renewo",
-        showPrices: true,
-        currency: "USD",
-        generatedAt: "2026-06-07T00:00:00.000Z",
-        truncated: false,
-      },
+      page: publicPage({ showPrices: true, currency: "USD" }),
       subscriptions: [{
         name: "Netflix",
         category: { value: "streaming", label: "Streaming" },
@@ -71,13 +68,13 @@ describe("public status schemas", () => {
         updatedAt: "2026-06-07T00:00:00.000Z",
         price: "9.99",
       }],
+      vault: disabledVault,
     })).success).toBe(false);
   });
 
   it("requires public page currency and billing cycle only when prices are visible", () => {
     expect(publicStatusResponseSchema.safeParse(success({
-      page: {
-        title: "Renewo",
+      page: publicPage({
         showPrices: true,
         currency: "USD",
         exchangeRateBasis: {
@@ -88,9 +85,7 @@ describe("public status schemas", () => {
           sourceDate: "2026-06-06",
           capturedAt: "2026-06-07T00:00:00.000Z",
         },
-        generatedAt: "2026-06-07T00:00:00.000Z",
-        truncated: false,
-      },
+      }),
       subscriptions: [{
         name: "Annual Plan",
         category: { value: "streaming", label: "Streaming" },
@@ -102,40 +97,25 @@ describe("public status schemas", () => {
         currency: "USD",
         billingCycle: "annual",
       }],
+      vault: disabledVault,
     })).success).toBe(true);
 
     expect(publicStatusResponseSchema.safeParse(success({
-      page: {
-        title: "Renewo",
-        showPrices: false,
-        currency: "USD",
-        generatedAt: "2026-06-07T00:00:00.000Z",
-        truncated: false,
-      },
+      page: publicPage({ showPrices: false, currency: "USD" }),
       subscriptions: [],
+      vault: disabledVault,
     })).success).toBe(false);
 
     expect(publicStatusResponseSchema.safeParse(success({
-      page: {
-        title: "Renewo",
-        showPrices: false,
-        exchangeRateBasis: { status: "live", month: "2026-06" },
-        generatedAt: "2026-06-07T00:00:00.000Z",
-        truncated: false,
-      },
+      page: publicPage({ showPrices: false, exchangeRateBasis: { status: "live", month: "2026-06" } }),
       subscriptions: [],
+      vault: disabledVault,
     })).success).toBe(false);
   });
 
   it("rejects incomplete or unrelated cycle-specific fields", () => {
     const publicResponse = (subscription: Record<string, unknown>) => success({
-      page: {
-        title: "Renewo",
-        showPrices: true,
-        currency: "USD",
-        generatedAt: "2026-06-07T00:00:00.000Z",
-        truncated: false,
-      },
+      page: publicPage({ showPrices: true, currency: "USD" }),
       subscriptions: [{
         name: "Custom Plan",
         category: { value: "streaming", label: "Streaming" },
@@ -147,6 +127,7 @@ describe("public status schemas", () => {
         currency: "USD",
         ...subscription,
       }],
+      vault: disabledVault,
     });
 
     expect(publicStatusResponseSchema.safeParse(publicResponse({
@@ -167,13 +148,7 @@ describe("public status schemas", () => {
 
   it("projects usage-based quantities only together with prices and billing cycle", () => {
     const publicResponse = (subscription: Record<string, unknown>) => success({
-      page: {
-        title: "Renewo",
-        showPrices: true,
-        currency: "USD",
-        generatedAt: "2026-06-07T00:00:00.000Z",
-        truncated: false,
-      },
+      page: publicPage({ showPrices: true, currency: "USD" }),
       subscriptions: [{
         name: "SMS Pack",
         category: { value: "communication", label: "Communication" },
@@ -185,6 +160,7 @@ describe("public status schemas", () => {
         currency: "USD",
         ...subscription,
       }],
+      vault: disabledVault,
     });
 
     // usage-based 公开投影只输出月均摊销所需字段；总量与日均必须随价格同进同出。
@@ -207,6 +183,25 @@ describe("public status schemas", () => {
     })).success).toBe(false);
   });
 
+  it("gates vault subscription summaries behind the vault switch", () => {
+    // 账号访问关闭时不得携带订阅摘要，避免访客从关闭页面枚举订阅 id。
+    expect(publicStatusResponseSchema.safeParse(success({
+      page: publicPage({ showPrices: false }),
+      subscriptions: [],
+      vault: { enabled: false, subscriptions: [{ id: "sub-1", name: "Netflix" }] },
+    })).success).toBe(false);
+    expect(publicStatusResponseSchema.safeParse(success({
+      page: publicPage({ showPrices: false, vaultEnabled: true }),
+      subscriptions: [],
+      vault: { enabled: true, subscriptions: [{ id: "sub-1", name: "Netflix" }] },
+    })).success).toBe(true);
+    expect(publicStatusResponseSchema.safeParse(success({
+      page: publicPage({ showPrices: false, vaultEnabled: true }),
+      subscriptions: [],
+      vault: disabledVault,
+    })).success).toBe(true);
+  });
+
   it("accepts inherited or explicit public status currency settings", () => {
     expect(appSettingsSchema.pick({ publicStatusCurrency: true }).parse({ publicStatusCurrency: "inherit" }).publicStatusCurrency).toBe("inherit");
     expect(appSettingsSchema.pick({ publicStatusCurrency: true }).parse({ publicStatusCurrency: "USD" }).publicStatusCurrency).toBe("USD");
@@ -221,6 +216,7 @@ describe("public status schemas", () => {
         updatedAt: "2026-06-07T00:00:00.000Z",
         pageUrl: "https://renewlet.example/status/abc123abc123abc123abc123abc123abc123abc123a",
         showPrices: false,
+        vaultEnabled: false,
       },
     })).success).toBe(true);
   });

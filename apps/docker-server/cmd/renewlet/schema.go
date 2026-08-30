@@ -662,6 +662,10 @@ func ensurePublicStatusPagesCollection(app core.App, users *core.Collection) err
 		if err := upsertField(c, &core.BoolField{Name: "showPrices"}); err != nil {
 			return err
 		}
+		// 账号访问开关：开启后公开页显示授权码解锁与访问申请入口（P3）。
+		if err := upsertField(c, &core.BoolField{Name: "vaultEnabled"}); err != nil {
+			return err
+		}
 		if err := ensureAutodates(c); err != nil {
 			return err
 		}

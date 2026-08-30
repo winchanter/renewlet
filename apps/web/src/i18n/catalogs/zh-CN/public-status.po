@@ -39,6 +39,11 @@ msgid "publicStatus.visibleMoneySubtitle"
 msgstr "其中 {count} 个计入金额"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:67
+msgid "publicStatus.vault.requestAgain"
+msgstr "再申请一个"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:27
 msgid "publicStatus.nextBillingDate"
 msgstr "到期/续费：{date}"
@@ -49,9 +54,44 @@ msgid "publicStatus.upcomingSubtitle"
 msgstr "即将到期或续费"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:45
+msgid "publicStatus.vault.fieldTitle"
+msgstr "名称"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:49
+msgid "publicStatus.vault.fieldNotes"
+msgstr "备注"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:52
+msgid "publicStatus.vault.copy"
+msgstr "复制"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:54
+msgid "publicStatus.vault.copyFailed"
+msgstr "复制失败"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:47
+msgid "publicStatus.vault.fieldPassword"
+msgstr "密码"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:14
 msgid "publicStatus.visibleCount"
 msgstr "展示订阅"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:53
+msgid "publicStatus.vault.copied"
+msgstr "已复制"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:42
+msgid "publicStatus.vault.redeemSuccessToast"
+msgstr "已解锁账号"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:9
@@ -64,6 +104,11 @@ msgid "publicStatus.startDate"
 msgstr "开始：{date}"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:35
+msgid "publicStatus.vault.description"
+msgstr "持有授权码可直接解锁对应账号；没有授权码可以提交访问申请，等待管理员审批。"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:12
 msgid "publicStatus.moneySubtitleLive"
 msgstr "按 {currency} 实时汇率汇总"
@@ -72,6 +117,31 @@ msgstr "按 {currency} 实时汇率汇总"
 #: src/i18n/descriptors/public-status.ts:10
 msgid "publicStatus.moneySubtitle"
 msgstr "按 {currency} 汇总"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:38
+msgid "publicStatus.vault.codeLabel"
+msgstr "授权码"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:62
+msgid "publicStatus.vault.requestSubmitting"
+msgstr "提交中…"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:64
+msgid "publicStatus.vault.requestFailed"
+msgstr "提交失败"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:61
+msgid "publicStatus.vault.requestSubmit"
+msgstr "提交申请"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:57
+msgid "publicStatus.vault.subscriptionSearch"
+msgstr "搜索订阅"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:31
@@ -87,6 +157,11 @@ msgstr "日均 {amount}"
 #: src/i18n/descriptors/public-status.ts:8
 msgid "publicStatus.monthlyTotalSubtitle"
 msgstr "日均 {amount} · {basis}"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:50
+msgid "publicStatus.vault.revealPassword"
+msgstr "显示密码"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:24
@@ -114,9 +189,69 @@ msgid "publicStatus.ratesLoading"
 msgstr "汇率更新中"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:58
+msgid "publicStatus.vault.subscriptionEmpty"
+msgstr "没有可选订阅"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:16
 msgid "publicStatus.activeCount"
 msgstr "活跃/试用"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:46
+msgid "publicStatus.vault.fieldUsername"
+msgstr "用户名"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:65
+msgid "publicStatus.vault.requestSuccessTitle"
+msgstr "申请已提交"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:37
+msgid "publicStatus.vault.tabRequest"
+msgstr "申请访问"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:59
+msgid "publicStatus.vault.noteLabel"
+msgstr "留言（可选）"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:66
+msgid "publicStatus.vault.requestSuccessDescription"
+msgstr "管理员审批通过后会生成新的授权码，请通过原渠道向管理员获取。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:39
+msgid "publicStatus.vault.codePlaceholder"
+msgstr "粘贴管理员分享给你的授权码"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:48
+msgid "publicStatus.vault.fieldUrl"
+msgstr "网址"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:40
+msgid "publicStatus.vault.redeemSubmit"
+msgstr "解锁"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:41
+msgid "publicStatus.vault.redeeming"
+msgstr "解锁中…"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:43
+msgid "publicStatus.vault.redeemFailed"
+msgstr "解锁失败"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:36
+msgid "publicStatus.vault.tabRedeem"
+msgstr "解锁账号"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:23
@@ -134,9 +269,34 @@ msgid "publicStatus.updatedAt"
 msgstr "记录更新：{time}"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:63
+msgid "publicStatus.vault.requestSuccessToast"
+msgstr "访问申请已提交"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:68
+msgid "publicStatus.vault.requestEmpty"
+msgstr "该公开页暂未开放任何可申请的订阅。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:60
+msgid "publicStatus.vault.notePlaceholder"
+msgstr "说明你为什么需要访问权限，方便管理员审批。"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:32
 msgid "publicStatus.errorDescription"
 msgstr "请稍后刷新重试。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:44
+msgid "publicStatus.vault.resultTitle"
+msgstr "账号信息"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:34
+msgid "publicStatus.vault.title"
+msgstr "账号访问"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:20
@@ -147,6 +307,21 @@ msgstr "过期、暂停或取消"
 #: src/i18n/descriptors/public-status.ts:30
 msgid "publicStatus.notFoundDescription"
 msgstr "这个链接不存在、已撤销或已重新生成。"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:56
+msgid "publicStatus.vault.subscriptionPlaceholder"
+msgstr "选择要申请访问的订阅"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:55
+msgid "publicStatus.vault.subscriptionLabel"
+msgstr "选择订阅"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:51
+msgid "publicStatus.vault.hidePassword"
+msgstr "隐藏密码"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:19

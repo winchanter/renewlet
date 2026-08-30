@@ -42,6 +42,7 @@ interface PublicStatusPageSectionProps {
   onOpenPage: () => void | Promise<void>;
   onRegenerate: () => void | Promise<boolean>;
   onShowPricesChange: (checked: boolean) => void | Promise<void>;
+  onVaultEnabledChange: (checked: boolean) => void | Promise<void>;
   onPublicStatusCurrencyChange: (value: string) => void | Promise<void>;
 }
 
@@ -118,6 +119,7 @@ export function PublicStatusPageSection({
   onOpenPage,
   onRegenerate,
   onShowPricesChange,
+  onVaultEnabledChange,
   onPublicStatusCurrencyChange,
 }: PublicStatusPageSectionProps) {
   const { t } = useI18n();
@@ -128,6 +130,7 @@ export function PublicStatusPageSection({
   const enabled = page?.enabled === true;
   const pageUrl = page?.pageUrl ?? null;
   const showPrices = page?.showPrices === true;
+  const vaultEnabled = page?.vaultEnabled === true;
   const busy = isCreating || isDeleting || isUpdating;
   const headerStatus = status.isInitialLoading
     ? t("common.loading")
@@ -198,6 +201,24 @@ export function PublicStatusPageSection({
                   disabled={busy}
                   onCheckedChange={onShowPricesChange}
                   aria-label={t("settings.publicStatusShowPrices")}
+                  aria-describedby={describedBy}
+                />
+              )}
+            </FormField>
+
+            <FormField
+              id="publicStatusVaultEnabled"
+              label={t("settings.publicStatusVaultEnabled")}
+              labelClassName="cursor-pointer text-sm font-medium"
+              description={t("settings.publicStatusVaultEnabledHelp")}
+            >
+              {({ id, describedBy }) => (
+                <Switch
+                  id={id}
+                  checked={vaultEnabled}
+                  disabled={busy}
+                  onCheckedChange={onVaultEnabledChange}
+                  aria-label={t("settings.publicStatusVaultEnabled")}
                   aria-describedby={describedBy}
                 />
               )}

@@ -461,7 +461,7 @@ describe("SettingsScreen SMTP email settings", () => {
     const currencySelect = screen.getByRole("combobox", { name: "公开页统计货币" });
     const publicStatusFields = currencySelect.closest('[data-slot="form-field-row"]');
     expect(publicStatusFields).toHaveAttribute("data-align-at", "lg");
-    expect(publicStatusFields?.querySelectorAll('[data-slot="form-field"]')).toHaveLength(2);
+    expect(publicStatusFields?.querySelectorAll('[data-slot="form-field"]')).toHaveLength(3);
     expect(screen.getByRole("switch", { name: "公开金额" }).closest('[data-slot="form-field-row"]')).toBe(publicStatusFields);
     expect(currencySelect).toHaveTextContent("继承统计货币（当前 USD）");
 

@@ -519,7 +519,6 @@ export function RenewSubscriptionDialogContent({
                   placeholder={t("subscription.placeholder.date")}
                   describedBy={field.describedBy}
                   invalid={field.invalid}
-                  minDate={today}
                   defaultMonth={currentForm.startDate ?? today}
                   size="large"
                 />

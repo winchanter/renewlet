@@ -355,6 +355,27 @@ function buildBillingRecordPatch(
   const cycleChanged = state.billingCycle !== record.billingCycle;
   if (cycleChanged) patch.billingCycle = state.billingCycle;
 
+  // 切换周期时必须显式清理不属于新周期的字段，
+  // 否则服务端合并后旧字段残留，触发 billingRecordCycleIsConsistent 互斥校验失败。
+  // usageUnit 在编辑表单里只读（沿用原订阅快照），切换离开 usage-based 时同步置空保持快照自洽。
+  const clearOtherCycleFields = (keep: "custom" | "oneTime" | "usage" | "standard") => {
+    if (keep !== "custom") {
+      if (cycleChanged || record.customDays != null) patch.customDays = null;
+      if (cycleChanged || record.customCycleUnit != null) patch.customCycleUnit = null;
+    }
+    if (keep !== "oneTime") {
+      if (cycleChanged || record.oneTimeTermCount != null) patch.oneTimeTermCount = null;
+      if (cycleChanged || record.oneTimeTermUnit != null) patch.oneTimeTermUnit = null;
+    }
+    if (keep !== "usage") {
+      if (cycleChanged || record.usageUnit != null) patch.usageUnit = null;
+      if (cycleChanged || record.usageTotal != null) patch.usageTotal = null;
+      if (cycleChanged || record.usageDailyRate != null) patch.usageDailyRate = null;
+    }
+    // standard 周期（monthly/yearly/weekly/daily/quarterly/half-year）本身无专属字段，只需清空上面三组。
+    void keep;
+  };
+
   switch (state.billingCycle) {
     case "custom": {
       const days = parseNonNegativeIntegerInput(state.customDays);
@@ -362,6 +383,7 @@ function buildBillingRecordPatch(
         errors.customDays = "subscription.validation.customCycleInvalid";
         break;
       }
+      clearOtherCycleFields("custom");
       if (cycleChanged) {
         patch.customDays = days;
         patch.customCycleUnit = state.customCycleUnit;
@@ -372,7 +394,13 @@ function buildBillingRecordPatch(
       break;
     }
     case "one-time": {
-      if (state.oneTimeTermCount === "") break;
+      clearOtherCycleFields("oneTime");
+      if (state.oneTimeTermCount === "") {
+        // buyout 买断模式：term 计数/单位为空即无服务期，需要显式置 null 以覆盖原记录的 term 字段。
+        if (record.oneTimeTermCount != null) patch.oneTimeTermCount = null;
+        if (record.oneTimeTermUnit != null) patch.oneTimeTermUnit = null;
+        break;
+      }
       const count = parseNonNegativeIntegerInput(state.oneTimeTermCount);
       if (count === null || count <= 0) {
         errors.oneTimeTermCount = "subscription.validation.oneTimeTermInvalid";
@@ -388,6 +416,7 @@ function buildBillingRecordPatch(
       break;
     }
     case "usage-based": {
+      clearOtherCycleFields("usage");
       const usageTotal = parsePositiveNumberInput(state.usageTotal);
       const usageDailyRate = parsePositiveNumberInput(state.usageDailyRate);
       if (usageTotal === null) errors.usageTotal = "subscription.validation.amountInvalid";
@@ -403,6 +432,8 @@ function buildBillingRecordPatch(
       break;
     }
     default:
+      // standard 周期：清空 custom / one-time / usage 三组专属字段。
+      clearOtherCycleFields("standard");
       break;
   }
 

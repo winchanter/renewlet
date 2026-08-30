@@ -98,10 +98,12 @@ export function getSubscriptionFormAutoDatePatch(
     const nextBillingDate = formData.startDate && oneTimeTermCount
       ? calculateOneTimeTermEndDate(formData.startDate, oneTimeTermCount, formData.oneTimeTermUnit)
       : formData.startDate;
-    // 一次性订阅默认走 buyout，没有试用到期日联动；term 模式到期日由 startDate 驱动，与试用语义互斥，这里保持不联动。
+    // 一次性 term 固定服务期模式下如果是试用态，同步试用到期日到服务期结束日；buyout 买断不联动试用。
+    // 用户随后可独立微调试用到期日，反向不会被覆盖（effect 只在关键字段变化时触发）。
     return compactAutoDatePatch(formData, {
       autoCalculate: false,
       nextBillingDate,
+      trialEndDate: formData.status === "trial" && formData.oneTimeMode === "term" ? nextBillingDate : formData.trialEndDate,
     });
   }
   if (formData.billingCycle === "usage-based") {

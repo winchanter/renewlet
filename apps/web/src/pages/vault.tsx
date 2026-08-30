@@ -21,9 +21,10 @@ import {
   type VaultCredentialFormSubmitResult,
   type VaultSubscriptionOption,
 } from "@/components/vault/credential-form-dialog";
-import { AccessCodesSection } from "@/components/vault/access-codes-section";
+import { AccessCodesSection, CreateCodeDialog } from "@/components/vault/access-codes-section";
 import { AccessRequestsSection } from "@/components/vault/access-requests-section";
 import { AccessLogsSection } from "@/components/vault/access-logs-section";
+import { PlainCodeRevealDialog } from "@/components/vault/plain-code-reveal-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +50,7 @@ import {
   useUpdateVaultCredential,
   useVaultCredentials,
 } from "@/hooks/use-vault";
+import { useCreateVaultAccessCode } from "@/hooks/use-vault-p2";
 import { useSubscriptionIndex } from "@/hooks/use-subscriptions";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
@@ -78,6 +80,7 @@ export default function Vault() {
   const createMutation = useCreateVaultCredential();
   const updateMutation = useUpdateVaultCredential();
   const deleteMutation = useDeleteVaultCredential();
+  const createCodeMutation = useCreateVaultAccessCode();
 
   const [activeTab, setActiveTab] = useState<VaultTab>("credentials");
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,6 +88,8 @@ export default function Vault() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingCredential, setEditingCredential] = useState<VaultCredential | null>(null);
   const [deletingCredential, setDeletingCredential] = useState<VaultCredential | null>(null);
+  const [codeTarget, setCodeTarget] = useState<VaultCredential | null>(null);
+  const [revealedPlainCode, setRevealedPlainCode] = useState<string | null>(null);
 
   const credentials = useMemo(() => credentialsQuery.data ?? [], [credentialsQuery.data]);
   const subscriptionNameById = useMemo(() => {
@@ -217,6 +222,7 @@ export default function Vault() {
             subscriptionName={credential.subscriptionId === "" ? null : subscriptionNameById.get(credential.subscriptionId) ?? null}
             onEdit={openEdit}
             onDelete={setDeletingCredential}
+            onGenerateCode={setCodeTarget}
           />
         ))}
       </div>
@@ -333,6 +339,30 @@ export default function Vault() {
         subscriptions={subscriptionOptions}
         submitting={submitting}
         onSubmit={handleFormSubmit}
+      />
+
+      {/* 条件渲染：每次打开都重新挂载，确保锁定的账号始终是当前点击的卡片账号 */}
+      {codeTarget ? (
+        <CreateCodeDialog
+          open
+          onOpenChange={(open) => { if (!open) setCodeTarget(null); }}
+          credentials={credentials}
+          submitting={createCodeMutation.isPending}
+          lockedCredentialId={codeTarget.id}
+          onSubmit={async (body) => {
+            const created = await createCodeMutation.mutateAsync(body);
+            toast.success(t("vault.codes.create.success"));
+            setCodeTarget(null);
+            setRevealedPlainCode(created.plainCode);
+          }}
+          onError={(err) => toast.error(getDisplayErrorMessage(err, t("vault.codes.create.failed")))}
+        />
+      ) : null}
+
+      <PlainCodeRevealDialog
+        open={revealedPlainCode !== null}
+        plainCode={revealedPlainCode ?? ""}
+        onClose={() => setRevealedPlainCode(null)}
       />
 
       <AlertDialog open={deletingCredential !== null} onOpenChange={(open) => { if (!open) setDeletingCredential(null); }}>

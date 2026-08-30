@@ -3,7 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Activity, AlertCircle, CheckCircle2, Eye, Globe2, Shield, XCircle } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Activity, AlertCircle, CheckCircle2, CircleHelp, Eye, Globe2, Shield, XCircle } from "lucide-react";
 import { useVaultAccessLogs } from "@/hooks/use-vault-p2";
 import type { VaultAccessLog, VaultLogAction } from "@/types/subscription";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -126,15 +131,20 @@ export function AccessLogsSection() {
           ? <EmptyLogs />
           : (
             <>
-              <div className="rounded-lg border border-border overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="rounded-lg border border-border overflow-x-auto">
+                <table className="w-full min-w-[900px] text-sm">
                   <thead className="bg-muted/30 text-muted-foreground">
                     <tr className="text-left">
-                      <th className="px-4 py-2.5 font-medium w-[170px]">时间</th>
-                      <th className="px-4 py-2.5 font-medium w-[160px]">{t("vault.logs.filter.action")}</th>
-                      <th className="px-4 py-2.5 font-medium w-[90px]">来源</th>
-                      <th className="px-4 py-2.5 font-medium w-[90px]">结果</th>
-                      <th className="px-4 py-2.5 font-medium">详情</th>
+                      <th className="px-4 py-2.5 font-medium whitespace-nowrap w-[200px]">{t("vault.logs.header.time")}</th>
+                      <th className="px-4 py-2.5 font-medium whitespace-nowrap w-[170px]">{t("vault.logs.filter.action")}</th>
+                      <th className="px-4 py-2.5 font-medium whitespace-nowrap w-[120px]">{t("vault.logs.header.source")}</th>
+                      <th className="px-4 py-2.5 font-medium whitespace-nowrap w-[110px]">{t("vault.logs.header.result")}</th>
+                      <th className="px-4 py-2.5 font-medium whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5">
+                          {t("vault.logs.header.detail")}
+                          <DetailLegendPopover />
+                        </span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -206,7 +216,7 @@ function LogRow({ log, formatDateTime }: LogRowProps) {
   return (
     <tr className="align-top">
       <td className="px-4 py-3 text-muted-foreground tabular-nums whitespace-nowrap">
-        {formatDateTime(log.createdAt)}
+        {formatDateTime(log.createdAt, { dateStyle: "short", timeStyle: "medium" })}
       </td>
       <td className="px-4 py-3 text-foreground whitespace-nowrap">
         <span className="inline-flex items-center">
@@ -214,22 +224,22 @@ function LogRow({ log, formatDateTime }: LogRowProps) {
           <span className="ml-1.5">{actionLabel}</span>
         </span>
       </td>
-      <td className="px-4 py-3">{source}</td>
-      <td className="px-4 py-3">{result}</td>
+      <td className="px-4 py-3 whitespace-nowrap">{source}</td>
+      <td className="px-4 py-3 whitespace-nowrap">{result}</td>
       <td className="px-4 py-3 text-muted-foreground">
-        <div className="flex flex-wrap gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs whitespace-nowrap">
           {log.subscriptionId ? (
-            <span className="rounded-md border border-border px-2 py-0.5">sub {shortId(log.subscriptionId)}</span>
+            <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5">sub {shortId(log.subscriptionId)}</span>
           ) : null}
           {log.credentialId ? (
-            <span className="rounded-md border border-border px-2 py-0.5">cred {shortId(log.credentialId)}</span>
+            <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5">cred {shortId(log.credentialId)}</span>
           ) : null}
           {log.codeId ? (
-            <span className="rounded-md border border-border px-2 py-0.5">code {shortId(log.codeId)}</span>
+            <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5">code {shortId(log.codeId)}</span>
           ) : null}
-          {log.ip ? <span className="rounded-md border border-border px-2 py-0.5 font-mono">{log.ip}</span> : null}
+          {log.ip ? <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5 font-mono">{log.ip}</span> : null}
           {reason ? (
-            <span className="rounded-md border border-muted-foreground/30 bg-muted/30 px-2 py-0.5 text-muted-foreground">
+            <span className="inline-flex items-center rounded-md border border-muted-foreground/30 bg-muted/30 px-2 py-0.5 text-muted-foreground max-w-[360px] truncate" title={reason}>
               {reason}
             </span>
           ) : null}
@@ -285,5 +295,45 @@ function EmptyLogs() {
       </div>
       <div className="text-[15px] font-medium">{t("vault.logs.empty")}</div>
     </div>
+  );
+}
+
+function DetailLegendPopover() {
+  const { t } = useI18n();
+  const items: Array<[string, MessageKey]> = [
+    ["sub", "vault.logs.detailLegend.sub"],
+    ["cred", "vault.logs.detailLegend.cred"],
+    ["code", "vault.logs.detailLegend.code"],
+    ["IP", "vault.logs.detailLegend.ip"],
+    [t("vault.logs.detail.reason", { reason: "…" }), "vault.logs.detailLegend.reason"],
+  ];
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/70 hover:text-foreground hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-label={t("vault.logs.detailLegend.title")}
+          tabIndex={0}
+        >
+          <CircleHelp className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80">
+        <div className="space-y-3">
+          <div className="text-sm font-medium">{t("vault.logs.detailLegend.title")}</div>
+          <ul className="space-y-2 text-xs text-muted-foreground">
+            {items.map(([tag, descKey]) => (
+              <li key={tag} className="flex items-start gap-2.5">
+                <span className="inline-flex items-center shrink-0 rounded-md border border-border px-2 py-0.5 font-mono text-[11px] text-foreground/80 tabular-nums">
+                  {tag}
+                </span>
+                <span className="leading-5 pt-0.5">{t(descKey)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

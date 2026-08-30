@@ -30,11 +30,11 @@ export const messages = [
   msg({ id: "publicStatus.notFoundDescription", message: "这个链接不存在、已撤销或已重新生成。" }),
   msg({ id: "publicStatus.errorTitle", message: "无法加载公开页" }),
   msg({ id: "publicStatus.errorDescription", message: "请稍后刷新重试。" }),
-  // 账号访问（vault）区块：仅 vaultEnabled 开启时渲染。
-  msg({ id: "publicStatus.vault.title", message: "账号访问" }),
-  msg({ id: "publicStatus.vault.description", message: "持有授权码可直接解锁对应账号；没有授权码可以提交访问申请，等待管理员审批。" }),
+  // 账号访问（vault）：解锁入口独立成卡，申请访问融入订阅列表网格。
   msg({ id: "publicStatus.vault.tabRedeem", message: "解锁账号" }),
+  msg({ id: "publicStatus.vault.redeemDescription", message: "持有授权码？粘贴后立即解锁对应账号，无需等待审批。" }),
   msg({ id: "publicStatus.vault.tabRequest", message: "申请访问" }),
+  msg({ id: "publicStatus.vault.requestDescription", message: "没有授权码？选择订阅提交访问申请，管理员审批通过后发放。" }),
   msg({ id: "publicStatus.vault.codeLabel", message: "授权码" }),
   msg({ id: "publicStatus.vault.codePlaceholder", message: "粘贴管理员分享给你的授权码" }),
   msg({ id: "publicStatus.vault.redeemSubmit", message: "解锁" }),
@@ -65,5 +65,4 @@ export const messages = [
   msg({ id: "publicStatus.vault.requestSuccessTitle", message: "申请已提交" }),
   msg({ id: "publicStatus.vault.requestSuccessDescription", message: "管理员审批通过后会生成新的授权码，请通过原渠道向管理员获取。" }),
   msg({ id: "publicStatus.vault.requestAgain", message: "再申请一个" }),
-  msg({ id: "publicStatus.vault.requestEmpty", message: "该公开页暂未开放任何可申请的订阅。" }),
 ];

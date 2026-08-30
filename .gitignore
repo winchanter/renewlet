@@ -41,6 +41,12 @@ wrangler.generated.jsonc
 # 本地导出的 Docker 镜像包
 *.tar
 
+# Go 本地编译二进制产物
+**/cmd/renewlet/renewlet
+
+# 账号库本地备份导出目录
+vault-backups/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

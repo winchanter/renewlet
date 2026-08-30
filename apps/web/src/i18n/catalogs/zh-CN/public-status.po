@@ -105,8 +105,8 @@ msgstr "开始：{date}"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:35
-msgid "publicStatus.vault.description"
-msgstr "持有授权码可直接解锁对应账号；没有授权码可以提交访问申请，等待管理员审批。"
+msgid "publicStatus.vault.redeemDescription"
+msgstr "持有授权码？粘贴后立即解锁对应账号，无需等待审批。"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:12
@@ -194,6 +194,11 @@ msgid "publicStatus.vault.subscriptionEmpty"
 msgstr "没有可选订阅"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:37
+msgid "publicStatus.vault.requestDescription"
+msgstr "没有授权码？选择订阅提交访问申请，管理员审批通过后发放。"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:16
 msgid "publicStatus.activeCount"
 msgstr "活跃/试用"
@@ -209,7 +214,7 @@ msgid "publicStatus.vault.requestSuccessTitle"
 msgstr "申请已提交"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:37
+#: src/i18n/descriptors/public-status.ts:36
 msgid "publicStatus.vault.tabRequest"
 msgstr "申请访问"
 
@@ -249,7 +254,7 @@ msgid "publicStatus.vault.redeemFailed"
 msgstr "解锁失败"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:36
+#: src/i18n/descriptors/public-status.ts:34
 msgid "publicStatus.vault.tabRedeem"
 msgstr "解锁账号"
 
@@ -274,11 +279,6 @@ msgid "publicStatus.vault.requestSuccessToast"
 msgstr "访问申请已提交"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:68
-msgid "publicStatus.vault.requestEmpty"
-msgstr "该公开页暂未开放任何可申请的订阅。"
-
-#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:60
 msgid "publicStatus.vault.notePlaceholder"
 msgstr "说明你为什么需要访问权限，方便管理员审批。"
@@ -292,11 +292,6 @@ msgstr "请稍后刷新重试。"
 #: src/i18n/descriptors/public-status.ts:44
 msgid "publicStatus.vault.resultTitle"
 msgstr "账号信息"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:34
-msgid "publicStatus.vault.title"
-msgstr "账号访问"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:20

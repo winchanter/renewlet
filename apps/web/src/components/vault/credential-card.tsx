@@ -5,7 +5,7 @@
  * 明文密码 reveal 后 30 秒自动隐藏，且绝不写入组件外状态。
  */
 import { useEffect, useRef, useState } from "react";
-import { Copy, Eye, EyeOff, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, ExternalLink, KeyRound, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,9 +25,11 @@ export interface VaultCredentialCardProps {
   subscriptionName: string | null;
   onEdit: (credential: VaultCredential) => void;
   onDelete: (credential: VaultCredential) => void;
+  /** 打开「生成授权码」弹窗（绑定账号锁定为本卡片账号）；未提供时不渲染入口。 */
+  onGenerateCode?: ((credential: VaultCredential) => void) | undefined;
 }
 
-export function VaultCredentialCard({ credential, subscriptionName, onEdit, onDelete }: VaultCredentialCardProps) {
+export function VaultCredentialCard({ credential, subscriptionName, onEdit, onDelete, onGenerateCode }: VaultCredentialCardProps) {
   const { t } = useI18n();
   const revealMutation = useRevealVaultCredentialPassword();
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
@@ -108,6 +110,22 @@ export function VaultCredentialCard({ credential, subscriptionName, onEdit, onDe
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {onGenerateCode ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => onGenerateCode(credential)}
+                  aria-label={t("vault.codes.create")}
+                >
+                  <KeyRound className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("vault.codes.create")}</TooltipContent>
+            </Tooltip>
+          ) : null}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { useCreateVaultAccessCode, useRedeemVaultAccessCode, useRevealVaultAccessCodePlain, useRevokeVaultAccessCode, useVaultAccessCodes } from "@/hooks/use-vault-p2";
 import { useVaultCredentials } from "@/hooks/use-vault";
+import { PlainCodeRevealDialog } from "@/components/vault/plain-code-reveal-dialog";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { MessageKey, MessageParams } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -117,7 +118,7 @@ export function AccessCodesSection({ subscriptions }: AccessCodesSectionProps) {
           : codes.length === 0
             ? <EmptyList />
             : (
-              <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
+              <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {codes.map((code) => (
                 <AccessCodeCard
                   key={code.id}
@@ -261,8 +262,8 @@ function AccessCodeCard({ code, subscriptions, formatDateTime, onView, onRevoke 
     ? t("vault.codes.linkedSubscription", { name: subscriptionNameByID(subscriptions, code.subscriptionId, t) })
     : t("vault.codes.standaloneCredential");
   return (
-    <Card>
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+    <Card className="flex flex-col">
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 p-4 pb-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="font-mono text-xs tracking-wider text-muted-foreground">{code.codeMask}</span>
@@ -271,7 +272,7 @@ function AccessCodeCard({ code, subscriptions, formatDateTime, onView, onRevoke 
           <CardTitle className="text-[15px] truncate">
             {code.credentialTitle || t("vault.codes.legacyCredentialTitle")}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs">
             <span className="text-muted-foreground">{linked}</span>
             {" · "}
             {t("vault.codes.attempts", { attempts: code.attempts, maxAttempts: code.maxAttempts })}
@@ -284,20 +285,20 @@ function AccessCodeCard({ code, subscriptions, formatDateTime, onView, onRevoke 
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="text-sm space-y-1">
+      <CardContent className="text-xs space-y-1 px-4 pb-3 pt-1">
         <div className="flex justify-between gap-3 text-muted-foreground">
           <span>{t("vault.codes.createdAt")}</span>
-          <span className="text-foreground tabular-nums">{formatDateTime(code.createdAt)}</span>
+          <span className="text-muted-foreground tabular-nums whitespace-nowrap">{formatDateTime(code.createdAt, { dateStyle: "short", timeStyle: "short" })}</span>
         </div>
         <div className="flex justify-between gap-3 text-muted-foreground">
           <span>{t("vault.codes.expiresAt")}</span>
-          <span className="text-foreground tabular-nums">{formatDateTime(code.expiresAt)}</span>
+          <span className="text-muted-foreground tabular-nums whitespace-nowrap">{formatDateTime(code.expiresAt, { dateStyle: "short", timeStyle: "short" })}</span>
         </div>
         {code.note ? (
-          <div className="pt-2 text-sm text-muted-foreground whitespace-pre-wrap break-words">{code.note}</div>
+          <div className="pt-1.5 text-xs text-muted-foreground whitespace-pre-wrap break-words">{code.note}</div>
         ) : null}
       </CardContent>
-      <CardFooter className="justify-end gap-2">
+      <CardFooter className="mt-auto justify-end gap-2 px-4 pb-4 pt-0">
         {code.hasPlainCode && (
           <Button size="sm" variant="outline" onClick={onView}>
             <Eye className="h-4 w-4" />
@@ -324,7 +325,7 @@ function AccessCodeCard({ code, subscriptions, formatDateTime, onView, onRevoke 
 
 function AccessCodesSkeleton() {
   return (
-    <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
+    <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="rounded-lg border border-border bg-card p-4 space-y-2">
           <div className="flex items-center gap-2">
@@ -369,28 +370,32 @@ interface CreateCodeDialogProps {
   submitting: boolean;
   onSubmit: (body: { credentialId: string; expireHours?: number; maxAttempts?: number; note?: string }) => Promise<void>;
   onError: (err: unknown) => void;
+  /** 锁定绑定账号（账号卡片入口）：预选该账号且不可修改。 */
+  lockedCredentialId?: string | undefined;
 }
 
-function CreateCodeDialog({
+export function CreateCodeDialog({
   open,
   onOpenChange,
   credentials,
   submitting,
   onSubmit,
   onError,
+  lockedCredentialId,
 }: CreateCodeDialogProps) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<CreateCodeDraft>({
-    credentialId: credentials[0]?.id ?? "",
+    credentialId: lockedCredentialId ?? credentials[0]?.id ?? "",
     expireHours: DEFAULT_EXPIRE_HOURS,
     maxAttempts: DEFAULT_MAX_ATTEMPTS,
     note: "",
   });
 
-  // 当 credentials 更新（首次加载）时，自动回填首个可用选项（避免 defaultValue=空 持续到加载后）
+  // 当 credentials 更新（首次加载）时，自动回填首个可用选项（避免 defaultValue=空 持续到加载后）；
+  // 锁定账号模式下 credentialId 由调用方指定，不参与回填。
   const prevLen = useRef(0);
   const firstCredential = credentials.length > 0 ? credentials[0] : undefined;
-  if (firstCredential && prevLen.current === 0 && draft.credentialId === "") {
+  if (!lockedCredentialId && firstCredential && prevLen.current === 0 && draft.credentialId === "") {
     const firstId = firstCredential.id;
     setDraft((d) => ({ ...d, credentialId: firstId }));
   }
@@ -402,17 +407,20 @@ function CreateCodeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         dismissMode="explicit"
-        layout="frame"
-        className="h5-dialog-frame h5-subscription-dialog-panel max-w-md border-border bg-card p-0"
+        className="max-w-md border-border bg-card"
       >
-        <DialogHeader className="shrink-0 px-6 pb-3 pt-5 pr-12">
+        <DialogHeader>
           <DialogTitle>{t("vault.codes.createTitle")}</DialogTitle>
         </DialogHeader>
-        <div className="h5-subscription-dialog-scroll min-h-0 space-y-4 overflow-y-auto px-6 pb-4 pt-1">
+        <div className="space-y-4 pt-1">
           <div className="space-y-1.5">
             <Label>{t("vault.codes.form.credentialLabel")}</Label>
-            <Select value={draft.credentialId} onValueChange={(v) => setDraft({ ...draft, credentialId: v })}>
-              <SelectTrigger>
+            <Select
+              value={draft.credentialId}
+              onValueChange={(v) => setDraft({ ...draft, credentialId: v })}
+              disabled={Boolean(lockedCredentialId)}
+            >
+              <SelectTrigger className={cn(lockedCredentialId && "cursor-not-allowed bg-secondary/60")}>
                 <SelectValue placeholder={t("vault.codes.form.credentialPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
@@ -457,7 +465,7 @@ function CreateCodeDialog({
             />
           </div>
         </div>
-        <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+        <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>{t("common.cancel")}</Button>
           <Button
             disabled={!canSubmit}
@@ -478,48 +486,6 @@ function CreateCodeDialog({
           >
             {t("vault.codes.generate")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ============== 明文授权码确认弹窗 ==============
-
-function PlainCodeRevealDialog({
-  open,
-  plainCode,
-  onClose,
-}: {
-  open: boolean;
-  plainCode: string;
-  onClose: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("vault.codes.plain.title")}</DialogTitle>
-          <DialogDescription>{t("vault.codes.plain.description")}</DialogDescription>
-        </DialogHeader>
-        <div className="mt-2 rounded-md border border-border bg-muted/50 px-3.5 py-3 flex items-center justify-between gap-3">
-          <code className="font-mono text-base tracking-[0.22em] text-foreground break-all select-all">{plainCode}</code>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={async () => {
-              const result = await copyTextToClipboard(plainCode);
-              if (result.ok) toast.success(t("vault.card.copied"));
-              else toast.error(t("vault.card.copyFailed"));
-            }}
-          >
-            <Copy className="h-4 w-4" />
-            <span className="ml-1.5">{t("vault.codes.plain.copy")}</span>
-          </Button>
-        </div>
-        <DialogFooter>
-          <Button onClick={onClose}>{t("common.close")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

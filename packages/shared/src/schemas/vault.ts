@@ -164,9 +164,11 @@ export const vaultAccessRequestSchema = z.object({
   publicStatusPageId: z.string().trim().min(1).max(128),
   note: z.string().max(500),
   status: vaultAccessRequestStatusSchema,
-  decidedAt: z.string(),
+  // pending 时为空串；决策后才填充 RFC3339。兼容 undefined 以防历史/旧 schema 序列化缺字段。
+  decidedAt: z.union([z.string(), z.undefined()]).optional(),
   createdAt: z.string(),
-  codeId: z.string(),
+  // 仅 approved 时有值；pending/declined/closed/expired 都为空串或缺失。
+  codeId: z.union([z.string(), z.literal(""), z.undefined()]).optional(),
 }).strict();
 export type VaultAccessRequest = z.infer<typeof vaultAccessRequestSchema>;
 

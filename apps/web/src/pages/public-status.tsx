@@ -31,17 +31,18 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { TruncatedTooltipText } from "@/components/ui/truncated-tooltip-text";
 import { ApiError } from "@/lib/api-client";
 import { colorWithAlpha } from "@/lib/color";
 import { formatCompactCurrencyAmount } from "@/lib/currency";
 import { getDisplayErrorMessage } from "@/lib/display-error";
+import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-provider";
 import { daysBetweenDateOnly, todayDateOnlyInTimeZone } from "@/lib/time/date-only";
 import { usePublicStatus } from "@/hooks/use-public-status-page";
@@ -452,7 +453,13 @@ function publicSubscriptionDailyAmount(subscription: PublicStatusSubscription) {
     : null;
 }
 
-function PublicSubscriptionCard({ subscription }: { subscription: PublicStatusSubscription }) {
+function PublicSubscriptionCard({
+  subscription,
+  onRequestAccess,
+}: {
+  subscription: PublicStatusSubscription;
+  onRequestAccess?: (() => void) | undefined;
+}) {
   const { t, locale, formatCurrency, formatDateOnly, formatDateTime } = useI18n();
   const categoryColor = subscription.category.color ?? "hsl(var(--primary))";
   const billingCycleLabel = publicBillingCycleLabel(subscription, locale);
@@ -465,8 +472,8 @@ function PublicSubscriptionCard({ subscription }: { subscription: PublicStatusSu
 
   // 公开 API 只有 allowlist 字段；这里复用视觉原语而不是伪造完整 Subscription，避免私有字段被带入公开组件。
   return (
-    <article className="group h-full overflow-hidden rounded-xl border border-border bg-card p-5 shadow-card transition-all duration-300 hover:bg-card-hover">
-      <div className="flex items-start gap-4">
+    <article className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card p-5 shadow-card transition-all duration-300 hover:bg-card-hover">
+      <div className="flex flex-1 items-start gap-4">
         <SubscriptionLogo
           name={subscription.name}
           logo={subscription.logo}
@@ -537,6 +544,14 @@ function PublicSubscriptionCard({ subscription }: { subscription: PublicStatusSu
           </div>
         </div>
       </div>
+      {onRequestAccess ? (
+        <div className="mt-4 flex justify-end border-t border-border pt-3">
+          <Button type="button" variant="outline" size="sm" onClick={onRequestAccess}>
+            <KeyRound className="h-3.5 w-3.5" />
+            {t("publicStatus.vault.tabRequest")}
+          </Button>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -669,8 +684,8 @@ function PublicVaultRedeemForm({ token }: { token: string }) {
 
   return (
     <form className="grid gap-3" onSubmit={(event) => void handleSubmit(event)}>
-      <div className="grid gap-1.5">
-        <label htmlFor="public-vault-code" className="text-sm font-medium text-foreground">
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <label htmlFor="public-vault-code" className="sr-only">
           {t("publicStatus.vault.codeLabel")}
         </label>
         <Input
@@ -682,13 +697,14 @@ function PublicVaultRedeemForm({ token }: { token: string }) {
           autoCapitalize="off"
           spellCheck={false}
           disabled={submitting}
-          className="h-9 border-border bg-background font-mono"
+          aria-label={t("publicStatus.vault.codeLabel")}
+          className="h-9 min-w-0 flex-1 border-border bg-background font-mono"
         />
+        <Button type="submit" size="sm" disabled={submitting || !code.trim()} className="h-9 shrink-0 justify-center gap-2">
+          <KeyRound className="h-4 w-4" />
+          {submitting ? t("publicStatus.vault.redeeming") : t("publicStatus.vault.redeemSubmit")}
+        </Button>
       </div>
-      <Button type="submit" size="sm" disabled={submitting || !code.trim()} className="w-full justify-center gap-2 sm:w-fit">
-        <KeyRound className="h-4 w-4" />
-        {submitting ? t("publicStatus.vault.redeeming") : t("publicStatus.vault.redeemSubmit")}
-      </Button>
       {error ? (
         <p role="alert" className="text-sm leading-5 text-destructive">
           {error}
@@ -702,12 +718,17 @@ function PublicVaultRedeemForm({ token }: { token: string }) {
 function PublicVaultRequestForm({
   token,
   subscriptions,
+  initialSubscriptionId = "",
+  locked = false,
 }: {
   token: string;
   subscriptions: PublicStatusVault["subscriptions"];
+  initialSubscriptionId?: string;
+  /** 锁定订阅选择（订阅卡片入口）：预选当前订阅且不可更改。 */
+  locked?: boolean | undefined;
 }) {
   const { t } = useI18n();
-  const [subscriptionId, setSubscriptionId] = useState("");
+  const [subscriptionId, setSubscriptionId] = useState(initialSubscriptionId);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -773,8 +794,8 @@ function PublicVaultRequestForm({
           placeholder={t("publicStatus.vault.subscriptionPlaceholder")}
           searchPlaceholder={t("publicStatus.vault.subscriptionSearch")}
           emptyMessage={t("publicStatus.vault.subscriptionEmpty")}
-          disabled={submitting}
-          className="h-9 w-full border-border bg-background"
+          disabled={submitting || locked}
+          className={cn("h-9 w-full border-border bg-background", locked && "cursor-not-allowed bg-secondary/60")}
           aria-label={t("publicStatus.vault.subscriptionLabel")}
         />
       </div>
@@ -806,49 +827,79 @@ function PublicVaultRequestForm({
 }
 
 /**
- * 公开页「账号访问」区块：授权码解锁 + 访问申请。
+ * 公开页「解锁账号」入口：位于统计与订阅列表之间的独立紧凑卡片。
  *
- * 安全边界：未开启（vault.enabled=false）不渲染；订阅摘要只含 id/name，
- * 由服务端在开关开启时输出，前端不回退本地订阅数据。
+ * 安全边界：未开启（vault.enabled=false）不渲染；解锁凭据只在访客持有
+ * 有效授权码时由服务端返回，前端不做本地数据回退。
  */
-function PublicVaultAccessSection({ token, vault }: { token: string; vault: PublicStatusVault }) {
+function PublicVaultRedeemCard({ token }: { token: string }) {
   const { t } = useI18n();
-  const hasRequestableSubscriptions = vault.subscriptions.length > 0;
   return (
     <section
-      aria-label={t("publicStatus.vault.title")}
+      aria-label={t("publicStatus.vault.tabRedeem")}
       className="rounded-xl border border-border bg-card p-5 shadow-card"
     >
-      <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-primary">
-          <KeyRound className="h-5 w-5" />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-8">
+        <div className="flex min-w-0 items-center gap-3 lg:w-80 lg:shrink-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-primary">
+            <KeyRound className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-foreground">{t("publicStatus.vault.tabRedeem")}</h2>
+            <p className="mt-0.5 text-sm leading-5 text-muted-foreground">
+              {t("publicStatus.vault.redeemDescription")}
+            </p>
+          </div>
         </div>
-        <div className="min-w-0">
-          <h2 className="font-semibold text-foreground">{t("publicStatus.vault.title")}</h2>
-          <p className="mt-0.5 text-sm leading-5 text-muted-foreground">{t("publicStatus.vault.description")}</p>
+        <div className="min-w-0 flex-1">
+          <PublicVaultRedeemForm token={token} />
         </div>
       </div>
-      <Tabs defaultValue="redeem">
-        <TabsList className="w-full justify-stretch sm:w-fit">
-          <TabsTrigger value="redeem" className="flex-1 sm:flex-none">
-            {t("publicStatus.vault.tabRedeem")}
-          </TabsTrigger>
-          <TabsTrigger value="request" className="flex-1 sm:flex-none">
-            {t("publicStatus.vault.tabRequest")}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="redeem" className="mt-4">
-          <PublicVaultRedeemForm token={token} />
-        </TabsContent>
-        <TabsContent value="request" className="mt-4">
-          {hasRequestableSubscriptions ? (
-            <PublicVaultRequestForm token={token} subscriptions={vault.subscriptions} />
-          ) : (
-            <p className="text-sm leading-6 text-muted-foreground">{t("publicStatus.vault.requestEmpty")}</p>
-          )}
-        </TabsContent>
-      </Tabs>
     </section>
+  );
+}
+
+/**
+ * 公开页「申请访问」弹窗：由订阅卡片上的按钮触发，订阅选择器预选当前订阅。
+ *
+ * 安全边界：订阅摘要只含 id/name，由服务端在开关开启时输出；公开订阅投影
+ * 不含 id，卡片入口只能按 name 匹配预选，访客仍可在弹窗内改选。
+ */
+function PublicVaultRequestDialog({
+  token,
+  vault,
+  targetName,
+  onClose,
+}: {
+  token: string;
+  vault: PublicStatusVault;
+  targetName: string;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const initialSubscriptionId = vault.subscriptions.find(
+    (subscription) => subscription.name === targetName,
+  )?.id ?? "";
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("publicStatus.vault.tabRequest")}</DialogTitle>
+          <DialogDescription>{t("publicStatus.vault.requestDescription")}</DialogDescription>
+        </DialogHeader>
+        <PublicVaultRequestForm
+          token={token}
+          subscriptions={vault.subscriptions}
+          initialSubscriptionId={initialSubscriptionId}
+          locked
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -857,6 +908,7 @@ export default function PublicStatusPage() {
   const { token } = useParams<{ token: string }>();
   const query = usePublicStatus(token);
   const { t } = useI18n();
+  const [requestTargetName, setRequestTargetName] = useState<string | null>(null);
 
   if (query.isPending) {
     return <PublicStatusLoading />;
@@ -869,6 +921,8 @@ export default function PublicStatusPage() {
 
   const data = query.data;
   const normalizedToken = token?.trim() ?? "";
+  const vaultEnabled = data.vault.enabled;
+  const requestableNames = new Set(data.vault.subscriptions.map((subscription) => subscription.name));
 
   return (
     <PublicStatusFrame>
@@ -876,6 +930,8 @@ export default function PublicStatusPage() {
 
       <div className="grid gap-8">
         <PublicStatusSummary data={data} />
+
+        {vaultEnabled ? <PublicVaultRedeemCard token={normalizedToken} /> : null}
 
         {data.page.truncated ? (
           <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
@@ -898,13 +954,25 @@ export default function PublicStatusPage() {
                 className="h-full animate-fade-in"
                 style={{ animationDelay: `${index * 40}ms` }}
               >
-                <PublicSubscriptionCard subscription={subscription} />
+                <PublicSubscriptionCard
+                  subscription={subscription}
+                  onRequestAccess={requestableNames.has(subscription.name)
+                    ? () => setRequestTargetName(subscription.name)
+                    : undefined}
+                />
               </div>
             ))}
           </section>
         )}
 
-        {data.vault.enabled ? <PublicVaultAccessSection token={normalizedToken} vault={data.vault} /> : null}
+        {requestTargetName !== null ? (
+          <PublicVaultRequestDialog
+            token={normalizedToken}
+            vault={data.vault}
+            targetName={requestTargetName}
+            onClose={() => setRequestTargetName(null)}
+          />
+        ) : null}
       </div>
     </PublicStatusFrame>
   );

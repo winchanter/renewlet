@@ -23,18 +23,19 @@ import { toast } from "@/components/ui/sonner";
 import {
   CheckCircle2,
   Clock3,
+  Eye,
   FileCheck2,
   Loader2,
   MessageSquare,
   XCircle,
   XSquare,
 } from "lucide-react";
-import { useDecideVaultAccessRequest, useVaultAccessRequests } from "@/hooks/use-vault-p2";
+import { useDecideVaultAccessRequest, useRevealVaultAccessCodePlain, useVaultAccessRequests } from "@/hooks/use-vault-p2";
+import { PlainCodeRevealDialog } from "@/components/vault/plain-code-reveal-dialog";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { MessageKey } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import type { SubscriptionIndexItem, VaultAccessRequest, VaultCredential } from "@/types/subscription";
-import { copyTextToClipboard } from "@/shared/browser/clipboard";
 import { getDisplayErrorMessage } from "@/lib/display-error";
 
 type RequestsStatusFilter = "all" | "pending";
@@ -47,11 +48,27 @@ interface AccessRequestsSectionProps {
 export function AccessRequestsSection({ subscriptions, credentials }: AccessRequestsSectionProps) {
   const { t, formatDateTime } = useI18n();
   const [statusFilter, setStatusFilter] = useState<RequestsStatusFilter>("all");
-  const [deciding, setDeciding] = useState<{ request: VaultAccessRequest; action: "approve" | "decline" | "close" } | null>(null);
+  const [deciding, setDeciding] = useState<{ request: VaultAccessRequest; action: "approve" | "decline" } | null>(null);
 
   const queryFilter = statusFilter === "pending" ? "pending" : "all";
   const requestsQuery = useVaultAccessRequests({ status: queryFilter });
   const decideMutation = useDecideVaultAccessRequest();
+  const revealPlainMutation = useRevealVaultAccessCodePlain();
+  const [revealedCode, setRevealedCode] = useState<string | null>(null);
+  const [viewingCodeId, setViewingCodeId] = useState<string | null>(null);
+
+  // 与授权码列表一致的事后查阅：凭 codeId 向服务端取回明文并展示。
+  const handleViewCode = async (codeId: string) => {
+    setViewingCodeId(codeId);
+    try {
+      const plain = await revealPlainMutation.mutateAsync(codeId);
+      setRevealedCode(plain);
+    } catch (err) {
+      toast.error(getDisplayErrorMessage(err, t("vault.codes.viewFailed")));
+    } finally {
+      setViewingCodeId(null);
+    }
+  };
 
   const requests = requestsQuery.data ?? [];
   const pendingCount = useMemo(
@@ -95,6 +112,8 @@ export function AccessRequestsSection({ subscriptions, credentials }: AccessRequ
                   subscriptionName={subscriptions.find((s) => s.id === req.subscriptionId)?.name ?? req.subscriptionId}
                   formatDateTime={formatDateTime}
                   onDecide={(action) => setDeciding({ request: req, action })}
+                  onViewCode={(codeId) => void handleViewCode(codeId)}
+                  viewingCodeId={viewingCodeId}
                 />
               ))}
             </div>
@@ -114,24 +133,22 @@ export function AccessRequestsSection({ subscriptions, credentials }: AccessRequ
             const key: MessageKey =
               deciding.action === "approve"
                 ? "vault.requests.approve.success"
-                : deciding.action === "decline"
-                  ? "vault.requests.decline.success"
-                  : "vault.requests.close.success";
+                : "vault.requests.decline.success";
             toast.success(t(key));
             setDeciding(null);
+            // 审批通过即弹出明文授权码：明文仅此一次可见，无需去授权码列表查找。
             if (deciding.action === "approve" && result.plainCode) {
-              const copyResult = await copyTextToClipboard(result.plainCode);
-              if (!copyResult.ok) {
-                // eslint-disable-next-line no-alert
-                window.alert(`${t("vault.codes.plain.title")}:\n\n${result.plainCode}`);
-              } else {
-                toast.success(t("vault.card.copied"));
-              }
+              setRevealedCode(result.plainCode);
             }
           } catch (err) {
             toast.error(getDisplayErrorMessage(err, t("vault.requests.decide.failed")));
           }
         }}
+      />
+      <PlainCodeRevealDialog
+        open={revealedCode !== null}
+        plainCode={revealedCode ?? ""}
+        onClose={() => setRevealedCode(null)}
       />
     </div>
   );
@@ -182,10 +199,12 @@ interface RequestCardProps {
   request: VaultAccessRequest;
   subscriptionName: string;
   formatDateTime: (date: Date | string | number, options?: Intl.DateTimeFormatOptions) => string;
-  onDecide: (action: "approve" | "decline" | "close") => void;
+  onDecide: (action: "approve" | "decline") => void;
+  onViewCode: (codeId: string) => void;
+  viewingCodeId: string | null;
 }
 
-function RequestCard({ request, subscriptionName, formatDateTime, onDecide }: RequestCardProps) {
+function RequestCard({ request, subscriptionName, formatDateTime, onDecide, onViewCode, viewingCodeId }: RequestCardProps) {
   const { t } = useI18n();
   const pending = request.status === "pending";
   return (
@@ -200,9 +219,12 @@ function RequestCard({ request, subscriptionName, formatDateTime, onDecide }: Re
             </Badge>
           </div>
           <CardTitle className="text-[15px]">{subscriptionName}</CardTitle>
-          <CardDescription className="text-xs">{formatDateTime(request.createdAt)}</CardDescription>
+          <CardDescription className="text-xs">
+            {t("vault.requests.createdAtLabel")} ·{" "}
+            {formatDateTime(request.createdAt, { dateStyle: "short", timeStyle: "short" })}
+          </CardDescription>
         </div>
-        {pending && (
+        {pending ? (
           <div className="flex items-center gap-1.5">
             <Button
               size="sm"
@@ -216,11 +238,13 @@ function RequestCard({ request, subscriptionName, formatDateTime, onDecide }: Re
               <XCircle className="h-4 w-4" />
               <span className="ml-1.5">{t("vault.requests.decline")}</span>
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => onDecide("close")}>
-              {t("vault.requests.close")}
-            </Button>
           </div>
-        )}
+        ) : request.decidedAt ? (
+          <div className="text-xs text-muted-foreground whitespace-nowrap">
+            {t("vault.requests.decidedAtLabel")} ·{" "}
+            {formatDateTime(request.decidedAt, { dateStyle: "short", timeStyle: "short" })}
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-2 text-sm">
         {request.note ? (
@@ -228,13 +252,19 @@ function RequestCard({ request, subscriptionName, formatDateTime, onDecide }: Re
             <div className="text-xs text-muted-foreground mb-0.5">{t("vault.requests.noteLabel")}</div>
             <div className="whitespace-pre-wrap break-words">{request.note}</div>
           </div>
-        ) : (
-          <div className="text-muted-foreground italic">— {t("vault.requests.empty")} —</div>
-        )}
-        {request.decidedAt ? (
-          <div className="text-xs text-muted-foreground flex items-center gap-3">
-            <span>{formatDateTime(request.decidedAt)}</span>
-            {request.codeId ? <span className="font-mono text-foreground">code id={request.codeId.slice(0, 12)}…</span> : null}
+        ) : null}
+        {request.status === "approved" && request.codeId ? (
+          <div className="text-xs text-muted-foreground flex items-center justify-between gap-3">
+            <span className="font-mono text-foreground whitespace-nowrap">code id={request.codeId.slice(0, 12)}…</span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={viewingCodeId !== null}
+              onClick={() => onViewCode(request.codeId as string)}
+            >
+              {viewingCodeId === request.codeId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+              <span className="ml-1.5">{t("vault.codes.viewCode")}</span>
+            </Button>
           </div>
         ) : null}
       </CardContent>
@@ -278,11 +308,11 @@ interface DecideDialogProps {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   request: VaultAccessRequest | null;
-  action: "approve" | "decline" | "close";
+  action: "approve" | "decline";
   credentials: VaultCredential[];
   submitting: boolean;
   onSubmit: (body: {
-    action: "approve" | "decline" | "close";
+    action: "approve" | "decline";
     credentialId?: string;
     note?: string;
     expireHours?: number;
@@ -320,12 +350,7 @@ function DecideDialog({
     lastContext.current = ctx;
   }, [open, request?.id, action]);
 
-  const titleKey: MessageKey =
-    action === "approve"
-      ? "vault.requests.approve"
-      : action === "decline"
-        ? "vault.requests.decline"
-        : "vault.requests.close";
+  const titleKey: MessageKey = action === "approve" ? "vault.requests.approve" : "vault.requests.decline";
 
   const subscriptionCredentials =
     action === "approve" && request
@@ -336,26 +361,14 @@ function DecideDialog({
     !submitting &&
     (action !== "approve" || credentialId.trim().length > 0);
 
-  const descriptionId: MessageKey | null =
+  const descriptionId: MessageKey =
     action === "approve"
       ? "vault.requests.approve.description"
-      : action === "decline"
-        ? "vault.requests.decline.description"
-        : null;
+      : "vault.requests.decline.description";
 
-  const submitLabel =
-    action === "approve"
-      ? t("vault.requests.approve")
-      : action === "decline"
-        ? t("vault.requests.decline")
-        : t("vault.requests.close");
+  const submitLabel = action === "approve" ? t("vault.requests.approve") : t("vault.requests.decline");
 
-  const variant =
-    action === "approve"
-      ? "default"
-      : action === "decline"
-        ? "outline"
-        : "ghost";
+  const variant = action === "approve" ? "default" : "outline";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -366,9 +379,7 @@ function DecideDialog({
       >
         <DialogHeader className="shrink-0 px-6 pb-3 pt-5 pr-12">
           <DialogTitle>{t("vault.requests.decideTitle")} — {t(titleKey)}</DialogTitle>
-          {descriptionId ? (
-            <p className="text-sm text-muted-foreground pt-1">{t(descriptionId)}</p>
-          ) : null}
+          <p className="text-sm text-muted-foreground pt-1">{t(descriptionId)}</p>
         </DialogHeader>
         <div className="h5-subscription-dialog-scroll min-h-0 space-y-3 overflow-y-auto px-6 pb-4 pt-1">
           {request?.note ? (

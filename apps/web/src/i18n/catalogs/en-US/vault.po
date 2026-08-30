@@ -124,11 +124,6 @@ msgid "vault.detail.linkedAccounts"
 msgstr "Linked accounts"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:125
-msgid "vault.requests.close"
-msgstr "Close"
-
-#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:163
 msgid "vault.logs.action.request_closed"
 msgstr "Access request closed"
@@ -219,7 +214,12 @@ msgid "vault.requests.decide.failed"
 msgstr "Failed to process the request"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:126
+#: src/i18n/descriptors/vault.ts:123
+msgid "vault.requests.decidedAtLabel"
+msgstr "Decided at"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:127
 msgid "vault.requests.decideTitle"
 msgstr "Process access request"
 
@@ -364,12 +364,12 @@ msgid "vault.card.visitSite"
 msgstr "Open URL"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:124
+#: src/i18n/descriptors/vault.ts:126
 msgid "vault.requests.decline"
 msgstr "Decline"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:128
+#: src/i18n/descriptors/vault.ts:129
 msgid "vault.requests.decline.description"
 msgstr "The visitor will not receive any notification when declined."
 
@@ -394,7 +394,7 @@ msgid "vault.codes.redeem.codeLabel"
 msgstr "Access code"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:134
+#: src/i18n/descriptors/vault.ts:135
 msgid "vault.requests.form.maxAttemptsLabel"
 msgstr "Access code max attempts"
 
@@ -404,7 +404,7 @@ msgid "vault.codes.loadFailed"
 msgstr "Failed to load access codes"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:135
+#: src/i18n/descriptors/vault.ts:136
 msgid "vault.requests.form.noteLabel"
 msgstr "Access code note (optional)"
 
@@ -419,7 +419,7 @@ msgid "vault.codes.create.success"
 msgstr "Access code generated"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:133
+#: src/i18n/descriptors/vault.ts:134
 msgid "vault.requests.form.expireHoursLabel"
 msgstr "Access code validity (hours)"
 
@@ -439,7 +439,7 @@ msgid "vault.codes.redeemTitle"
 msgstr "Unlock credentials with access code"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:129
+#: src/i18n/descriptors/vault.ts:130
 msgid "vault.requests.form.credentialLabel"
 msgstr "Grant credential"
 
@@ -447,6 +447,16 @@ msgstr "Grant credential"
 #: src/i18n/descriptors/vault.ts:13
 msgid "vault.searchPlaceholder"
 msgstr "Search by title, username, or URL"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:174
+msgid "vault.logs.detailLegend.reason"
+msgstr "Specific reason when the operation failed or was denied"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:173
+msgid "vault.logs.detailLegend.ip"
+msgstr "Client IP address of the operator"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:61
@@ -474,6 +484,11 @@ msgid "vault.codes.legacyCredentialTitle"
 msgstr "Legacy code (no credential bound, expired)"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:165
+msgid "vault.logs.header.time"
+msgstr "Time"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:51
 msgid "vault.card.showPassword"
 msgstr "Show password"
@@ -494,7 +509,12 @@ msgid "vault.codes.form.expireHoursLabel"
 msgstr "Validity (hours)"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:122
+#: src/i18n/descriptors/vault.ts:166
+msgid "vault.logs.header.source"
+msgstr "Source"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:124
 msgid "vault.requests.fromPublicPage"
 msgstr "From public page"
 
@@ -585,23 +605,38 @@ msgstr "Unlock with access code"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:138
-msgid "vault.requests.close.success"
-msgstr "Request closed"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:137
 msgid "vault.requests.decline.success"
 msgstr "Request declined"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:136
+#: src/i18n/descriptors/vault.ts:137
 msgid "vault.requests.approve.success"
 msgstr "Request approved; access code generated"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:122
+msgid "vault.requests.createdAtLabel"
+msgstr "Requested at"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:33
 msgid "vault.form.passwordPlaceholder"
 msgstr "Leave empty to skip saving a password"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:172
+msgid "vault.logs.detailLegend.code"
+msgstr "Related access code ID (first 12 chars)"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:170
+msgid "vault.logs.detailLegend.sub"
+msgstr "Related subscription ID (first 12 chars)"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:171
+msgid "vault.logs.detailLegend.cred"
+msgstr "Related credential ID (first 12 chars)"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:85
@@ -622,6 +657,11 @@ msgstr "Paste or enter the 16-character access code; the code itself is already 
 #: src/i18n/descriptors/vault.ts:88
 msgid "vault.codes.form.credentialLabel"
 msgstr "Bind credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:167
+msgid "vault.logs.header.result"
+msgstr "Result"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:12
@@ -669,9 +709,19 @@ msgid "vault.requests.loadFailed"
 msgstr "Failed to load access requests"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:132
+#: src/i18n/descriptors/vault.ts:133
 msgid "vault.requests.form.noCredentialsForSubscription"
 msgstr "No grantable credentials under this subscription yet. Add a linked credential in the Vault first."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:168
+msgid "vault.logs.header.detail"
+msgstr "Detail"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:169
+msgid "vault.logs.detailLegend.title"
+msgstr "Detail tag legend"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:98
@@ -749,7 +799,7 @@ msgid "vault.codes.plain.description"
 msgstr "This is the plaintext access code, returned only in this response and never shown again."
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:130
+#: src/i18n/descriptors/vault.ts:131
 msgid "vault.requests.form.credentialPlaceholder"
 msgstr "Select the specific credential bound to the approved code"
 
@@ -759,17 +809,17 @@ msgid "vault.codes.form.credentialPlaceholder"
 msgstr "Select the specific credential to issue a code for"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:123
+#: src/i18n/descriptors/vault.ts:125
 msgid "vault.requests.approve"
 msgstr "Approve"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:127
+#: src/i18n/descriptors/vault.ts:128
 msgid "vault.requests.approve.description"
 msgstr "Approving will automatically generate a one-time access code which you can forward to the visitor. You must specify which exact credential to grant."
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:131
+#: src/i18n/descriptors/vault.ts:132
 msgid "vault.requests.form.approveCredentialRequired"
 msgstr "Approving requires selecting a specific credential first."
 

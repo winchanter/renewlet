@@ -119,6 +119,8 @@ func ensureVaultAccessRequestsCollection(app core.App, users *core.Collection) e
 			&core.TextField{Name: "sourceIp", Max: 64},
 			&core.TextField{Name: "userAgent", Max: 300},
 			&core.TextField{Name: "decidedAt", Max: 40},
+			// 审批通过后生成的授权码 ID 快照；列表另有按 vault_access_codes.request 的反查兜底。
+			&core.TextField{Name: "codeId", Max: 128},
 		}
 		for _, field := range fields {
 			if err := upsertField(c, field); err != nil {

@@ -869,14 +869,15 @@ func vaultAccessRequestAPIFromRecord(rec *core.Record, codeID string) vaultAcces
 	return view
 }
 
-// handleVaultAccessRequestsList 返回归属用户下的申请（订阅归属=user）。
+// handleVaultAccessRequestsList 返回归属用户下的申请（vault_access_requests.user = 当前登录用户）。
+// 过滤条件直接下推到 SQLite：避免先全量拉取再做订阅归属二次校验的 N+1 查询和跨用户扫描。
+// codeId 直接使用申请记录自身的 codeId 字段（审批通过时写入），不再反查 vault_access_codes 表。
 func handleVaultAccessRequestsList(app core.App, e *core.RequestEvent) error {
 	locale := requestLocale(e.Request)
 	statusFilter := strings.TrimSpace(e.Request.URL.Query().Get("status"))
 	subscriptionFilter := strings.TrimSpace(e.Request.URL.Query().Get("subscriptionId"))
-	// 申请记录通过 subscription 快照再关联订阅 owner
-	filter := "id != ''"
-	params := dbx.Params{}
+	filter := "user = {:user}"
+	params := dbx.Params{"user": e.Auth.Id}
 	if statusFilter != "" {
 		filter += " && status = {:status}"
 		params["status"] = statusFilter
@@ -885,48 +886,13 @@ func handleVaultAccessRequestsList(app core.App, e *core.RequestEvent) error {
 		filter += " && subscription = {:subscription}"
 		params["subscription"] = subscriptionFilter
 	}
-	// 拉全部记录，再按归属过滤（集合量小）
 	all, err := app.FindRecordsByFilter("vault_access_requests", filter, "-created, -id", 0, 0, params)
 	if err != nil {
 		return e.InternalServerError(serverText(locale, "common.internalError"), err)
 	}
-	subIDs := map[string]bool{}
-	for _, r := range all {
-		subIDs[r.GetString("subscription")] = true
-	}
-	ownedSubs := map[string]bool{}
-	for sid := range subIDs {
-		s, findErr := app.FindFirstRecordByFilter("subscriptions", "id = {:id} && user = {:user}", dbx.Params{"id": sid, "user": e.Auth.Id})
-		if findErr == nil && s != nil {
-			ownedSubs[sid] = true
-		}
-	}
-	// codeID 关联：按 request 找 access_codes
-	reqIDs := make([]string, 0, len(all))
-	for _, r := range all {
-		reqIDs = append(reqIDs, r.Id)
-	}
-	codeByRequest := map[string]string{}
-	if len(reqIDs) > 0 {
-		placeholders := make([]string, len(reqIDs))
-		codeParams := dbx.Params{}
-		for i, id := range reqIDs {
-			key := "r" + strconv.Itoa(i)
-			placeholders[i] = "{:" + key + "}"
-			codeParams[key] = id
-		}
-		filterCodes := "request in (" + strings.Join(placeholders, ",") + ")"
-		codeRecords, _ := app.FindRecordsByFilter("vault_access_codes", filterCodes, "-created", 0, 0, codeParams)
-		for _, c := range codeRecords {
-			codeByRequest[c.GetString("request")] = c.Id
-		}
-	}
 	requests := make([]vaultAccessRequestView, 0, len(all))
 	for _, r := range all {
-		if !ownedSubs[r.GetString("subscription")] {
-			continue
-		}
-		requests = append(requests, vaultAccessRequestAPIFromRecord(r, codeByRequest[r.Id]))
+		requests = append(requests, vaultAccessRequestAPIFromRecord(r, r.GetString("codeId")))
 	}
 	return apiSuccessJSON(e, http.StatusOK, vaultAccessRequestsListResponse{Requests: requests})
 }
@@ -1067,6 +1033,7 @@ func handleVaultAccessRequestDecide(app core.App, e *core.RequestEvent) error {
 		}
 		req.Set("status", vaultRequestStatusApproved)
 		req.Set("decidedAt", now)
+		req.Set("codeId", codeRecord.Id)
 		if saveErr := app.Save(req); saveErr != nil {
 			return e.InternalServerError(serverText(locale, "common.internalError"), saveErr)
 		}

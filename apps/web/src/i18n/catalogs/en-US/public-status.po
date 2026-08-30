@@ -105,8 +105,8 @@ msgstr "Start: {date}"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:35
-msgid "publicStatus.vault.description"
-msgstr "Redeem an access code to unlock the linked account, or request access and wait for approval."
+msgid "publicStatus.vault.redeemDescription"
+msgstr "Have an access code? Paste it to unlock the linked account instantly."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:12
@@ -194,6 +194,11 @@ msgid "publicStatus.vault.subscriptionEmpty"
 msgstr "No subscriptions available"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:37
+msgid "publicStatus.vault.requestDescription"
+msgstr "No code yet? Pick a subscription and request access; the admin will issue a code after approval."
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:16
 msgid "publicStatus.activeCount"
 msgstr "Active/trial"
@@ -209,7 +214,7 @@ msgid "publicStatus.vault.requestSuccessTitle"
 msgstr "Request submitted"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:37
+#: src/i18n/descriptors/public-status.ts:36
 msgid "publicStatus.vault.tabRequest"
 msgstr "Request access"
 
@@ -249,7 +254,7 @@ msgid "publicStatus.vault.redeemFailed"
 msgstr "Failed to unlock"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:36
+#: src/i18n/descriptors/public-status.ts:34
 msgid "publicStatus.vault.tabRedeem"
 msgstr "Unlock account"
 
@@ -274,11 +279,6 @@ msgid "publicStatus.vault.requestSuccessToast"
 msgstr "Access request submitted"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:68
-msgid "publicStatus.vault.requestEmpty"
-msgstr "This page has no subscriptions open for access requests."
-
-#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:60
 msgid "publicStatus.vault.notePlaceholder"
 msgstr "Explain why you need access so the owner can review your request."
@@ -292,11 +292,6 @@ msgstr "Refresh and try again later."
 #: src/i18n/descriptors/public-status.ts:44
 msgid "publicStatus.vault.resultTitle"
 msgstr "Account details"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:34
-msgid "publicStatus.vault.title"
-msgstr "Account access"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:20

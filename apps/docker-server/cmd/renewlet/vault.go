@@ -7,8 +7,13 @@ package main
 //     明文密码仅通过显式 reveal 动作返回并写审计日志。
 //   - 归属边界与订阅路由一致：查询同时带 id 和 user，避免通过错误码枚举他人凭据。
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base32"
+	"encoding/hex"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,12 +28,30 @@ const (
 	vaultPasswordMax = 1024
 	vaultNotesMax    = 5000
 
-	vaultLogActionCredentialViewed  = "credential_viewed"
-	vaultLogActionCredentialCreated = "credential_created"
-	vaultLogActionCredentialUpdated = "credential_updated"
-	vaultLogActionCredentialDeleted = "credential_deleted"
-	vaultLogSourceAdmin             = "admin"
-	vaultLogResultSuccess           = "success"
+	vaultLogActionCredentialViewed      = "credential_viewed"
+	vaultLogActionCredentialCreated     = "credential_created"
+	vaultLogActionCredentialUpdated     = "credential_updated"
+	vaultLogActionCredentialDeleted     = "credential_deleted"
+	vaultLogActionCodeGenerated         = "code_generated"
+	vaultLogActionCodeRedeemed          = "code_redeemed"
+	vaultLogActionCodeRevoked           = "code_revoked"
+	vaultLogActionCodeViewed            = "code_viewed"
+	vaultLogActionRequestSubmitted      = "request_submitted"
+	vaultLogActionRequestApproved       = "request_approved"
+	vaultLogActionRequestDeclined       = "request_declined"
+	vaultLogActionRequestClosed         = "request_closed"
+	vaultLogSourceAdmin                 = "admin"
+	vaultLogSourcePublic                = "public"
+	vaultLogResultSuccess               = "success"
+	vaultLogResultFailure               = "failure"
+	vaultCodeMaxAttemptsDefault         = 5
+	vaultCodeExpireHoursDefault         = 48
+	vaultCodeExpireHoursMax             = 7 * 24
+	vaultRequestStatusPending           = "pending"
+	vaultRequestStatusApproved          = "approved"
+	vaultRequestStatusDeclined          = "declined"
+	vaultRequestStatusExpired           = "expired"
+	vaultRequestStatusClosed            = "closed"
 )
 
 type vaultCredentialView struct {
@@ -365,4 +388,758 @@ func handleVaultCredentialReveal(app core.App, e *core.RequestEvent) error {
 	writeVaultAccessLog(app, e.Auth.Id, vaultLogActionCredentialViewed, vaultLogSourceAdmin, vaultLogResultSuccess,
 		record.GetString("subscription"), record.Id, "", clientIP(e.Request), e.Request.UserAgent(), nil)
 	return apiSuccessJSON(e, http.StatusOK, vaultCredentialRevealResponse{Password: password})
+}
+
+// ================== P2-A：一次性访问授权码 ==================
+
+type vaultAccessCodeCreateRequest struct {
+	CredentialID string `json:"credentialId"`
+	Note         string `json:"note"`
+	ExpireHours  int    `json:"expireHours"`
+	MaxAttempts  int    `json:"maxAttempts"`
+}
+
+type vaultAccessCodeView struct {
+	ID              string `json:"id"`
+	CredentialID    string `json:"credentialId"`
+	CredentialTitle string `json:"credentialTitle"`
+	SubscriptionID  string `json:"subscriptionId"` // 冗余快照，可能为空（独立账号）
+	CodeMask        string `json:"codeMask"`
+	Note            string `json:"note"`
+	ExpiresAt       string `json:"expiresAt"`
+	MaxAttempts     int    `json:"maxAttempts"`
+	Attempts        int    `json:"attempts"`
+	Status          string `json:"status"` // active / used / revoked / expired
+	UsedAt          string `json:"usedAt"`
+	RevokedAt       string `json:"revokedAt"`
+	RequestID       string `json:"requestId"`
+	CreatedAt       string `json:"createdAt"`
+	// HasPlainCode 表示明文已加密存档、可重复查阅；旧版（hash-only 时期）生成的码为 false。
+	HasPlainCode bool `json:"hasPlainCode"`
+}
+
+type vaultAccessCodeCreatedResponse struct {
+	vaultAccessCodeView
+	PlainCode string `json:"plainCode"`
+}
+
+type vaultAccessCodePlainRevealResponse struct {
+	PlainCode string `json:"plainCode"`
+}
+
+type vaultAccessCodesListResponse struct {
+	Codes []vaultAccessCodeView `json:"codes"`
+}
+
+type vaultAccessCodeRedeemRequest struct {
+	Code string `json:"code"`
+}
+
+type vaultAccessCodeRedeemResponse struct {
+	Password       string `json:"password"`
+	CredentialID   string `json:"credentialId"`
+	SubscriptionID string `json:"subscriptionId"`
+	Title          string `json:"title"`
+	URL            string `json:"url"`
+	Username       string `json:"username"`
+	Notes          string `json:"notes"`
+}
+
+func generateVaultAccessCode() (string, string, string, error) {
+	data := make([]byte, 15)
+	if _, err := rand.Read(data); err != nil {
+		return "", "", "", err
+	}
+	plain := strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(data))
+	if len([]rune(plain)) > 16 {
+		plain = string([]rune(plain)[:16])
+	}
+	sum := sha256.Sum256([]byte(plain))
+	hash := hex.EncodeToString(sum[:])
+	runes := []rune(plain)
+	mask := string(runes[:3]) + strings.Repeat("•", len(runes)-5) + string(runes[len(runes)-2:])
+	return plain, hash, mask, nil
+}
+
+func findOwnedVaultAccessCode(app core.App, e *core.RequestEvent) (*core.Record, error) {
+	id := strings.TrimSpace(e.Request.PathValue("id"))
+	return app.FindFirstRecordByFilter(
+		"vault_access_codes",
+		"id = {:id} && user = {:user}",
+		dbx.Params{"id": id, "user": e.Auth.Id},
+	)
+}
+
+func vaultCodeStatusFromRecord(code *core.Record) string {
+	if code.GetString("revokedAt") != "" {
+		return "revoked"
+	}
+	// 旧版（按订阅绑定时期）生成的码没有 credential 绑定，无法兑换，呈现为已失效。
+	if code.GetString("credential") == "" {
+		return "revoked"
+	}
+	if code.GetString("usedAt") != "" {
+		return "used"
+	}
+	// 额度已耗尽但 usedAt 未置位的历史数据兜底：attempts 达到上限同样呈现为已用尽。
+	if maxAttempts := code.GetInt("maxAttempts"); maxAttempts > 0 && int(code.GetInt("attempts")) >= int(maxAttempts) {
+		return "used"
+	}
+	if expiresAt := code.GetString("expiresAt"); expiresAt != "" {
+		if t, err := time.Parse(time.RFC3339, expiresAt); err == nil && t.Before(time.Now().UTC()) {
+			return "expired"
+		}
+	}
+	return "active"
+}
+
+func vaultAccessCodeAPIFromRecord(code *core.Record) vaultAccessCodeView {
+	view := vaultAccessCodeView{
+		ID:              code.Id,
+		CredentialID:    code.GetString("credential"),
+		CredentialTitle: code.GetString("credentialTitle"),
+		SubscriptionID:  code.GetString("subscription"),
+		CodeMask:        code.GetString("codeMask"),
+		Note:            code.GetString("note"),
+		ExpiresAt:       code.GetString("expiresAt"),
+		MaxAttempts:     int(code.GetInt("maxAttempts")),
+		Attempts:        int(code.GetInt("attempts")),
+		Status:          vaultCodeStatusFromRecord(code),
+		UsedAt:          code.GetString("usedAt"),
+		RevokedAt:       code.GetString("revokedAt"),
+		RequestID:       code.GetString("request"),
+	}
+	if !code.GetDateTime("created").IsZero() {
+		view.CreatedAt = code.GetDateTime("created").Time().UTC().Format(time.RFC3339Nano)
+	}
+	view.HasPlainCode = code.GetString("plainCipher") != ""
+	return view
+}
+
+// resolveVaultCredentialID 校验凭据归属；返回 (credentialRecord, subscriptionID 快照, err)。
+// subscriptionID 可能为空（独立账号场景）。
+func resolveVaultCredentialID(app core.App, locale appLocale, userID, credentialID string) (*core.Record, string, error) {
+	credentialID = strings.TrimSpace(credentialID)
+	if credentialID == "" {
+		return nil, "", errors.New(serverText(locale, "vault.credentialRequired"))
+	}
+	record, err := app.FindFirstRecordByFilter(
+		"vault_credentials",
+		"id = {:id} && user = {:user}",
+		dbx.Params{"id": credentialID, "user": userID},
+	)
+	if err != nil || record == nil {
+		return nil, "", errors.New(serverText(locale, "vault.notFound"))
+	}
+	return record, record.GetString("subscription"), nil
+}
+
+func handleVaultAccessCodesList(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	credentialFilter := strings.TrimSpace(e.Request.URL.Query().Get("credentialId"))
+	filter := "user = {:user}"
+	params := dbx.Params{"user": e.Auth.Id}
+	if credentialFilter != "" {
+		filter += " && credential = {:credential}"
+		params["credential"] = credentialFilter
+	}
+	records, err := app.FindRecordsByFilter("vault_access_codes", filter, "-created, -id", 0, 0, params)
+	if err != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), err)
+	}
+	codes := make([]vaultAccessCodeView, 0, len(records))
+	for _, record := range records {
+		codes = append(codes, vaultAccessCodeAPIFromRecord(record))
+	}
+	return apiSuccessJSON(e, http.StatusOK, vaultAccessCodesListResponse{Codes: codes})
+}
+
+func handleVaultAccessCodeCreate(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	body, err := decodeStrictJSON[vaultAccessCodeCreateRequest](e.Request, locale)
+	if err != nil {
+		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
+	}
+	credential, subscriptionID, credErr := resolveVaultCredentialID(app, locale, e.Auth.Id, body.CredentialID)
+	if credErr != nil {
+		return e.BadRequestError(credErr.Error(), nil)
+	}
+	expireHours := body.ExpireHours
+	if expireHours <= 0 {
+		expireHours = vaultCodeExpireHoursDefault
+	}
+	if expireHours > vaultCodeExpireHoursMax {
+		expireHours = vaultCodeExpireHoursMax
+	}
+	maxAttempts := body.MaxAttempts
+	if maxAttempts < 1 {
+		maxAttempts = vaultCodeMaxAttemptsDefault
+	}
+	if len([]rune(body.Note)) > 500 {
+		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
+	}
+	plainCode, codeHash, codeMask, genErr := generateVaultAccessCode()
+	if genErr != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), genErr)
+	}
+	expiresAt := time.Now().UTC().Add(time.Duration(expireHours) * time.Hour).Format(time.RFC3339)
+	// 明文加密存档（AES-256-GCM，vault 用途域）：管理员可在有效期内重复查阅；哈希仍用于兑换点查。
+	plainCipher, encErr := encryptVaultSecret(app, plainCode)
+	if encErr != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), encErr)
+	}
+	collection, findErr := app.FindCollectionByNameOrId("vault_access_codes")
+	if findErr != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), findErr)
+	}
+	record := core.NewRecord(collection)
+	record.Set("user", e.Auth.Id)
+	record.Set("credential", credential.Id)
+	record.Set("credentialTitle", credential.GetString("title"))
+	record.Set("subscription", subscriptionID)
+	record.Set("codeHash", codeHash)
+	record.Set("plainCipher", plainCipher)
+	record.Set("codeMask", codeMask)
+	record.Set("note", body.Note)
+	record.Set("expiresAt", expiresAt)
+	record.Set("maxAttempts", float64(maxAttempts))
+	record.Set("attempts", 0.0)
+	if saveErr := app.Save(record); saveErr != nil {
+		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", saveErr), saveErr)
+	}
+	writeVaultAccessLog(app, e.Auth.Id, vaultLogActionCodeGenerated, vaultLogSourceAdmin, vaultLogResultSuccess,
+		subscriptionID, credential.Id, record.Id, clientIP(e.Request), e.Request.UserAgent(), map[string]any{"expireHours": expireHours, "maxAttempts": maxAttempts})
+	created := vaultAccessCodeAPIFromRecord(record)
+	return apiSuccessJSON(e, http.StatusCreated, vaultAccessCodeCreatedResponse{vaultAccessCodeView: created, PlainCode: plainCode})
+}
+
+// handleVaultAccessCodeRevealPlain 管理员重复查阅授权码明文。
+// 明文仅加密存档于 plainCipher（AES-256-GCM）；旧版 hash-only 生成的码无存档，返回专用文案。
+func handleVaultAccessCodeRevealPlain(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	record, err := findOwnedVaultAccessCode(app, e)
+	if err != nil || record == nil {
+		return e.NotFoundError(serverText(locale, "vault.codeNotFound"), err)
+	}
+	cipher := record.GetString("plainCipher")
+	if cipher == "" {
+		return e.BadRequestError(serverText(locale, "vault.plainCodeUnavailable"), nil)
+	}
+	plain, decErr := decryptVaultSecret(app, cipher)
+	if decErr != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), decErr)
+	}
+	// 与 credential reveal 同级敏感：明文离开服务端必须落审计，ip/ua 可追溯异常查阅。
+	writeVaultAccessLog(app, e.Auth.Id, vaultLogActionCodeViewed, vaultLogSourceAdmin, vaultLogResultSuccess,
+		record.GetString("subscription"), record.GetString("credential"), record.Id, clientIP(e.Request), e.Request.UserAgent(), nil)
+	return apiSuccessJSON(e, http.StatusOK, vaultAccessCodePlainRevealResponse{PlainCode: plain})
+}
+
+func handleVaultAccessCodeRevoke(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	record, err := findOwnedVaultAccessCode(app, e)
+	if err != nil || record == nil {
+		return e.NotFoundError(serverText(locale, "vault.codeNotFound"), err)
+	}
+	if record.GetString("revokedAt") == "" && record.GetString("usedAt") == "" {
+		record.Set("revokedAt", time.Now().UTC().Format(time.RFC3339))
+		if saveErr := app.Save(record); saveErr != nil {
+			return e.InternalServerError(serverText(locale, "common.internalError"), saveErr)
+		}
+		writeVaultAccessLog(app, e.Auth.Id, vaultLogActionCodeRevoked, vaultLogSourceAdmin, vaultLogResultSuccess,
+			record.GetString("subscription"), record.GetString("credential"), record.Id, clientIP(e.Request), e.Request.UserAgent(), nil)
+	}
+	return apiEmptySuccessJSON(e, http.StatusOK)
+}
+
+// handleVaultAccessCodeRedeemByCode 支持两种调用方：
+//   - 公开页面（匿名）：使用 /api/public/status 路径；校验通过后 reveal 一次密码并消耗码。
+//   - 归属用户后台：auth 路径，等同自己 reveal 但带 code 审计。
+func vaultAccessCodeRedeemCore(app core.App, e *core.RequestEvent, body vaultAccessCodeRedeemRequest, userID string, source string) error {
+	locale := requestLocale(e.Request)
+	codeText := strings.ToLower(strings.TrimSpace(body.Code))
+	if codeText == "" {
+		return e.BadRequestError(serverText(locale, "vault.codeRequired"), nil)
+	}
+	sum := sha256.Sum256([]byte(codeText))
+	codeHash := hex.EncodeToString(sum[:])
+	code, findErr := app.FindFirstRecordByFilter(
+		"vault_access_codes",
+		"codeHash = {:hash}",
+		dbx.Params{"hash": codeHash},
+	)
+	ip := clientIP(e.Request)
+	ua := e.Request.UserAgent()
+	resultAction := vaultLogActionCodeRedeemed
+	if findErr != nil || code == nil {
+		writeVaultAccessLog(app, "", resultAction, source, vaultLogResultFailure, "", "", "", ip, ua, map[string]any{"reason": "code not found"})
+		return e.BadRequestError(serverText(locale, "vault.codeInvalid"), nil)
+	}
+	attempts := int(code.GetInt("attempts"))
+	maxAttempts := int(code.GetInt("maxAttempts"))
+	codeOwner := code.GetString("user")
+	credentialID := code.GetString("credential")
+	subscriptionID := code.GetString("subscription")
+	logContext := func(reason string) {
+		writeVaultAccessLog(app, codeOwner, resultAction, source, vaultLogResultFailure, subscriptionID, credentialID, code.Id, ip, ua, map[string]any{"reason": reason})
+	}
+	if attempts+1 > maxAttempts {
+		logContext("attempts exhausted")
+		return e.BadRequestError(serverText(locale, "vault.codeExhausted"), nil)
+	}
+	now := time.Now().UTC()
+	if code.GetString("revokedAt") != "" {
+		logContext("revoked")
+		return e.BadRequestError(serverText(locale, "vault.codeRevoked"), nil)
+	}
+	if code.GetString("usedAt") != "" {
+		logContext("used")
+		return e.BadRequestError(serverText(locale, "vault.codeUsed"), nil)
+	}
+	if expiresText := code.GetString("expiresAt"); expiresText != "" {
+		if t, parseErr := time.Parse(time.RFC3339, expiresText); parseErr == nil && t.Before(now) {
+			logContext("expired")
+			return e.BadRequestError(serverText(locale, "vault.codeExpired"), nil)
+		}
+	}
+	// 码本身已绑定 credentialID，直接查它（不再让兑换方再传 credentialId）。
+	credential, credErr := app.FindFirstRecordByFilter(
+		"vault_credentials",
+		"id = {:id} && user = {:user}",
+		dbx.Params{"id": credentialID, "user": codeOwner},
+	)
+	if credErr != nil || credential == nil {
+		writeVaultAccessLog(app, codeOwner, resultAction, source, vaultLogResultFailure, subscriptionID, credentialID, code.Id, ip, ua, map[string]any{"reason": "credential missing"})
+		return e.NotFoundError(serverText(locale, "vault.notFound"), credErr)
+	}
+	// 消耗一次额度（attempts++）。usedAt 仅在最后一次可用额度时置位 —— 其语义是「额度用尽时刻」，
+	// 使 maxAttempts>1 的码可多次成功兑换；max=1 保持一次性语义不变。
+	newAttempts := attempts + 1
+	code.Set("attempts", float64(newAttempts))
+	password := ""
+	if ciphertext := credential.GetString("passwordCiphertext"); ciphertext != "" {
+		if plaintext, decryptErr := decryptVaultSecret(app, ciphertext); decryptErr == nil {
+			password = plaintext
+		}
+	}
+	if newAttempts >= maxAttempts {
+		code.Set("usedAt", now.Format(time.RFC3339))
+	}
+	if saveErr := app.Save(code); saveErr != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), saveErr)
+	}
+	notes := ""
+	if ciphertext := credential.GetString("notesCiphertext"); ciphertext != "" {
+		if plaintext, decryptErr := decryptVaultSecret(app, ciphertext); decryptErr == nil {
+			notes = plaintext
+		}
+	}
+	writeVaultAccessLog(app, codeOwner, resultAction, source, vaultLogResultSuccess,
+		subscriptionID, credential.Id, code.Id, ip, ua, map[string]any{"user": userID})
+	return apiSuccessJSON(e, http.StatusOK, vaultAccessCodeRedeemResponse{
+		Password:       password,
+		CredentialID:   credential.Id,
+		SubscriptionID: subscriptionID,
+		Title:          credential.GetString("title"),
+		URL:            credential.GetString("url"),
+		Username:       credential.GetString("username"),
+		Notes:          notes,
+	})
+}
+
+func handleVaultAccessCodeRedeemAuth(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	body, err := decodeStrictJSON[vaultAccessCodeRedeemRequest](e.Request, locale)
+	if err != nil {
+		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
+	}
+	return vaultAccessCodeRedeemCore(app, e, body, e.Auth.Id, vaultLogSourceAdmin)
+}
+
+// ================== P2-B：访问申请与审批 ==================
+
+type vaultAccessRequestView struct {
+	ID                 string `json:"id"`
+	SubscriptionID     string `json:"subscriptionId"`
+	PublicStatusPageID string `json:"publicStatusPageId"`
+	Note               string `json:"note"`
+	Status             string `json:"status"`
+	DecidedAt          string `json:"decidedAt"`
+	CreatedAt          string `json:"createdAt"`
+	CodeID             string `json:"codeId"` // 审批通过后生成的授权码 ID（可选）
+}
+
+type vaultAccessRequestCreateRequest struct {
+	SubscriptionID string `json:"subscriptionId"`
+	Note           string `json:"note"`
+}
+
+type vaultAccessRequestDecideRequest struct {
+	Action       string `json:"action"` // approve / decline / close
+	CredentialID string `json:"credentialId"`
+	Note         string `json:"note"`
+	ExpireHours  int    `json:"expireHours"`
+	MaxAttempts  int    `json:"maxAttempts"`
+}
+
+type vaultAccessRequestsListResponse struct {
+	Requests []vaultAccessRequestView `json:"requests"`
+}
+
+func vaultAccessRequestAPIFromRecord(rec *core.Record, codeID string) vaultAccessRequestView {
+	view := vaultAccessRequestView{
+		ID:                 rec.Id,
+		SubscriptionID:     rec.GetString("subscription"),
+		PublicStatusPageID: rec.GetString("publicStatusPage"),
+		Note:               rec.GetString("note"),
+		Status:             rec.GetString("status"),
+		DecidedAt:          rec.GetString("decidedAt"),
+		CodeID:             codeID,
+	}
+	if !rec.GetDateTime("created").IsZero() {
+		view.CreatedAt = rec.GetDateTime("created").Time().UTC().Format(time.RFC3339Nano)
+	}
+	return view
+}
+
+// handleVaultAccessRequestsList 返回归属用户下的申请（订阅归属=user）。
+func handleVaultAccessRequestsList(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	statusFilter := strings.TrimSpace(e.Request.URL.Query().Get("status"))
+	subscriptionFilter := strings.TrimSpace(e.Request.URL.Query().Get("subscriptionId"))
+	// 申请记录通过 subscription 快照再关联订阅 owner
+	filter := "id != ''"
+	params := dbx.Params{}
+	if statusFilter != "" {
+		filter += " && status = {:status}"
+		params["status"] = statusFilter
+	}
+	if subscriptionFilter != "" {
+		filter += " && subscription = {:subscription}"
+		params["subscription"] = subscriptionFilter
+	}
+	// 拉全部记录，再按归属过滤（集合量小）
+	all, err := app.FindRecordsByFilter("vault_access_requests", filter, "-created, -id", 0, 0, params)
+	if err != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), err)
+	}
+	subIDs := map[string]bool{}
+	for _, r := range all {
+		subIDs[r.GetString("subscription")] = true
+	}
+	ownedSubs := map[string]bool{}
+	for sid := range subIDs {
+		s, findErr := app.FindFirstRecordByFilter("subscriptions", "id = {:id} && user = {:user}", dbx.Params{"id": sid, "user": e.Auth.Id})
+		if findErr == nil && s != nil {
+			ownedSubs[sid] = true
+		}
+	}
+	// codeID 关联：按 request 找 access_codes
+	reqIDs := make([]string, 0, len(all))
+	for _, r := range all {
+		reqIDs = append(reqIDs, r.Id)
+	}
+	codeByRequest := map[string]string{}
+	if len(reqIDs) > 0 {
+		placeholders := make([]string, len(reqIDs))
+		codeParams := dbx.Params{}
+		for i, id := range reqIDs {
+			key := "r" + strconv.Itoa(i)
+			placeholders[i] = "{:" + key + "}"
+			codeParams[key] = id
+		}
+		filterCodes := "request in (" + strings.Join(placeholders, ",") + ")"
+		codeRecords, _ := app.FindRecordsByFilter("vault_access_codes", filterCodes, "-created", 0, 0, codeParams)
+		for _, c := range codeRecords {
+			codeByRequest[c.GetString("request")] = c.Id
+		}
+	}
+	requests := make([]vaultAccessRequestView, 0, len(all))
+	for _, r := range all {
+		if !ownedSubs[r.GetString("subscription")] {
+			continue
+		}
+		requests = append(requests, vaultAccessRequestAPIFromRecord(r, codeByRequest[r.Id]))
+	}
+	return apiSuccessJSON(e, http.StatusOK, vaultAccessRequestsListResponse{Requests: requests})
+}
+
+// 公开路由创建申请；未登录。publicStatusPage ID 来自 URL {token}。
+func handleVaultAccessRequestCreatePublic(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	body, err := decodeStrictJSON[vaultAccessRequestCreateRequest](e.Request, locale)
+	if err != nil {
+		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
+	}
+	subscriptionID := strings.TrimSpace(body.SubscriptionID)
+	pageID := strings.TrimSpace(e.Request.PathValue("token"))
+	if subscriptionID == "" || pageID == "" {
+		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
+	}
+	// 公开页 token 对应 pageID，需验证存在且与 subscription 匹配。
+	page, pageErr := app.FindFirstRecordByFilter("public_status_pages", "id = {:id}", dbx.Params{"id": pageID})
+	if pageErr != nil || page == nil {
+		return e.NotFoundError(serverText(locale, "publicStatus.pageNotFound"), nil)
+	}
+	subs, subsErr := app.FindFirstRecordByFilter(
+		"subscriptions",
+		"id = {:id}",
+		dbx.Params{"id": subscriptionID},
+	)
+	if subsErr != nil || subs == nil {
+		return e.NotFoundError(serverText(locale, "vault.subscriptionNotFound"), nil)
+	}
+	if subs.GetString("user") != page.GetString("user") {
+		return e.NotFoundError(serverText(locale, "vault.subscriptionNotFound"), nil)
+	}
+	if len([]rune(body.Note)) > 500 {
+		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
+	}
+	collection, findErr := app.FindCollectionByNameOrId("vault_access_requests")
+	if findErr != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), findErr)
+	}
+	record := core.NewRecord(collection)
+	record.Set("user", subs.GetString("user"))
+	record.Set("subscription", subscriptionID)
+	record.Set("publicStatusPage", pageID)
+	record.Set("note", body.Note)
+	record.Set("status", vaultRequestStatusPending)
+	record.Set("sourceIp", clientIP(e.Request))
+	record.Set("userAgent", truncateVaultLogText(e.Request.UserAgent(), 300))
+	if saveErr := app.Save(record); saveErr != nil {
+		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", saveErr), saveErr)
+	}
+	writeVaultAccessLog(app, subs.GetString("user"), vaultLogActionRequestSubmitted, vaultLogSourcePublic, vaultLogResultSuccess,
+		subscriptionID, "", "", clientIP(e.Request), e.Request.UserAgent(), map[string]any{"requestId": record.Id, "note": body.Note})
+	return apiSuccessJSON(e, http.StatusCreated, map[string]any{"id": record.Id, "status": vaultRequestStatusPending})
+}
+
+func handleVaultAccessRequestDecide(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	reqID := strings.TrimSpace(e.Request.PathValue("id"))
+	req, findErr := app.FindFirstRecordByFilter(
+		"vault_access_requests",
+		"id = {:id}",
+		dbx.Params{"id": reqID},
+	)
+	if findErr != nil || req == nil {
+		return e.NotFoundError(serverText(locale, "vault.requestNotFound"), findErr)
+	}
+	subscriptionID := req.GetString("subscription")
+	owned, ownerErr := app.FindFirstRecordByFilter("subscriptions", "id = {:id} && user = {:user}", dbx.Params{"id": subscriptionID, "user": e.Auth.Id})
+	if ownerErr != nil || owned == nil {
+		return e.NotFoundError(serverText(locale, "vault.requestNotFound"), nil)
+	}
+	body, decodeErr := decodeStrictJSON[vaultAccessRequestDecideRequest](e.Request, locale)
+	if decodeErr != nil {
+		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", decodeErr), decodeErr)
+	}
+	action := strings.ToLower(strings.TrimSpace(body.Action))
+	if action != "approve" && action != "decline" && action != "close" {
+		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
+	}
+	status := req.GetString("status")
+	if status != vaultRequestStatusPending && status != vaultRequestStatusExpired {
+		return e.BadRequestError(serverText(locale, "vault.requestAlreadyDecided"), nil)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	ip := clientIP(e.Request)
+	ua := e.Request.UserAgent()
+	switch action {
+	case "approve":
+		// approve：必须指定具体 credentialId，且该凭据归属于当前用户并匹配申请的订阅。
+		credential, credSubID, credErr := resolveVaultCredentialID(app, locale, e.Auth.Id, body.CredentialID)
+		if credErr != nil {
+			// 缺字段 / 空的情况给出更精确的文案
+			if strings.TrimSpace(body.CredentialID) == "" {
+				return e.BadRequestError(serverText(locale, "vault.approveCredentialRequired"), nil)
+			}
+			return e.BadRequestError(credErr.Error(), nil)
+		}
+		if subscriptionID != "" && credSubID != subscriptionID {
+			return e.BadRequestError(serverText(locale, "vault.credentialMismatchSubscription"), nil)
+		}
+		expireHours := body.ExpireHours
+		if expireHours <= 0 {
+			expireHours = vaultCodeExpireHoursDefault
+		}
+		if expireHours > vaultCodeExpireHoursMax {
+			expireHours = vaultCodeExpireHoursMax
+		}
+		maxAttempts := body.MaxAttempts
+		if maxAttempts < 1 {
+			maxAttempts = vaultCodeMaxAttemptsDefault
+		}
+		plainCode, codeHash, codeMask, genErr := generateVaultAccessCode()
+		if genErr != nil {
+			return e.InternalServerError(serverText(locale, "common.internalError"), genErr)
+		}
+		plainCipher, encErr := encryptVaultSecret(app, plainCode)
+		if encErr != nil {
+			return e.InternalServerError(serverText(locale, "common.internalError"), encErr)
+		}
+		expiresAt := time.Now().UTC().Add(time.Duration(expireHours) * time.Hour).Format(time.RFC3339)
+		codesCollection, _ := app.FindCollectionByNameOrId("vault_access_codes")
+		codeRecord := core.NewRecord(codesCollection)
+		codeRecord.Set("user", e.Auth.Id)
+		codeRecord.Set("credential", credential.Id)
+		codeRecord.Set("credentialTitle", credential.GetString("title"))
+		codeRecord.Set("subscription", credSubID)
+		codeRecord.Set("codeHash", codeHash)
+		codeRecord.Set("plainCipher", plainCipher)
+		codeRecord.Set("codeMask", codeMask)
+		codeRecord.Set("request", reqID)
+		codeRecord.Set("note", strings.TrimSpace(body.Note))
+		codeRecord.Set("expiresAt", expiresAt)
+		codeRecord.Set("maxAttempts", float64(maxAttempts))
+		codeRecord.Set("attempts", 0.0)
+		if saveErr := app.Save(codeRecord); saveErr != nil {
+			return e.InternalServerError(serverText(locale, "common.internalError"), saveErr)
+		}
+		req.Set("status", vaultRequestStatusApproved)
+		req.Set("decidedAt", now)
+		if saveErr := app.Save(req); saveErr != nil {
+			return e.InternalServerError(serverText(locale, "common.internalError"), saveErr)
+		}
+		writeVaultAccessLog(app, e.Auth.Id, vaultLogActionRequestApproved, vaultLogSourceAdmin, vaultLogResultSuccess,
+			credSubID, credential.Id, codeRecord.Id, ip, ua, map[string]any{"requestId": reqID})
+		return apiSuccessJSON(e, http.StatusOK, map[string]any{
+			"id":        reqID,
+			"status":    vaultRequestStatusApproved,
+			"codeId":    codeRecord.Id,
+			"plainCode": plainCode,
+			"codeMask":  codeMask,
+			"expiresAt": expiresAt,
+		})
+	case "decline":
+		req.Set("status", vaultRequestStatusDeclined)
+		req.Set("decidedAt", now)
+		if saveErr := app.Save(req); saveErr != nil {
+			return e.InternalServerError(serverText(locale, "common.internalError"), saveErr)
+		}
+		writeVaultAccessLog(app, e.Auth.Id, vaultLogActionRequestDeclined, vaultLogSourceAdmin, vaultLogResultSuccess,
+			subscriptionID, "", "", ip, ua, map[string]any{"requestId": reqID})
+	case "close":
+		req.Set("status", vaultRequestStatusClosed)
+		req.Set("decidedAt", now)
+		if saveErr := app.Save(req); saveErr != nil {
+			return e.InternalServerError(serverText(locale, "common.internalError"), saveErr)
+		}
+		writeVaultAccessLog(app, e.Auth.Id, vaultLogActionRequestClosed, vaultLogSourceAdmin, vaultLogResultSuccess,
+			subscriptionID, "", "", ip, ua, map[string]any{"requestId": reqID})
+	}
+	return apiSuccessJSON(e, http.StatusOK, map[string]any{"id": reqID, "status": req.GetString("status")})
+}
+
+// ================== P2-C：审计日志分页查询 ==================
+
+type vaultAccessLogView struct {
+	ID             string         `json:"id"`
+	Action         string         `json:"action"`
+	Source         string         `json:"source"`
+	Result         string         `json:"result"`
+	SubscriptionID string         `json:"subscriptionId"`
+	CredentialID   string         `json:"credentialId"`
+	CodeID         string         `json:"codeId"`
+	IP             string         `json:"ip"`
+	UserAgent      string         `json:"userAgent"`
+	Detail         map[string]any `json:"detail"`
+	CreatedAt      string         `json:"createdAt"`
+}
+
+type vaultAccessLogsPayload struct {
+	Logs     []vaultAccessLogView `json:"logs"`
+	NextTime string               `json:"nextTime"` // keyset 分页游标（created, id）
+	NextID   string               `json:"nextId"`
+	HasMore  bool                 `json:"hasMore"`
+}
+
+type vaultAccessLogsResponse struct {
+	vaultAccessLogsPayload
+}
+
+func vaultAccessLogAPIFromRecord(rec *core.Record) vaultAccessLogView {
+	view := vaultAccessLogView{
+		ID:             rec.Id,
+		Action:         rec.GetString("action"),
+		Source:         rec.GetString("source"),
+		Result:         rec.GetString("result"),
+		SubscriptionID: rec.GetString("subscriptionId"),
+		CredentialID:   rec.GetString("credentialId"),
+		CodeID:         rec.GetString("codeId"),
+		IP:             rec.GetString("ip"),
+		UserAgent:      rec.GetString("userAgent"),
+	}
+	if raw := rec.Get("detail"); raw != nil {
+		if m, ok := raw.(map[string]any); ok {
+			view.Detail = m
+		}
+	}
+	if !rec.GetDateTime("created").IsZero() {
+		view.CreatedAt = rec.GetDateTime("created").Time().UTC().Format(time.RFC3339Nano)
+	}
+	return view
+}
+
+func handleVaultAccessLogsList(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	q := e.Request.URL.Query()
+	limit64, _ := strconv.Atoi(q.Get("limit"))
+	if limit64 <= 0 {
+		limit64 = 50
+	}
+	if limit64 > 200 {
+		limit64 = 200
+	}
+	limit := limit64
+	nextTime := strings.TrimSpace(q.Get("nextTime"))
+	nextID := strings.TrimSpace(q.Get("nextId"))
+	action := strings.TrimSpace(q.Get("action"))
+	credentialID := strings.TrimSpace(q.Get("credentialId"))
+	subscriptionID := strings.TrimSpace(q.Get("subscriptionId"))
+	filter := "user = {:user}"
+	params := dbx.Params{"user": e.Auth.Id}
+	if action != "" {
+		filter += " && action = {:action}"
+		params["action"] = action
+	}
+	if credentialID != "" {
+		filter += " && credentialId = {:credentialId}"
+		params["credentialId"] = credentialID
+	}
+	if subscriptionID != "" {
+		filter += " && subscriptionId = {:subscriptionId}"
+		params["subscriptionId"] = subscriptionID
+	}
+	// keyset 分页：按 (created DESC, id DESC)
+	sort := "-created, -id"
+	if nextTime != "" {
+		if _, parseErr := time.Parse(time.RFC3339Nano, nextTime); parseErr == nil {
+			filter += " && (created < {:next} || (created = {:next} && id < {:nextId}))"
+			params["next"] = nextTime
+			params["nextId"] = nextID
+		}
+	}
+	records, err := app.FindRecordsByFilter("vault_access_logs", filter, sort, limit+1, 0, params)
+	if err != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), err)
+	}
+	hasMore := len(records) > limit
+	if hasMore {
+		records = records[:limit]
+	}
+	logs := make([]vaultAccessLogView, 0, len(records))
+	for _, rec := range records {
+		logs = append(logs, vaultAccessLogAPIFromRecord(rec))
+	}
+	payload := vaultAccessLogsPayload{Logs: logs, HasMore: hasMore}
+	if hasMore && len(records) > 0 {
+		last := records[len(records)-1]
+		if !last.GetDateTime("created").IsZero() {
+			payload.NextTime = last.GetDateTime("created").Time().UTC().Format(time.RFC3339Nano)
+		}
+		payload.NextID = last.Id
+	}
+	return apiSuccessJSON(e, http.StatusOK, vaultAccessLogsResponse{vaultAccessLogsPayload: payload})
 }

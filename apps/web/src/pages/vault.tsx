@@ -21,6 +21,9 @@ import {
   type VaultCredentialFormSubmitResult,
   type VaultSubscriptionOption,
 } from "@/components/vault/credential-form-dialog";
+import { AccessCodesSection } from "@/components/vault/access-codes-section";
+import { AccessRequestsSection } from "@/components/vault/access-requests-section";
+import { AccessLogsSection } from "@/components/vault/access-logs-section";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +36,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
   useCreateVaultCredential,
@@ -46,9 +55,11 @@ import { cn } from "@/lib/utils";
 import { getDisplayErrorMessage } from "@/lib/display-error";
 import type { VaultCredential } from "@renewlet/shared/schemas/vault";
 
+type VaultTab = "credentials" | "accessCodes" | "requests" | "auditLogs";
 type VaultScopeFilter = "all" | "linked" | "standalone";
 
 const SCOPE_FILTERS: VaultScopeFilter[] = ["all", "linked", "standalone"];
+const TAB_VALUES: VaultTab[] = ["credentials", "accessCodes", "requests", "auditLogs"];
 
 function credentialMatchesQuery(credential: VaultCredential, query: string): boolean {
   const needle = query.trim().toLowerCase();
@@ -68,6 +79,7 @@ export default function Vault() {
   const updateMutation = useUpdateVaultCredential();
   const deleteMutation = useDeleteVaultCredential();
 
+  const [activeTab, setActiveTab] = useState<VaultTab>("credentials");
   const [searchQuery, setSearchQuery] = useState("");
   const [scopeFilter, setScopeFilter] = useState<VaultScopeFilter>("all");
   const [formOpen, setFormOpen] = useState(false);
@@ -221,60 +233,97 @@ export default function Vault() {
             <h1 className="text-2xl font-bold text-foreground">{t("vault.title")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t("vault.description")}</p>
           </div>
-          <Button onClick={openCreate} className="w-full gap-2 sm:w-auto" data-testid="vault-add-button">
-            <Plus className="h-4 w-4" />
-            {t("vault.addCredential")}
-          </Button>
+          {activeTab === "credentials" ? (
+            <Button onClick={openCreate} className="w-full gap-2 sm:w-auto" data-testid="vault-add-button">
+              <Plus className="h-4 w-4" />
+              {t("vault.addCredential")}
+            </Button>
+          ) : null}
         </div>
 
-        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative w-full lg:max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t("vault.searchPlaceholder")}
-              className="border-border bg-secondary pl-9"
-              aria-label={t("vault.searchPlaceholder")}
-            />
-          </div>
-          <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-secondary/60 p-1" role="group" aria-label={t("vault.title")}>
-            {SCOPE_FILTERS.map((scope) => (
-              <button
-                key={scope}
-                type="button"
-                onClick={() => setScopeFilter(scope)}
-                aria-pressed={scopeFilter === scope}
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as VaultTab)}
+          className="w-full"
+        >
+          <TabsList className="mb-6 h-auto w-full flex-wrap justify-start gap-1 rounded-lg border border-border bg-secondary/60 p-1">
+            {TAB_VALUES.map((tab) => (
+              <TabsTrigger
+                key={tab}
+                value={tab}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  scopeFilter === scope
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
+                  "px-4 py-2",
+                  activeTab === tab ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {t(`vault.filter.${scope}`)}
-              </button>
+                {t(`vault.tab.${tab}`)}
+              </TabsTrigger>
             ))}
-          </div>
-        </div>
+          </TabsList>
 
-        {visibleCredentials.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-card/50 px-6 py-16 text-center" data-testid="vault-empty-state">
-            <h2 className="text-lg font-semibold text-foreground">
-              {credentials.length === 0 ? t("vault.empty.title") : t("vault.empty.search")}
-            </h2>
-            {credentials.length === 0 ? (
-              <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{t("vault.empty.description")}</p>
-            ) : null}
-          </div>
-        ) : (
-          <>
-            {linkedGroups.map((group) => renderGroup(group.name, group.items, `vault-group-${group.key}`))}
-            {standaloneCredentials.length > 0
-              ? renderGroup(t("vault.group.standalone"), standaloneCredentials, "vault-group-standalone")
-              : null}
-          </>
-        )}
+          <TabsContent value="credentials">
+            <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="relative w-full lg:max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={t("vault.searchPlaceholder")}
+                  className="border-border bg-secondary pl-9"
+                  aria-label={t("vault.searchPlaceholder")}
+                />
+              </div>
+              <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-secondary/60 p-1" role="group" aria-label={t("vault.title")}>
+                {SCOPE_FILTERS.map((scope) => (
+                  <button
+                    key={scope}
+                    type="button"
+                    onClick={() => setScopeFilter(scope)}
+                    aria-pressed={scopeFilter === scope}
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                      scopeFilter === scope
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t(`vault.filter.${scope}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {visibleCredentials.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-card/50 px-6 py-16 text-center" data-testid="vault-empty-state">
+                <h2 className="text-lg font-semibold text-foreground">
+                  {credentials.length === 0 ? t("vault.empty.title") : t("vault.empty.search")}
+                </h2>
+                {credentials.length === 0 ? (
+                  <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{t("vault.empty.description")}</p>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                {linkedGroups.map((group) => renderGroup(group.name, group.items, `vault-group-${group.key}`))}
+                {standaloneCredentials.length > 0
+                  ? renderGroup(t("vault.group.standalone"), standaloneCredentials, "vault-group-standalone")
+                  : null}
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="accessCodes">
+            <AccessCodesSection subscriptions={subscriptionOptions} />
+          </TabsContent>
+
+          <TabsContent value="requests">
+            <AccessRequestsSection subscriptions={subscriptionOptions} credentials={credentials} />
+          </TabsContent>
+
+          <TabsContent value="auditLogs">
+            <AccessLogsSection />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <VaultCredentialFormDialog

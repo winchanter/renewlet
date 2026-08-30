@@ -122,19 +122,24 @@ export function VaultCredentialFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dismissMode="explicit" className="border-border bg-card sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent
+        dismissMode="explicit"
+        layout="frame"
+        className="h5-dialog-frame h5-subscription-dialog-panel border-border bg-card p-0 sm:max-w-lg"
+      >
+        <DialogHeader className="shrink-0 px-6 pb-3 pt-5 pr-12">
           <DialogTitle>{isEditMode ? t("vault.form.editTitle") : t("vault.form.createTitle")}</DialogTitle>
           <DialogDescription>{t("vault.form.description")}</DialogDescription>
         </DialogHeader>
 
         <form
-          className="grid gap-4"
+          className="h5-subscription-dialog-form"
           onSubmit={(event) => {
             event.preventDefault();
             handleSubmit();
           }}
         >
+          <div className="h5-subscription-dialog-scroll grid content-start gap-4 overflow-y-auto px-6 pb-4">
           <div className="grid gap-2">
             <Label htmlFor="vault-credential-title">{t("vault.form.titleLabel")}</Label>
             <Input
@@ -247,8 +252,9 @@ export function VaultCredentialFormDialog({
               maxLength={5000}
             />
           </div>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border px-6 pb-5 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
               {t("common.cancel")}
             </Button>

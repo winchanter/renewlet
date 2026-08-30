@@ -359,6 +359,20 @@
   "url.privateOrLocalNotAllowed": "{label} 不允许指向内网或本机地址",
   "url.privateOrLocalNotAllowedGeneric": "URL 不允许指向内网或本机地址",
   "validation.jsonParseFailed": "JSON 解析失败：请检查格式是否正确",
+  "vault.approveCredentialRequired": "通过申请必须指定授权的具体账号",
+  "vault.codeExhausted": "授权码尝试次数已用尽",
+  "vault.codeExpired": "授权码已过期",
+  "vault.codeInvalid": "授权码无效",
+  "vault.codeNotFound": "授权码不存在",
+  "vault.codeRequired": "请输入授权码",
+  "vault.codeRevoked": "授权码已被吊销",
+  "vault.codeUsed": "授权码已被使用",
+  "vault.credentialMismatchSubscription": "指定的账号不属于该申请对应的订阅",
+  "vault.credentialRequired": "授权码必须绑定具体账号",
   "vault.notFound": "凭据不存在",
-  "vault.subscriptionNotFound": "关联订阅不存在"
+  "vault.plainCodeUnavailable": "该授权码生成于旧版本，明文未存档，无法查阅",
+  "vault.requestAlreadyDecided": "该申请已处理，无法再次决策",
+  "vault.requestNotFound": "访问申请不存在",
+  "vault.subscriptionNotFound": "关联订阅不存在",
+  "vault.subscriptionRequired": "授权码必须绑定具体订阅"
 }

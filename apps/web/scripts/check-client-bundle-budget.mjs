@@ -27,8 +27,9 @@ const budgets = {
   // 相比 510 KB gzip / 431 KB Brotli 基线分别下降 21.6% / 20.2%。
   // route Brotli 上调 1 KB：订阅页接入历史扣费记录弹窗的入口接线（轻量 hook + 懒加载 loader）。
   // route Brotli 再上调 2 KB：订阅详情弹窗新增「关联账号」区块（vault service/hooks 轻量接线）。
+  // route Brotli 再上调 2 KB：Vault P2 授权码/访问申请/审计日志 三块 UI + 订阅详情联动（vault P2 hooks/service 共享）。
   startup: { gzip: 400000, brotli: 344000 },
-  route: { gzip: 400000, brotli: 347000 },
+  route: { gzip: 400000, brotli: 349000 },
 };
 const forbiddenStartupModules = [
   ["Recharts", (id) => id.includes("node_modules/recharts/")],

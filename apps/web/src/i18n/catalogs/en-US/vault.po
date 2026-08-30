@@ -6,6 +6,707 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: @lingui/cli\n"
 "Language: en-US\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:73
+msgid "vault.codes.attempts"
+msgstr "{attempts}/{maxAttempts} attempts"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:66
+msgid "vault.codes.count"
+msgstr "{count} access codes"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:18
+msgid "vault.count"
+msgstr "{count} credentials"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:111
+msgid "vault.requests.pendingBadge"
+msgstr "{count} pending"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:110
+msgid "vault.requests.count"
+msgstr "{count} requests"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:29
+msgid "vault.form.urlPlaceholder"
+msgstr "https://example.com"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:39
+msgid "vault.form.subscriptionNone"
+msgstr "No linked subscription"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:157
+msgid "vault.logs.action.code_redeemed"
+msgstr "Redeemed access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:27
+msgid "vault.form.titlePlaceholder"
+msgstr "e.g. Netflix main account"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:41
+msgid "vault.form.submitUpdate"
+msgstr "Save changes"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:35
+msgid "vault.form.passwordClearHint"
+msgstr "Clear the saved password on save"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:40
+msgid "vault.form.submitCreate"
+msgstr "Save credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:154
+msgid "vault.logs.action.credential_updated"
+msgstr "Credential updated"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:14
+msgid "vault.filter.all"
+msgstr "All"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:145
+msgid "vault.logs.filter.actionAll"
+msgstr "All actions"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:119
+msgid "vault.requests.filter.statusAll"
+msgstr "All statuses"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:109
+msgid "vault.requests.description"
+msgstr "Visitors to your public status pages can request access to linked accounts here. Approving a request automatically generates an access code."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:149
+msgid "vault.logs.source.public"
+msgstr "Public page"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:38
+msgid "vault.form.subscriptionLabel"
+msgstr "Linked subscription"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:50
+msgid "vault.card.linkedTo"
+msgstr "Linked subscription"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:76
+msgid "vault.codes.linkedSubscription"
+msgstr "Linked subscription: {name}"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:59
+msgid "vault.detail.linkedAccounts"
+msgstr "Linked accounts"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:125
+msgid "vault.requests.close"
+msgstr "Close"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:163
+msgid "vault.logs.action.request_closed"
+msgstr "Access request closed"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:92
+msgid "vault.codes.form.maxAttemptsLabel"
+msgstr "Maximum attempts"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:105
+msgid "vault.codes.redeem.success"
+msgstr "Credential unlocked"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:75
+msgid "vault.codes.createdAt"
+msgstr "Created at"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:46
+msgid "vault.delete.title"
+msgstr "Delete credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:155
+msgid "vault.logs.action.credential_deleted"
+msgstr "Credential deleted"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:74
+msgid "vault.codes.expiresAt"
+msgstr "Expires at"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:147
+msgid "vault.logs.loadingMore"
+msgstr "Loading…"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:146
+msgid "vault.logs.loadMore"
+msgstr "Load more"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:164
+msgid "vault.logs.detail.reason"
+msgstr "Reason: {reason}"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:120
+msgid "vault.requests.filter.onlyPending"
+msgstr "Pending only"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:81
+msgid "vault.codes.revoke"
+msgstr "Revoke"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:84
+msgid "vault.codes.revokeTitle"
+msgstr "Revoke access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:158
+msgid "vault.logs.action.code_revoked"
+msgstr "Access code revoked"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:26
+msgid "vault.form.titleLabel"
+msgstr "Title"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:148
+msgid "vault.logs.source.admin"
+msgstr "Admin UI"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:62
+msgid "vault.detail.manageInVault"
+msgstr "Manage in vault"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:139
+msgid "vault.requests.decide.failed"
+msgstr "Failed to process the request"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:126
+msgid "vault.requests.decideTitle"
+msgstr "Process access request"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:36
+msgid "vault.form.notesLabel"
+msgstr "Notes"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:94
+msgid "vault.codes.form.noteLabel"
+msgstr "Note"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:55
+msgid "vault.card.copyFailed"
+msgstr "Copy failed"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:57
+msgid "vault.card.copyPassword"
+msgstr "Copy password"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:100
+msgid "vault.codes.plain.copy"
+msgstr "Copy access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:56
+msgid "vault.card.copyUsername"
+msgstr "Copy username"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:151
+msgid "vault.logs.result.failure"
+msgstr "Failure"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:10
+msgid "vault.tab.auditLogs"
+msgstr "Audit logs"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:142
+msgid "vault.logs.loadFailed"
+msgstr "Failed to load audit logs"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:32
+msgid "vault.form.passwordLabel"
+msgstr "Password"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:25
+msgid "vault.form.description"
+msgstr "Passwords and notes are encrypted with your account security key before being stored; they are never kept in plaintext in the database."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:53
+msgid "vault.card.revealFailed"
+msgstr "Failed to read the password"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:70
+msgid "vault.codes.status.used"
+msgstr "Used"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:34
+msgid "vault.form.passwordEditPlaceholder"
+msgstr "Password saved; type a new value to replace it"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:15
+msgid "vault.filter.linked"
+msgstr "Linked"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:118
+msgid "vault.requests.status.closed"
+msgstr "Closed"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:71
+msgid "vault.codes.status.revoked"
+msgstr "Revoked"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:54
+msgid "vault.card.copied"
+msgstr "Copied"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:107
+msgid "vault.codes.redeem.passwordCopied"
+msgstr "Password copied"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:116
+msgid "vault.requests.status.declined"
+msgstr "Declined"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:72
+msgid "vault.codes.status.expired"
+msgstr "Expired"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:117
+msgid "vault.requests.status.expired"
+msgstr "Expired"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:115
+msgid "vault.requests.status.approved"
+msgstr "Approved"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:114
+msgid "vault.requests.status.pending"
+msgstr "Pending"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:37
+msgid "vault.form.notesPlaceholder"
+msgstr "Recovery codes and security hints are encrypted as well"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:150
+msgid "vault.logs.result.success"
+msgstr "Success"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:141
+msgid "vault.logs.description"
+msgstr "All sensitive vault operations are audit-logged (create, view plaintext, delete, access codes, access requests)."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:58
+msgid "vault.card.visitSite"
+msgstr "Open URL"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:124
+msgid "vault.requests.decline"
+msgstr "Decline"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:128
+msgid "vault.requests.decline.description"
+msgstr "The visitor will not receive any notification when declined."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:162
+msgid "vault.logs.action.request_declined"
+msgstr "Access request declined"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:144
+msgid "vault.logs.filter.action"
+msgstr "Filter by action"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:8
+msgid "vault.tab.accessCodes"
+msgstr "Access codes"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:103
+msgid "vault.codes.redeem.codeLabel"
+msgstr "Access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:134
+msgid "vault.requests.form.maxAttemptsLabel"
+msgstr "Access code max attempts"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:67
+msgid "vault.codes.loadFailed"
+msgstr "Failed to load access codes"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:135
+msgid "vault.requests.form.noteLabel"
+msgstr "Access code note (optional)"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:86
+msgid "vault.codes.revokeSuccess"
+msgstr "Access code revoked"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:96
+msgid "vault.codes.create.success"
+msgstr "Access code generated"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:133
+msgid "vault.requests.form.expireHoursLabel"
+msgstr "Access code validity (hours)"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:80
+msgid "vault.codes.viewFailed"
+msgstr "Failed to reveal access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:97
+msgid "vault.codes.create.failed"
+msgstr "Failed to generate access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:102
+msgid "vault.codes.redeemTitle"
+msgstr "Unlock credentials with access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:129
+msgid "vault.requests.form.credentialLabel"
+msgstr "Grant credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:13
+msgid "vault.searchPlaceholder"
+msgstr "Search by title, username, or URL"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:61
+msgid "vault.detail.addLinked"
+msgstr "Add linked account"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:11
+msgid "vault.addCredential"
+msgstr "Add credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:23
+msgid "vault.form.createTitle"
+msgstr "Add credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:153
+msgid "vault.logs.action.credential_created"
+msgstr "Credential created"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:78
+msgid "vault.codes.legacyCredentialTitle"
+msgstr "Legacy code (no credential bound, expired)"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:51
+msgid "vault.card.showPassword"
+msgstr "Show password"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:143
+msgid "vault.logs.empty"
+msgstr "No audit records yet."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:69
+msgid "vault.codes.status.active"
+msgstr "Active"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:90
+msgid "vault.codes.form.expireHoursLabel"
+msgstr "Validity (hours)"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:122
+msgid "vault.requests.fromPublicPage"
+msgstr "From public page"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:152
+msgid "vault.logs.action.credential_viewed"
+msgstr "Viewed plaintext password"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:79
+msgid "vault.codes.viewCode"
+msgstr "View code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:159
+msgid "vault.logs.action.code_viewed"
+msgstr "Revealed access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:22
+msgid "vault.empty.search"
+msgstr "No matching credentials"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:95
+msgid "vault.codes.form.notePlaceholder"
+msgstr "Purpose or recipient note for audit trail"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:21
+msgid "vault.empty.description"
+msgstr "Click \"Add credential\" to safely store your first subscription account."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:16
+msgid "vault.filter.standalone"
+msgstr "Standalone"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:17
+msgid "vault.group.standalone"
+msgstr "Standalone accounts"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:77
+msgid "vault.codes.standaloneCredential"
+msgstr "Standalone credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:82
+msgid "vault.codes.generate"
+msgstr "Generate"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:64
+msgid "vault.codes.description"
+msgstr "Generate one-time access codes for external members to redeem plaintext credentials; each code is bound to a specific credential, has an expiry and attempt limit, and is invalidated immediately after consumption."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:65
+msgid "vault.codes.create"
+msgstr "Generate access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:87
+msgid "vault.codes.createTitle"
+msgstr "Generate access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:156
+msgid "vault.logs.action.code_generated"
+msgstr "Access code generated"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:31
+msgid "vault.form.usernamePlaceholder"
+msgstr "Account or email used to sign in"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:30
+msgid "vault.form.usernameLabel"
+msgstr "Username / Email"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:101
+msgid "vault.codes.redeem"
+msgstr "Unlock with access code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:138
+msgid "vault.requests.close.success"
+msgstr "Request closed"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:137
+msgid "vault.requests.decline.success"
+msgstr "Request declined"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:136
+msgid "vault.requests.approve.success"
+msgstr "Request approved; access code generated"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:33
+msgid "vault.form.passwordPlaceholder"
+msgstr "Leave empty to skip saving a password"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:85
+msgid "vault.codes.revokeDescription"
+msgstr "Revoke this access code? It can no longer be used afterwards."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:47
+msgid "vault.delete.description"
+msgstr "Delete \"{title}\"? This cannot be undone."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:104
+msgid "vault.codes.redeem.codePlaceholder"
+msgstr "Paste or enter the 16-character access code; the code itself is already bound to a specific credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:88
+msgid "vault.codes.form.credentialLabel"
+msgstr "Bind credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:12
+msgid "vault.editCredential"
+msgstr "Edit credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:24
+msgid "vault.form.editTitle"
+msgstr "Edit credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:28
+msgid "vault.form.urlLabel"
+msgstr "URL"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:83
+msgid "vault.codes.unlock"
+msgstr "Unlock"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:106
+msgid "vault.codes.redeem.failed"
+msgstr "Unlock failed"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:121
+msgid "vault.requests.noteLabel"
+msgstr "Visitor note"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:160
+msgid "vault.logs.action.request_submitted"
+msgstr "Visitor submitted access request"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:9
+msgid "vault.tab.requests"
+msgstr "Access requests"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:112
+msgid "vault.requests.loadFailed"
+msgstr "Failed to load access requests"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:132
+msgid "vault.requests.form.noCredentialsForSubscription"
+msgstr "No grantable credentials under this subscription yet. Add a linked credential in the Vault first."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:98
+msgid "vault.codes.plain.title"
+msgstr "Keep this access code safe"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:7
+msgid "vault.tab.credentials"
+msgstr "Credentials"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:44
+msgid "vault.create.failed"
+msgstr "Failed to save credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:49
+msgid "vault.delete.failed"
+msgstr "Failed to delete credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:42
+msgid "vault.create.success"
+msgstr "Credential saved"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:48
+msgid "vault.delete.success"
+msgstr "Credential deleted"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:43
+msgid "vault.update.success"
+msgstr "Credential updated"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:5
@@ -13,266 +714,86 @@ msgid "vault.title"
 msgstr "Credential Vault"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:19
+msgid "vault.loadFailed"
+msgstr "Failed to load the credential vault"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:45
+msgid "vault.update.failed"
+msgstr "Failed to update credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:20
+msgid "vault.empty.title"
+msgstr "No credentials saved yet"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:60
+msgid "vault.detail.linkedAccountsEmpty"
+msgstr "No accounts linked to this subscription yet."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:68
+msgid "vault.codes.empty"
+msgstr "No access codes have been generated yet."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:113
+msgid "vault.requests.empty"
+msgstr "No access requests yet."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:99
+msgid "vault.codes.plain.description"
+msgstr "This is the plaintext access code, returned only in this response and never shown again."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:130
+msgid "vault.requests.form.credentialPlaceholder"
+msgstr "Select the specific credential bound to the approved code"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:89
+msgid "vault.codes.form.credentialPlaceholder"
+msgstr "Select the specific credential to issue a code for"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:123
+msgid "vault.requests.approve"
+msgstr "Approve"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:127
+msgid "vault.requests.approve.description"
+msgstr "Approving will automatically generate a one-time access code which you can forward to the visitor. You must specify which exact credential to grant."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:131
+msgid "vault.requests.form.approveCredentialRequired"
+msgstr "Approving requires selecting a specific credential first."
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:161
+msgid "vault.logs.action.request_approved"
+msgstr "Access request approved"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:52
+msgid "vault.card.hidePassword"
+msgstr "Hide password"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:6
 msgid "vault.description"
 msgstr "Manage account credentials for your subscriptions in one place. Passwords and notes are encrypted on the server, and viewing plaintext is audit-logged."
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:7
-msgid "vault.addCredential"
-msgstr "Add credential"
+#: src/i18n/descriptors/vault.ts:91
+msgid "vault.codes.form.expireHoursPlaceholder"
+msgstr "Default 48 hours, maximum 168 hours (7 days)"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:8
-msgid "vault.editCredential"
-msgstr "Edit credential"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:9
-msgid "vault.searchPlaceholder"
-msgstr "Search by title, username, or URL"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:10
-msgid "vault.filter.all"
-msgstr "All"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:11
-msgid "vault.filter.linked"
-msgstr "Linked"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:12
-msgid "vault.filter.standalone"
-msgstr "Standalone"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:13
-msgid "vault.group.standalone"
-msgstr "Standalone accounts"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:14
-msgid "vault.count"
-msgstr "{count} credentials"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:15
-msgid "vault.loadFailed"
-msgstr "Failed to load the credential vault"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:16
-msgid "vault.empty.title"
-msgstr "No credentials saved yet"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:17
-msgid "vault.empty.description"
-msgstr "Click \"Add credential\" to safely store your first subscription account."
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:18
-msgid "vault.empty.search"
-msgstr "No matching credentials"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:19
-msgid "vault.form.createTitle"
-msgstr "Add credential"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:20
-msgid "vault.form.editTitle"
-msgstr "Edit credential"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:21
-msgid "vault.form.description"
-msgstr "Passwords and notes are encrypted with your account security key before being stored; they are never kept in plaintext in the database."
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:22
-msgid "vault.form.titleLabel"
-msgstr "Title"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:23
-msgid "vault.form.titlePlaceholder"
-msgstr "e.g. Netflix main account"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:24
-msgid "vault.form.urlLabel"
-msgstr "URL"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:25
-msgid "vault.form.urlPlaceholder"
-msgstr "https://example.com"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:26
-msgid "vault.form.usernameLabel"
-msgstr "Username / Email"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:27
-msgid "vault.form.usernamePlaceholder"
-msgstr "Account or email used to sign in"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:28
-msgid "vault.form.passwordLabel"
-msgstr "Password"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:29
-msgid "vault.form.passwordPlaceholder"
-msgstr "Leave empty to skip saving a password"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:30
-msgid "vault.form.passwordEditPlaceholder"
-msgstr "Password saved; type a new value to replace it"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:31
-msgid "vault.form.passwordClearHint"
-msgstr "Clear the saved password on save"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:32
-msgid "vault.form.notesLabel"
-msgstr "Notes"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:33
-msgid "vault.form.notesPlaceholder"
-msgstr "Recovery codes and security hints are encrypted as well"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:34
-msgid "vault.form.subscriptionLabel"
-msgstr "Linked subscription"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:35
-msgid "vault.form.subscriptionNone"
-msgstr "No linked subscription"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:36
-msgid "vault.form.submitCreate"
-msgstr "Save credential"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:37
-msgid "vault.form.submitUpdate"
-msgstr "Save changes"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:38
-msgid "vault.create.success"
-msgstr "Credential saved"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:39
-msgid "vault.update.success"
-msgstr "Credential updated"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:40
-msgid "vault.create.failed"
-msgstr "Failed to save credential"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:41
-msgid "vault.update.failed"
-msgstr "Failed to update credential"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:42
-msgid "vault.delete.title"
-msgstr "Delete credential"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:43
-msgid "vault.delete.description"
-msgstr "Delete \"{title}\"? This cannot be undone."
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:44
-msgid "vault.delete.success"
-msgstr "Credential deleted"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:45
-msgid "vault.delete.failed"
-msgstr "Failed to delete credential"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:46
-msgid "vault.card.linkedTo"
-msgstr "Linked subscription"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:47
-msgid "vault.card.showPassword"
-msgstr "Show password"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:48
-msgid "vault.card.hidePassword"
-msgstr "Hide password"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:49
-msgid "vault.card.revealFailed"
-msgstr "Failed to read the password"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:50
-msgid "vault.card.copied"
-msgstr "Copied"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:51
-msgid "vault.card.copyFailed"
-msgstr "Copy failed"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:52
-msgid "vault.card.copyUsername"
-msgstr "Copy username"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:53
-msgid "vault.card.copyPassword"
-msgstr "Copy password"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:54
-msgid "vault.card.visitSite"
-msgstr "Open URL"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:55
-msgid "vault.detail.linkedAccounts"
-msgstr "Linked accounts"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:56
-msgid "vault.detail.linkedAccountsEmpty"
-msgstr "No accounts linked to this subscription yet."
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:57
-msgid "vault.detail.addLinked"
-msgstr "Add linked account"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:58
-msgid "vault.detail.manageInVault"
-msgstr "Manage in vault"
+#: src/i18n/descriptors/vault.ts:93
+msgid "vault.codes.form.maxAttemptsPlaceholder"
+msgstr "Default 5; the code becomes invalid once exceeded"

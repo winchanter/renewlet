@@ -18,10 +18,15 @@ func ensureVaultCollections(app core.App, users *core.Collection) error {
 	if err != nil {
 		return err
 	}
+	// 先收敛 vault_credentials：全新库首次运行时它还不存在，不能在创建前预查询。
 	if err := ensureVaultCredentialsCollection(app, users, subscriptions); err != nil {
 		return err
 	}
-	if err := ensureVaultAccessCodesCollection(app, users); err != nil {
+	vaultCredentials, err := app.FindCollectionByNameOrId("vault_credentials")
+	if err != nil {
+		return err
+	}
+	if err := ensureVaultAccessCodesCollection(app, users, vaultCredentials); err != nil {
 		return err
 	}
 	if err := ensureVaultAccessRequestsCollection(app, users); err != nil {
@@ -60,16 +65,22 @@ func ensureVaultCredentialsCollection(app core.App, users *core.Collection, subs
 	})
 }
 
-func ensureVaultAccessCodesCollection(app core.App, users *core.Collection) error {
+func ensureVaultAccessCodesCollection(app core.App, users *core.Collection, vaultCredentials *core.Collection) error {
 	return ensureCollection(app, "vault_access_codes", func(c *core.Collection) error {
-		// 验证码只保存 SHA-256 hash；明文仅在创建响应中出现一次，REST 不开放任何直写规则。
+		// 验证码保存 SHA-256 hash（兑换点查）+ 加密明文存档（管理员可重复查阅）；REST 不开放任何直写规则。
 		secretCollectionRules(c)
 		minZero := 0.0
 		fields := []core.Field{
 			userRelation(users),
-			// subscription 用文本快照：订阅删除后历史码仍能展示归属，不解绑审计语境。
-			&core.TextField{Name: "subscription", Required: true, Max: 128},
+			// credential 必填绑定单个账号；凭据删除后保留码的审计视图（Relation 不级联，PB 自动置空，但 handler 会校验存在性）。
+			&core.RelationField{Name: "credential", CollectionId: vaultCredentials.Id, MaxSelect: 1},
+			// subscription 文本快照冗余（可为空，用于独立账号），订阅删除后历史码仍能展示归属。
+			&core.TextField{Name: "subscription", Max: 128},
+			// credentialTitle 文本快照冗余：凭据改名后历史码列表不会漂移。
+			&core.TextField{Name: "credentialTitle", Required: true, Max: 120},
 			&core.TextField{Name: "codeHash", Required: true, Max: 128, Pattern: `^[a-f0-9]{64}$`},
+			// plainCipher 明文加密存档（v1.nonce.ciphertext，vault 用途域）；旧版 hash-only 码允许为空。
+			&core.TextField{Name: "plainCipher", Max: 400},
 			&core.TextField{Name: "codeMask", Max: 16},
 			&core.TextField{Name: "request", Max: 128},
 			&core.TextField{Name: "note", Max: 500},
@@ -90,7 +101,7 @@ func ensureVaultAccessCodesCollection(app core.App, users *core.Collection) erro
 		// codeHash 唯一索引同时承担公开 unlock 的点查与防重放语义。
 		c.AddIndex("idx_vault_access_codes_code_hash_unique", true, "codeHash", "")
 		c.AddIndex("idx_vault_access_codes_user", false, "user", "")
-		c.AddIndex("idx_vault_access_codes_user_subscription", false, "user, subscription", "")
+		c.AddIndex("idx_vault_access_codes_user_credential", false, "user, credential", "")
 		return nil
 	})
 }

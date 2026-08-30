@@ -39,10 +39,18 @@ import {
 } from "@renewlet/shared/runtime";
 import type { ApiSubscription, ApiSubscriptionCollectionItem } from "@renewlet/shared/schemas/subscriptions";
 import type { ApiBillingRecord } from "@renewlet/shared/schemas/billing-records";
+import type {
+  VaultAccessCode,
+  VaultAccessRequest,
+  VaultAccessLog,
+  VaultCredential,
+  VaultLogAction,
+} from "@renewlet/shared/schemas/vault";
 
 export { DEFAULT_NOTIFICATION_REMINDER_DAYS, DISABLED_REMINDER_DAYS, INHERIT_REMINDER_DAYS, MAX_REMINDER_DAYS };
 export type { ApiSubscription, ApiSubscriptionCollectionItem };
 export type { ApiBillingRecord };
+export type { VaultAccessCode, VaultAccessRequest, VaultAccessLog, VaultCredential, VaultLogAction };
 
 export const SUBSCRIPTION_STATUSES = SHARED_SUBSCRIPTION_STATUSES;
 /** 订阅状态（影响展示、统计与提醒逻辑）。 */
@@ -175,6 +183,8 @@ type SubscriptionCollectionItemFromApi<T> =
     : never;
 
 export type SubscriptionCollectionItem = SubscriptionCollectionItemFromApi<ApiSubscriptionCollectionItem>;
+/** 订阅 index 缓存项（与列表项共享字段契约，P2 账号库关联订阅名解析复用）。 */
+export type SubscriptionIndexItem = SubscriptionCollectionItem;
 export type RecurringCycleSubscriptionCollectionItem = Extract<
   SubscriptionCollectionItem,
   { billingCycle: Exclude<BillingCycle, "custom" | "one-time" | "usage-based"> }

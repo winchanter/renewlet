@@ -372,7 +372,21 @@ export const SERVER_I18N_CATALOGS = {
     "url.privateOrLocalNotAllowedGeneric": "URL 不允许指向内网或本机地址",
     "validation.jsonParseFailed": "JSON 解析失败：请检查格式是否正确",
     "vault.notFound": "凭据不存在",
-    "vault.subscriptionNotFound": "关联订阅不存在"
+    "vault.subscriptionNotFound": "关联订阅不存在",
+    "vault.credentialRequired": "授权码必须绑定具体账号",
+    "vault.approveCredentialRequired": "通过申请必须指定授权的具体账号",
+    "vault.credentialMismatchSubscription": "指定的账号不属于该申请对应的订阅",
+    "vault.subscriptionRequired": "授权码必须绑定具体订阅",
+    "vault.codeNotFound": "授权码不存在",
+    "vault.plainCodeUnavailable": "该授权码生成于旧版本，明文未存档，无法查阅",
+    "vault.codeRequired": "请输入授权码",
+    "vault.codeInvalid": "授权码无效",
+    "vault.codeExhausted": "授权码尝试次数已用尽",
+    "vault.codeRevoked": "授权码已被吊销",
+    "vault.codeUsed": "授权码已被使用",
+    "vault.codeExpired": "授权码已过期",
+    "vault.requestNotFound": "访问申请不存在",
+    "vault.requestAlreadyDecided": "该申请已处理，无法再次决策"
   },
   "en-US": {
     "admin.createFailed": "Failed to create admin",
@@ -736,7 +750,21 @@ export const SERVER_I18N_CATALOGS = {
     "url.privateOrLocalNotAllowedGeneric": "URL cannot point to private or localhost addresses",
     "validation.jsonParseFailed": "JSON parsing failed. Check the format.",
     "vault.notFound": "Credential not found",
-    "vault.subscriptionNotFound": "Linked subscription not found"
+    "vault.subscriptionNotFound": "Linked subscription not found",
+    "vault.credentialRequired": "Access code must be bound to a specific credential",
+    "vault.approveCredentialRequired": "Approving a request requires selecting the specific credential to grant",
+    "vault.credentialMismatchSubscription": "Selected credential does not belong to this request's subscription",
+    "vault.subscriptionRequired": "Access codes must be bound to a subscription",
+    "vault.codeNotFound": "Access code not found",
+    "vault.plainCodeUnavailable": "This access code was created by a legacy version without archived plaintext, so it cannot be viewed again",
+    "vault.codeRequired": "Please enter an access code",
+    "vault.codeInvalid": "Invalid access code",
+    "vault.codeExhausted": "Access code attempts exhausted",
+    "vault.codeRevoked": "Access code revoked",
+    "vault.codeUsed": "Access code already used",
+    "vault.codeExpired": "Access code expired",
+    "vault.requestNotFound": "Access request not found",
+    "vault.requestAlreadyDecided": "This request has already been decided"
   }
 } as const satisfies Record<ServerI18nLocale, ServerI18nCatalog>;
 

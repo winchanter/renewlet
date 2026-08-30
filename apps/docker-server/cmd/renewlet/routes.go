@@ -388,6 +388,19 @@ func registerRoutes(app core.App, router *router.Router[*core.RequestEvent]) []a
 	auth.PATCH("/vault/credentials/{id}", func(e *core.RequestEvent) error { return handleVaultCredentialUpdate(app, e) })
 	auth.DELETE("/vault/credentials/{id}", func(e *core.RequestEvent) error { return handleVaultCredentialDelete(app, e) })
 	auth.POST("/vault/credentials/{id}/reveal", func(e *core.RequestEvent) error { return handleVaultCredentialReveal(app, e) })
+	// 账号库：一次性访问授权码（P2-A）
+	auth.GET("/vault/access-codes", func(e *core.RequestEvent) error { return handleVaultAccessCodesList(app, e) })
+	auth.POST("/vault/access-codes", func(e *core.RequestEvent) error { return handleVaultAccessCodeCreate(app, e) })
+	auth.POST("/vault/access-codes/{id}/revoke", func(e *core.RequestEvent) error { return handleVaultAccessCodeRevoke(app, e) })
+	auth.POST("/vault/access-codes/{id}/reveal", func(e *core.RequestEvent) error { return handleVaultAccessCodeRevealPlain(app, e) })
+	auth.POST("/vault/access-codes/redeem", func(e *core.RequestEvent) error { return handleVaultAccessCodeRedeemAuth(app, e) })
+	// 账号库：访问申请与审批（P2-B）
+	auth.GET("/vault/access-requests", func(e *core.RequestEvent) error { return handleVaultAccessRequestsList(app, e) })
+	auth.POST("/vault/access-requests/{id}/decide", func(e *core.RequestEvent) error { return handleVaultAccessRequestDecide(app, e) })
+	// 账号库：审计日志（P2-C）
+	auth.GET("/vault/access-logs", func(e *core.RequestEvent) error { return handleVaultAccessLogsList(app, e) })
+	// 公开页面：申请访问 + 凭授权码解锁凭据（P2 公开入口）
+	api.POST("/api/public/status/{token}/vault/request", func(e *core.RequestEvent) error { return handleVaultAccessRequestCreatePublic(app, e) })
 	// 扣费记录历史：GET 走 (billing_date, id) keyset 分页；PATCH 只开放事实修正字段，归属/来源字段不可改。
 	auth.GET("/subscriptions/{id}/billing-records", func(e *core.RequestEvent) error { return handleSubscriptionBillingRecordsList(app, e) })
 	auth.PATCH("/billing-records/{id}", func(e *core.RequestEvent) error { return handleBillingRecordPatch(app, e) })

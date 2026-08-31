@@ -56,6 +56,8 @@ function billingRecordRow(overrides: Partial<BillingRecordRow> = {}): BillingRec
     usage_unit: null,
     usage_total: null,
     usage_daily_rate: null,
+    usage_remaining_before: 0,
+    usage_expires_at: "",
     receipt_asset_ids: "[]",
     mode: "initial",
     created_at: "2026-01-01T00:00:00.000Z",
@@ -80,6 +82,7 @@ function subscriptionRow(id: string, overrides: Partial<SubscriptionRow> = {}): 
     usage_unit: null,
     usage_total: null,
     usage_daily_rate: null,
+    usage_expires_at: null,
     category: "productivity",
     status: "active",
     pinned: 0,
@@ -646,7 +649,7 @@ function insertSubscription(db: DatabaseSync, row: SubscriptionRow): void {
   db.prepare(`
     INSERT INTO subscriptions (
       id, user_id, name, logo, price, currency, billing_cycle, custom_days, custom_cycle_unit, one_time_term_count, one_time_term_unit,
-      usage_unit, usage_total, usage_daily_rate,
+      usage_unit, usage_total, usage_daily_rate, usage_expires_at,
       category, status, pinned, public_hidden, payment_method, start_date, next_billing_date, auto_renew, auto_calculate_next_billing_date,
       trial_end_date, website, notes, tags_json, reminder_days, repeat_reminder_enabled, repeat_reminder_interval, repeat_reminder_window,
       cost_sharing_json, cost_sharing_collection_reminder_enabled, cost_sharing_next_collection_reminder_date, extra_json, created_at, updated_at
@@ -783,6 +786,7 @@ function openBillingRecordDatabase(): { db: DatabaseSync; env: Env } {
   `);
   db.exec(readFileSync(resolve("migrations", "0041_billing_records.sql"), "utf8"));
   db.exec(readFileSync(resolve("migrations", "0042_billing_records_receipts.sql"), "utf8"));
+  db.exec(readFileSync(resolve("migrations", "0043_usage_expiry_and_remaining.sql"), "utf8"));
   return { db, env: { DB: new SqliteD1Database(db) as unknown as D1Database, ASSETS: {} as Fetcher, ASSETS_BUCKET: {} as R2Bucket } as Env };
 }
 

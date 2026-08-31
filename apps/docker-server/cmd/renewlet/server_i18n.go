@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -38,7 +37,8 @@ func mustLoadServerI18nCatalogs() map[appLocale]map[string]string {
 			continue
 		}
 		locale := appLocale(strings.TrimSuffix(strings.TrimPrefix(name, "active."), ".json"))
-		data, err := serverI18nFS.ReadFile(filepath.Join("i18n", name))
+		// embed.FS 的路径分隔符恒为 '/'；filepath.Join 在 Windows 会生成 '\'，导致 ReadFile 找不到嵌入文件。
+		data, err := serverI18nFS.ReadFile("i18n/" + name)
 		if err != nil {
 			panic(err)
 		}

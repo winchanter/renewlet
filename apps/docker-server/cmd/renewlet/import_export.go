@@ -62,6 +62,7 @@ type importSubscription struct {
 	UsageUnit                    *string                `json:"usageUnit,omitempty"`
 	UsageTotal                   *float64               `json:"usageTotal,omitempty"`
 	UsageDailyRate               *float64               `json:"usageDailyRate,omitempty"`
+	UsageExpiresAt               *string                `json:"usageExpiresAt,omitempty"`
 	Category                     string                 `json:"category"`
 	Status                       string                 `json:"status"`
 	Pinned                       bool                   `json:"pinned"`
@@ -450,6 +451,11 @@ func setImportSubscriptionRecord(record *core.Record, userID string, subscriptio
 		record.Set("usageDailyRate", *subscription.UsageDailyRate)
 	} else {
 		record.Set("usageDailyRate", 0)
+	}
+	if subscription.UsageExpiresAt != nil {
+		record.Set("usageExpiresAt", *subscription.UsageExpiresAt)
+	} else {
+		record.Set("usageExpiresAt", "")
 	}
 	record.Set("category", subscription.Category)
 	record.Set("status", subscription.Status)

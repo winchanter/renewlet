@@ -331,6 +331,7 @@ func normalizeSubscriptionRecordWithSettings(record *core.Record, mirrorSettings
 	usageUnit := strings.TrimSpace(record.GetString("usageUnit"))
 	usageTotal := record.GetFloat("usageTotal")
 	usageDailyRate := record.GetFloat("usageDailyRate")
+	usageExpiresAt := strings.TrimSpace(record.GetString("usageExpiresAt"))
 	if billingCycle == "usage-based" {
 		if usageUnit == "" {
 			return errors.New("USAGE_UNIT_REQUIRED")
@@ -352,11 +353,14 @@ func normalizeSubscriptionRecordWithSettings(record *core.Record, mirrorSettings
 		record.Set("usageUnit", usageUnit)
 		record.Set("usageTotal", usageTotal)
 		record.Set("usageDailyRate", usageDailyRate)
-	} else if usageUnit != "" || usageTotal > 0 || usageDailyRate > 0 {
+		// 失效日为空表示仅按耗尽推算；非空时必须是 date-only（顺序校验在 startDate 归一之后）。
+		record.Set("usageExpiresAt", usageExpiresAt)
+	} else if usageUnit != "" || usageTotal > 0 || usageDailyRate > 0 || usageExpiresAt != "" {
 		// 用量字段是 usage-based 专用，切回其他周期必须清空，避免历史总量继续影响耗尽日推算与摊销。
 		record.Set("usageUnit", "")
 		record.Set("usageTotal", 0)
 		record.Set("usageDailyRate", 0)
+		record.Set("usageExpiresAt", "")
 	}
 
 	startDate := strings.TrimSpace(record.GetString("startDate"))
@@ -379,6 +383,27 @@ func normalizeSubscriptionRecordWithSettings(record *core.Record, mirrorSettings
 		return errors.New("NEXT_BILLING_DATE_BEFORE_START_DATE")
 	}
 	record.Set("nextBillingDate", nextBillingDate)
+	// 失效日必须不早于购买日，否则 min(耗尽日, 失效日) 边界和摊销天数都会被脏数据扭曲。
+	if usageExpiresAt != "" {
+		if err := requireDateOnly(usageExpiresAt, "USAGE_EXPIRES_AT"); err != nil {
+			return err
+		}
+		if startDate != "" && usageExpiresAt < startDate {
+			return errors.New("USAGE_EXPIRES_AT_BEFORE_START_DATE")
+		}
+		// usage-based 量包到期边界 = min(预计耗尽日, 失效日)；失效日更近时以失效日作为 nextBillingDate 驱动提醒与过期判定。
+		if billingCycle == "usage-based" && startDate != "" {
+			if days, err := usageEstimatedDays(usageTotal, usageDailyRate); err == nil {
+				if anchor, err := parseDateOnly(startDate); err == nil {
+					exhaustion := formatDateOnly(anchor.AddDate(0, 0, days))
+					if usageExpiresAt < exhaustion {
+						nextBillingDate = usageExpiresAt
+						record.Set("nextBillingDate", nextBillingDate)
+					}
+				}
+			}
+		}
+	}
 	if trialEndDate := strings.TrimSpace(record.GetString("trialEndDate")); trialEndDate != "" {
 		if err := requireDateOnly(trialEndDate, "TRIAL_END_DATE"); err != nil {
 			return err

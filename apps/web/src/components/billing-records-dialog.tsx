@@ -70,13 +70,31 @@ const MODE_BADGE_VARIANTS: Record<ModeLabelKey, "secondary" | "outline"> = {
 type TranslateFn = (key: MessageKey, params?: MessageParams) => string;
 
 /** 记录行的周期描述：usage-based/带服务期的 one-time 有专属文案，其余复用订阅周期文案。 */
-function formatRecordCycleLabel(record: ApiBillingRecord, locale: Locale, t: TranslateFn): string {
+function formatRecordCycleLabel(
+  record: ApiBillingRecord,
+  locale: Locale,
+  t: TranslateFn,
+  formatDateOnly: (date: DateOnly | string) => string,
+): string {
   if (record.billingCycle === "usage-based") {
-    return t("subscription.billingRecords.usageCycle", {
-      total: formatNumberMaxFractionDigits(record.usageTotal ?? 0),
-      unit: record.usageUnit ?? "",
-      dailyRate: formatNumberMaxFractionDigits(record.usageDailyRate ?? 0),
-    });
+    const parts = [
+      t("subscription.billingRecords.usageCycle", {
+        total: formatNumberMaxFractionDigits(record.usageTotal ?? 0),
+        unit: record.usageUnit ?? "",
+        dailyRate: formatNumberMaxFractionDigits(record.usageDailyRate ?? 0),
+      }),
+    ];
+    // 结转余量/失效日是可选快照（旧记录无此字段）；仅在有值时补充展示。
+    if (record.usageRemainingBefore != null && record.usageRemainingBefore > 0) {
+      parts.push(t("subscription.billingRecords.usageRemaining", {
+        remaining: formatNumberMaxFractionDigits(record.usageRemainingBefore),
+        unit: record.usageUnit ?? "",
+      }));
+    }
+    if (record.usageExpiresAt) {
+      parts.push(t("subscription.billingRecords.usageExpiry", { date: formatDateOnly(record.usageExpiresAt) }));
+    }
+    return parts.join("，");
   }
   if (record.billingCycle === "one-time" && record.oneTimeTermCount != null && record.oneTimeTermUnit != null) {
     return t("subscription.billingRecords.termCycle", {
@@ -206,8 +224,8 @@ interface BillingRecordRowProps {
 function BillingRecordRow({ record, editing, onToggleEdit }: BillingRecordRowProps) {
   const { t, locale, formatCurrency, formatDateOnly } = useI18n();
   const cycleLabel = useMemo(
-    () => formatRecordCycleLabel(record, locale, t),
-    [locale, record, t],
+    () => formatRecordCycleLabel(record, locale, t, formatDateOnly),
+    [formatDateOnly, locale, record, t],
   );
   const periodText = record.periodEndDate
     ? `${formatDateOnly(record.billingDate)} → ${formatDateOnly(record.periodEndDate)}`
@@ -215,33 +233,37 @@ function BillingRecordRow({ record, editing, onToggleEdit }: BillingRecordRowPro
 
   return (
     <li className="grid gap-1 border-b border-border/60 py-3 last:border-b-0 sm:gap-2">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="min-w-0 truncate text-sm tabular-nums text-foreground">{periodText}</span>
-        <Badge
-          variant={MODE_BADGE_VARIANTS[record.mode]}
-          className="shrink-0 px-1.5 py-0 text-[10px] text-muted-foreground"
-          data-testid={`billing-record-mode-${record.id}`}
-        >
-          {t(MODE_LABEL_KEYS[record.mode])}
-        </Badge>
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="min-w-0 truncate text-sm tabular-nums text-foreground">{periodText}</span>
+          <Badge
+            variant={MODE_BADGE_VARIANTS[record.mode]}
+            className="shrink-0 px-1.5 py-0 text-[10px] text-muted-foreground"
+            data-testid={`billing-record-mode-${record.id}`}
+          >
+            {t(MODE_LABEL_KEYS[record.mode])}
+          </Badge>
+        </div>
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <span className="text-sm font-semibold tabular-nums text-foreground">
+            {formatCurrency(moneyToNumber(record.amount), record.currency)}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            aria-label={t("common.edit")}
+            aria-expanded={editing}
+            onClick={() => onToggleEdit(record.id)}
+            data-testid={`billing-record-edit-toggle-${record.id}`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
-      <div className="flex min-w-0 items-center justify-between gap-2 sm:justify-end sm:gap-3">
-        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{cycleLabel}</span>
-        <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-          {formatCurrency(moneyToNumber(record.amount), record.currency)}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-          aria-label={t("common.edit")}
-          aria-expanded={editing}
-          onClick={() => onToggleEdit(record.id)}
-          data-testid={`billing-record-edit-toggle-${record.id}`}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
+      <div className="min-w-0 whitespace-normal break-words text-xs leading-relaxed text-muted-foreground">
+        {cycleLabel}
       </div>
       {!editing && record.receiptAssetIds.length > 0 ? (
         <BillingRecordReceipts record={record} />

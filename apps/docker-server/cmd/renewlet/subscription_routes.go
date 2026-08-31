@@ -86,9 +86,34 @@ func handleSubscriptionRenew(app core.App, e *core.RequestEvent) error {
 			if body.UsageDailyRate != nil {
 				record.Set("usageDailyRate", *body.UsageDailyRate)
 			}
+			// 结转余量吸收进订阅行持有总量；失效日显式传入（null 表示清空，只按耗尽推算）。
+			if body.UsageRemainingBefore != nil && body.UsageTotal != nil {
+				record.Set("usageTotal", *body.UsageTotal+*body.UsageRemainingBefore)
+			}
+			if body.UsageExpiresAt.Set {
+				if body.UsageExpiresAt.Null {
+					record.Set("usageExpiresAt", "")
+				} else {
+					record.Set("usageExpiresAt", body.UsageExpiresAt.Value)
+				}
+			}
 		}
 		if record.GetString("status") == "expired" {
 			record.Set("status", "active")
+		}
+	}
+	// usage-based restart 的扣费记录快照“本次购买量 + 结转余量”，而不是订阅行吸收后的持有总量。
+	var usageOverride *billingRecordUsageOverride
+	if record.GetString("billingCycle") == "usage-based" && body.Mode == "restart" {
+		usageOverride = &billingRecordUsageOverride{
+			UsageTotal:     record.GetFloat("usageTotal"),
+			UsageExpiresAt: record.GetString("usageExpiresAt"),
+		}
+		if body.UsageTotal != nil {
+			usageOverride.UsageTotal = *body.UsageTotal
+		}
+		if body.UsageRemainingBefore != nil {
+			usageOverride.UsageRemainingBefore = *body.UsageRemainingBefore
 		}
 	}
 	if err := app.RunInTransaction(func(txApp core.App) error {
@@ -96,7 +121,7 @@ func handleSubscriptionRenew(app core.App, e *core.RequestEvent) error {
 			return err
 		}
 		// 续订扣费记录与订阅写入同事务；period_end_date 是续订后的新到期日，周期快照取更新后的订阅。
-		return upsertManualRenewalBillingRecord(txApp, record, recordMode, recordBillingDate, body.ReceiptAssetIds)
+		return upsertManualRenewalBillingRecord(txApp, record, recordMode, recordBillingDate, body.ReceiptAssetIds, usageOverride)
 	}); err != nil {
 		return e.BadRequestError("SUBSCRIPTION_RENEW_FAILED", err)
 	}

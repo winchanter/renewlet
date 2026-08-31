@@ -81,7 +81,7 @@ type publicStatusPageView struct {
 
 // publicStatusVaultView 是公开页账号访问区块；Enabled=false 时 Subscriptions 必须为空。
 type publicStatusVaultView struct {
-	Enabled      bool                           `json:"enabled"`
+	Enabled       bool                                `json:"enabled"`
 	Subscriptions []publicStatusVaultSubscriptionView `json:"subscriptions"`
 }
 
@@ -110,6 +110,7 @@ type publicStatusSubscriptionView struct {
 	OneTimeTermUnit  string                   `json:"oneTimeTermUnit,omitempty"`
 	UsageTotal       float64                  `json:"usageTotal,omitempty"`
 	UsageDailyRate   float64                  `json:"usageDailyRate,omitempty"`
+	UsageExpiresAt   *string                  `json:"usageExpiresAt,omitempty"`
 }
 
 // publicStatusCategoryView 只暴露展示标签和颜色，隐藏用户自定义配置的其它原始字段。
@@ -406,6 +407,10 @@ func publicStatusSubscriptionFromRecord(request *http.Request, token string, row
 			// 公开页投影只输出月均摊销所需字段；量包单位不在公开 allowlist。
 			item.UsageTotal = row.GetFloat("usageTotal")
 			item.UsageDailyRate = row.GetFloat("usageDailyRate")
+			// 失效日参与 min(耗尽, 失效) 摊销口径；仅 usage-based 输出，其余周期必须省略。
+			if expiry := strings.TrimSpace(row.GetString("usageExpiresAt")); expiry != "" {
+				item.UsageExpiresAt = &expiry
+			}
 		}
 	}
 	return item

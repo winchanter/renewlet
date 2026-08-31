@@ -51,6 +51,8 @@ export type SubscriptionFormState = {
   usageUnit: string;
   usageTotal: string;
   usageDailyRate: string;
+  /** usage-based 量包失效日（可空）：设置后到期边界取预估耗尽日与失效日的更早者。 */
+  usageExpiresAt: DateOnly | undefined;
   category: Category;
   status: SubscriptionStatus;
   publicHidden: boolean;
@@ -92,6 +94,7 @@ export function createSubscriptionFormState(
     usageUnit: "",
     usageTotal: "",
     usageDailyRate: "",
+    usageExpiresAt: undefined,
     category: "productivity",
     status: "active",
     publicHidden: false,

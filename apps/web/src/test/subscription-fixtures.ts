@@ -3,6 +3,7 @@ import type {
   CustomCycleUnit,
   SubscriptionCollectionItem,
 } from "@/types/subscription";
+import type { DateOnly } from "@/lib/time/date-only";
 
 type SubscriptionCycleKeys =
   | "billingCycle"
@@ -12,7 +13,8 @@ type SubscriptionCycleKeys =
   | "oneTimeTermUnit"
   | "usageUnit"
   | "usageTotal"
-  | "usageDailyRate";
+  | "usageDailyRate"
+  | "usageExpiresAt";
 
 type RecurringBillingCycle = Exclude<BillingCycle, "custom" | "one-time" | "usage-based">;
 
@@ -26,6 +28,7 @@ export type SubscriptionCycleFixtureOverrides =
       usageUnit?: never;
       usageTotal?: never;
       usageDailyRate?: never;
+      usageExpiresAt?: never;
     }
   | {
       billingCycle: "custom";
@@ -36,6 +39,7 @@ export type SubscriptionCycleFixtureOverrides =
       usageUnit?: never;
       usageTotal?: never;
       usageDailyRate?: never;
+      usageExpiresAt?: never;
     }
   | {
       billingCycle: "one-time";
@@ -46,6 +50,7 @@ export type SubscriptionCycleFixtureOverrides =
       usageUnit?: never;
       usageTotal?: never;
       usageDailyRate?: never;
+      usageExpiresAt?: never;
     }
   | {
       billingCycle: "one-time";
@@ -56,6 +61,7 @@ export type SubscriptionCycleFixtureOverrides =
       usageUnit?: never;
       usageTotal?: never;
       usageDailyRate?: never;
+      usageExpiresAt?: never;
     }
   | {
       billingCycle: "usage-based";
@@ -66,6 +72,7 @@ export type SubscriptionCycleFixtureOverrides =
       usageUnit?: string;
       usageTotal: number;
       usageDailyRate: number;
+      usageExpiresAt?: DateOnly | null;
     };
 
 export type SubscriptionFixtureOverrides<T extends SubscriptionCollectionItem> =
@@ -81,6 +88,7 @@ type SubscriptionCycleFixture =
       usageUnit: undefined;
       usageTotal: undefined;
       usageDailyRate: undefined;
+      usageExpiresAt: undefined;
     }
   | {
       billingCycle: "custom";
@@ -91,6 +99,7 @@ type SubscriptionCycleFixture =
       usageUnit: undefined;
       usageTotal: undefined;
       usageDailyRate: undefined;
+      usageExpiresAt: undefined;
     }
   | {
       billingCycle: "one-time";
@@ -101,6 +110,7 @@ type SubscriptionCycleFixture =
       usageUnit: undefined;
       usageTotal: undefined;
       usageDailyRate: undefined;
+      usageExpiresAt: undefined;
     }
   | {
       billingCycle: "one-time";
@@ -111,6 +121,7 @@ type SubscriptionCycleFixture =
       usageUnit: undefined;
       usageTotal: undefined;
       usageDailyRate: undefined;
+      usageExpiresAt: undefined;
     }
   | {
       billingCycle: "usage-based";
@@ -121,6 +132,7 @@ type SubscriptionCycleFixture =
       usageUnit: string;
       usageTotal: number;
       usageDailyRate: number;
+      usageExpiresAt: DateOnly | null;
     };
 
 export function subscriptionCycleFixture(
@@ -133,6 +145,10 @@ export function subscriptionCycleFixture(
       customCycleUnit: overrides.customCycleUnit ?? "day",
       oneTimeTermCount: undefined,
       oneTimeTermUnit: undefined,
+      usageUnit: undefined,
+      usageTotal: undefined,
+      usageDailyRate: undefined,
+      usageExpiresAt: undefined,
     };
   }
   if (overrides.billingCycle === "one-time") {
@@ -143,6 +159,10 @@ export function subscriptionCycleFixture(
         customCycleUnit: undefined,
         oneTimeTermCount: overrides.oneTimeTermCount,
         oneTimeTermUnit: overrides.oneTimeTermUnit,
+        usageUnit: undefined,
+        usageTotal: undefined,
+        usageDailyRate: undefined,
+        usageExpiresAt: undefined,
       };
     }
     return {
@@ -151,6 +171,10 @@ export function subscriptionCycleFixture(
       customCycleUnit: undefined,
       oneTimeTermCount: undefined,
       oneTimeTermUnit: undefined,
+      usageUnit: undefined,
+      usageTotal: undefined,
+      usageDailyRate: undefined,
+      usageExpiresAt: undefined,
     };
   }
   if (overrides.billingCycle === "usage-based") {
@@ -163,6 +187,7 @@ export function subscriptionCycleFixture(
       usageUnit: overrides.usageUnit ?? "条",
       usageTotal: overrides.usageTotal,
       usageDailyRate: overrides.usageDailyRate,
+      usageExpiresAt: overrides.usageExpiresAt ?? null,
     };
   }
   return {
@@ -174,5 +199,6 @@ export function subscriptionCycleFixture(
     usageUnit: undefined,
     usageTotal: undefined,
     usageDailyRate: undefined,
+    usageExpiresAt: undefined,
   };
 }

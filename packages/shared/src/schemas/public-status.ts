@@ -87,6 +87,8 @@ const publicStatusSubscriptionSchema = z.object({
   oneTimeTermUnit: z.enum(CUSTOM_CYCLE_UNITS).optional(),
   usageTotal: z.number().finite().positive().max(1_000_000_000).optional(),
   usageDailyRate: z.number().finite().positive().max(1_000_000_000).optional(),
+  // 失效日影响月均摊销天数（min 口径），必须随总量/日均一起进入公开投影；空值=未设置。
+  usageExpiresAt: z.string().refine(isValidDateOnly).nullable().optional(),
 }).strict().refine((value) => (value.price === undefined) === (value.currency === undefined), {
   path: ["price"],
   message: "Price and currency must be included together",
@@ -131,7 +133,8 @@ const publicStatusSubscriptionSchema = z.object({
     && value.oneTimeTermCount === undefined
     && value.oneTimeTermUnit === undefined
     && value.usageTotal === undefined
-    && value.usageDailyRate === undefined;
+    && value.usageDailyRate === undefined
+    && value.usageExpiresAt === undefined;
 }, {
   path: ["billingCycle"],
   message: "Billing cycle fields are inconsistent",

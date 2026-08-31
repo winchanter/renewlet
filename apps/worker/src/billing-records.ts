@@ -45,6 +45,8 @@ export const BILLING_RECORD_COLUMN_NAMES = [
   "usage_unit",
   "usage_total",
   "usage_daily_rate",
+  "usage_remaining_before",
+  "usage_expires_at",
   "mode",
   "receipt_asset_ids",
   "created_at",
@@ -77,7 +79,14 @@ export function toApiBillingRecord(row: BillingRecordRow): ApiBillingRecord {
       ? { oneTimeTermCount: row.one_time_term_count, oneTimeTermUnit: row.one_time_term_unit }
       : {}),
     ...(row.billing_cycle === "usage-based" && row.usage_unit !== null && row.usage_total !== null && row.usage_daily_rate !== null
-      ? { usageUnit: row.usage_unit, usageTotal: row.usage_total, usageDailyRate: row.usage_daily_rate }
+      ? {
+          usageUnit: row.usage_unit,
+          usageTotal: row.usage_total,
+          usageDailyRate: row.usage_daily_rate,
+          // 结转余量/失效日是可选快照：0/空串表示无结转、未设置，出站时省略（schema 为 positive/nullable optional）。
+          ...(row.usage_remaining_before > 0 ? { usageRemainingBefore: row.usage_remaining_before } : {}),
+          ...(row.usage_expires_at ? { usageExpiresAt: row.usage_expires_at } : {}),
+        }
       : {}),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -175,7 +184,8 @@ export async function updateBillingRecord(request: Request, env: Env, recordId: 
     UPDATE subscription_billing_records SET
       billing_date = ?, period_end_date = ?, amount = ?, currency = ?, billing_cycle = ?,
       custom_days = ?, custom_cycle_unit = ?, one_time_term_count = ?, one_time_term_unit = ?,
-      usage_unit = ?, usage_total = ?, usage_daily_rate = ?, receipt_asset_ids = ?, updated_at = ?
+      usage_unit = ?, usage_total = ?, usage_daily_rate = ?, usage_remaining_before = ?, usage_expires_at = ?,
+      receipt_asset_ids = ?, updated_at = ?
     WHERE user_id = ? AND id = ?
   `).bind(
     record.billingDate,
@@ -190,6 +200,9 @@ export async function updateBillingRecord(request: Request, env: Env, recordId: 
     record.usageUnit ?? null,
     record.usageTotal ?? null,
     record.usageDailyRate ?? null,
+    // 出站省略的余量/失效日落库为 0/空串（0 = 无结转、"" = 未设置），与生成边界的默认值一致。
+    record.usageRemainingBefore ?? 0,
+    record.usageExpiresAt ?? "",
     JSON.stringify(record.receiptAssetIds ?? []),
     timestamp,
     auth.user.id,
@@ -235,8 +248,9 @@ export function buildBillingRecordUpsertStatements(env: Env, rows: BillingRecord
     INSERT INTO subscription_billing_records (
       id, user_id, subscription_id, name, billing_date, period_end_date, amount, currency,
       billing_cycle, custom_days, custom_cycle_unit, one_time_term_count, one_time_term_unit,
-      usage_unit, usage_total, usage_daily_rate, mode, receipt_asset_ids, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      usage_unit, usage_total, usage_daily_rate, usage_remaining_before, usage_expires_at,
+      mode, receipt_asset_ids, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id, subscription_id, billing_date, mode) DO UPDATE SET
       name = excluded.name,
       period_end_date = excluded.period_end_date,
@@ -250,6 +264,8 @@ export function buildBillingRecordUpsertStatements(env: Env, rows: BillingRecord
       usage_unit = excluded.usage_unit,
       usage_total = excluded.usage_total,
       usage_daily_rate = excluded.usage_daily_rate,
+      usage_remaining_before = excluded.usage_remaining_before,
+      usage_expires_at = excluded.usage_expires_at,
       receipt_asset_ids = excluded.receipt_asset_ids,
       updated_at = excluded.updated_at
   `).bind(
@@ -269,6 +285,8 @@ export function buildBillingRecordUpsertStatements(env: Env, rows: BillingRecord
     row.usage_unit,
     row.usage_total,
     row.usage_daily_rate,
+    row.usage_remaining_before,
+    row.usage_expires_at,
     row.mode,
     row.receipt_asset_ids,
     row.created_at,
@@ -292,10 +310,27 @@ export function initialBillingRecordRow(subscription: SubscriptionRow, timestamp
 export function manualRenewBillingRecordRow(
   existing: SubscriptionRow,
   merged: SubscriptionRow,
-  body: { mode: "continue" | "restart"; price: string; currency: string; startDate?: string | null | undefined; receiptAssetIds?: string[] | undefined },
+  body: {
+    mode: "continue" | "restart";
+    price: string;
+    currency: string;
+    startDate?: string | null | undefined;
+    receiptAssetIds?: string[] | undefined;
+    usageTotal?: number | null | undefined;
+    usageRemainingBefore?: number | null | undefined;
+  },
   timestamp: string,
   recordId: string,
 ): BillingRecordRow {
+  // usage-based restart 购买新量包时，记录快照“本次购买量 + 结转余量”而不是订阅行吸收后的持有总量；
+  // 失效日随合并后的订阅行（显式 null 已清空为 null）。continue 保留旧包原值，无余量快照。
+  const usageSnapshot = existing.billing_cycle === "usage-based" && body.mode === "restart"
+    ? {
+        usageRemainingBefore: body.usageRemainingBefore ?? 0,
+        usageTotal: body.usageTotal ?? merged.usage_total ?? 0,
+        usageExpiresAt: merged.usage_expires_at ?? "",
+      }
+    : {};
   return billingRecordRowFromSnapshot(merged, {
     id: recordId,
     mode: body.mode === "restart" ? "manual_restart" : "manual_continue",
@@ -306,6 +341,7 @@ export function manualRenewBillingRecordRow(
     amount: body.price,
     currency: body.currency,
     ...(body.receiptAssetIds ? { receiptAssetIds: JSON.stringify(body.receiptAssetIds) } : {}),
+    ...usageSnapshot,
   }, timestamp);
 }
 
@@ -359,6 +395,10 @@ function billingRecordRowFromSnapshot(
     amount: string;
     currency: string;
     receiptAssetIds?: string;
+    // usage-based 手动续订（购买新量包）的快照覆盖；缺省时余量为 0、失效日随订阅行。
+    usageRemainingBefore?: number;
+    usageTotal?: number;
+    usageExpiresAt?: string;
   },
   timestamp: string,
 ): BillingRecordRow {
@@ -377,8 +417,11 @@ function billingRecordRowFromSnapshot(
     one_time_term_count: source.one_time_term_count,
     one_time_term_unit: source.one_time_term_unit,
     usage_unit: source.usage_unit,
-    usage_total: source.usage_total,
+    usage_total: spec.usageTotal ?? source.usage_total,
     usage_daily_rate: source.usage_daily_rate,
+    usage_remaining_before: spec.usageRemainingBefore ?? 0,
+    // 订阅行不保存结转余量（余量只在续订瞬间吸收进总量并快照进记录）；失效日随订阅快照。
+    usage_expires_at: spec.usageExpiresAt ?? source.usage_expires_at ?? "",
     mode: spec.mode,
     receipt_asset_ids: spec.receiptAssetIds ?? "[]",
     created_at: timestamp,
@@ -408,10 +451,16 @@ function billingRecordPatchCandidate(
   usageUnit: string | null;
   usageTotal: number | null;
   usageDailyRate: number | null;
+  usageRemainingBefore?: number;
+  usageExpiresAt?: string;
   receiptAssetIds: string[];
   createdAt: string;
   updatedAt: string;
 } {
+  // 余量/失效日是 usage-based 专用快照：0/空串与显式 null 都收敛为出站缺席；切到其它周期时由出站缺席落库清零。
+  const mergedCycle = (patch.billingCycle ?? row.billing_cycle) as BillingCycle;
+  const mergedRemainingBefore = patch.usageRemainingBefore !== undefined ? patch.usageRemainingBefore : row.usage_remaining_before;
+  const mergedExpiresAt = patch.usageExpiresAt !== undefined ? patch.usageExpiresAt : row.usage_expires_at;
   return {
     id: row.id,
     subscriptionId: row.subscription_id,
@@ -421,7 +470,7 @@ function billingRecordPatchCandidate(
     amount: patch.amount ?? row.amount,
     currency: patch.currency ?? row.currency,
     mode: row.mode as BillingRecordMode,
-    billingCycle: patch.billingCycle ?? row.billing_cycle as BillingCycle,
+    billingCycle: mergedCycle,
     customDays: patch.customDays !== undefined ? patch.customDays : row.custom_days,
     customCycleUnit: patch.customCycleUnit !== undefined ? patch.customCycleUnit : row.custom_cycle_unit as CustomCycleUnit | null,
     oneTimeTermCount: patch.oneTimeTermCount !== undefined ? patch.oneTimeTermCount : row.one_time_term_count,
@@ -429,6 +478,11 @@ function billingRecordPatchCandidate(
     usageUnit: patch.usageUnit !== undefined ? patch.usageUnit : row.usage_unit,
     usageTotal: patch.usageTotal !== undefined ? patch.usageTotal : row.usage_total,
     usageDailyRate: patch.usageDailyRate !== undefined ? patch.usageDailyRate : row.usage_daily_rate,
+    // exactOptionalPropertyTypes 下可选属性不能显式赋 undefined，用内联条件展开表达出站缺席。
+    ...(mergedCycle === "usage-based" && mergedRemainingBefore != null && mergedRemainingBefore > 0
+      ? { usageRemainingBefore: mergedRemainingBefore }
+      : {}),
+    ...(mergedCycle === "usage-based" && mergedExpiresAt ? { usageExpiresAt: mergedExpiresAt } : {}),
     receiptAssetIds: patch.receiptAssetIds !== undefined ? patch.receiptAssetIds : parseReceiptAssetIds(row.receipt_asset_ids),
     createdAt: row.created_at,
     updatedAt: timestamp,

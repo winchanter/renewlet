@@ -223,6 +223,7 @@ function subscriptionRow(overrides: Partial<SubscriptionRow> = {}): Subscription
     usage_unit: null,
     usage_total: null,
     usage_daily_rate: null,
+    usage_expires_at: null,
     category: "developer_tools",
     status: "active",
     pinned: 0,
@@ -300,7 +301,7 @@ describe("public status worker handlers", () => {
     const env = createEnv();
 
     const disabledResponse = await readPublicStatusPage(authorizedRequest("/api/app/public-status-page"), env);
-    expect(await readSuccessData(disabledResponse)).toEqual({ publicStatusPage: { enabled: false, showPrices: false } });
+    expect(await readSuccessData(disabledResponse)).toEqual({ publicStatusPage: { enabled: false, showPrices: false, vaultEnabled: false } });
 
     const createResponse = await createPublicStatusPage(authorizedRequest("/api/app/public-status-page", {
       method: "POST",
@@ -312,14 +313,15 @@ describe("public status worker handlers", () => {
       enabled: true,
       pageUrl: `https://renewlet.test/status/${TOKEN}`,
       showPrices: false,
+      vaultEnabled: false,
     });
     expect(created.publicStatusPage).not.toHaveProperty("token");
 
     const updateResponse = await updatePublicStatusPage(authorizedRequest("/api/app/public-status-page", {
       method: "PATCH",
-      body: JSON.stringify({ showPrices: true }),
+      body: JSON.stringify({ showPrices: true, vaultEnabled: false }),
     }), env);
-    expect(await readSuccessData(updateResponse)).toMatchObject({ publicStatusPage: { enabled: true, showPrices: true } });
+    expect(await readSuccessData(updateResponse)).toMatchObject({ publicStatusPage: { enabled: true, showPrices: true, vaultEnabled: false } });
 
     const deleteResponse = await deletePublicStatusPage(authorizedRequest("/api/app/public-status-page", { method: "DELETE" }), env);
     expect(deleteResponse.status).toBe(200);

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { moneyStringSchema } from "../money";
-import { addBillingCycles, calculateUsageExhaustionDate } from "../subscription-renewal";
+import { addBillingCycles, calculateUsageBoundaryDate } from "../subscription-renewal";
 import { apiSuccessResponseSchema } from "./api";
 import {
   BILLING_CYCLES,
@@ -17,6 +17,8 @@ import {
   oneTimeTermCountSchema,
   oneTimeTermUnitSchema,
   usageDailyRateSchema,
+  usageExpiresAtSchema,
+  usageRemainingBeforeSchema,
   usageTotalSchema,
   usageUnitSchema,
 } from "./subscriptions";
@@ -41,6 +43,10 @@ const billingRecordCycleShape = {
   usageUnit: usageUnitSchema.nullable().optional(),
   usageTotal: usageTotalSchema.nullable().optional(),
   usageDailyRate: usageDailyRateSchema.nullable().optional(),
+  // usage-based 扣费记录的余量/失效快照：usageTotal 是本次实际购买量，
+  // usageRemainingBefore 是本次扣费期开始前结转的旧包余量，两者之和 = 购买后订阅持有量。
+  usageRemainingBefore: usageRemainingBeforeSchema,
+  usageExpiresAt: usageExpiresAtSchema,
 } satisfies z.ZodRawShape;
 
 /** 记录快照沿用订阅写入边界的互斥规则；不允许出现订阅不可能拥有的周期字段组合。 */
@@ -53,17 +59,21 @@ export function billingRecordCycleIsConsistent(value: {
   usageUnit?: string | null | undefined;
   usageTotal?: number | null | undefined;
   usageDailyRate?: number | null | undefined;
+  usageRemainingBefore?: number | null | undefined;
+  usageExpiresAt?: string | null | undefined;
 }): boolean {
   if (value.billingCycle === "custom") {
     return typeof value.customDays === "number" && value.customDays > 0
       && value.customCycleUnit !== null && value.customCycleUnit !== undefined
       && value.oneTimeTermCount == null && value.oneTimeTermUnit == null
-      && value.usageUnit == null && value.usageTotal == null && value.usageDailyRate == null;
+      && value.usageUnit == null && value.usageTotal == null && value.usageDailyRate == null
+      && value.usageRemainingBefore == null && value.usageExpiresAt == null;
   }
   if (value.billingCycle === "one-time") {
     return (value.oneTimeTermCount != null) === (value.oneTimeTermUnit != null)
       && value.customDays == null && value.customCycleUnit == null
-      && value.usageUnit == null && value.usageTotal == null && value.usageDailyRate == null;
+      && value.usageUnit == null && value.usageTotal == null && value.usageDailyRate == null
+      && value.usageRemainingBefore == null && value.usageExpiresAt == null;
   }
   if (value.billingCycle === "usage-based") {
     return value.usageUnit != null && value.usageTotal != null && value.usageDailyRate != null
@@ -72,7 +82,8 @@ export function billingRecordCycleIsConsistent(value: {
   }
   return value.customDays == null && value.customCycleUnit == null
     && value.oneTimeTermCount == null && value.oneTimeTermUnit == null
-    && value.usageUnit == null && value.usageTotal == null && value.usageDailyRate == null;
+    && value.usageUnit == null && value.usageTotal == null && value.usageDailyRate == null
+    && value.usageRemainingBefore == null && value.usageExpiresAt == null;
 }
 
 const billingRecordShape = {
@@ -117,6 +128,8 @@ export const billingRecordPatchBodySchema = z.object({
   usageUnit: usageUnitSchema.nullable().optional(),
   usageTotal: usageTotalSchema.nullable().optional(),
   usageDailyRate: usageDailyRateSchema.nullable().optional(),
+  usageRemainingBefore: usageRemainingBeforeSchema,
+  usageExpiresAt: usageExpiresAtSchema,
   receiptAssetIds: z.array(z.string().min(1)).max(RECEIPT_ASSET_IDS_MAX).optional(),
 }).strict()
   .refine((value) => Object.keys(value).length > 0, { message: "Empty payload" });
@@ -129,7 +142,9 @@ export function billingRecordPatchTouchesPeriod(patch: BillingRecordPatchBody): 
     || patch.customDays !== undefined
     || patch.customCycleUnit !== undefined
     || patch.usageTotal !== undefined
-    || patch.usageDailyRate !== undefined;
+    || patch.usageDailyRate !== undefined
+    || patch.usageRemainingBefore !== undefined
+    || patch.usageExpiresAt !== undefined;
 }
 
 /**
@@ -137,6 +152,8 @@ export function billingRecordPatchTouchesPeriod(patch: BillingRecordPatchBody): 
  *
  * 生成时的 periodEndDate 用的是真实续订结果（锚点可能取自 startDate）；编辑后无法还原
  * 历史锚点，因此统一按“扣费日 + 一期/预估可用天数”重算，保证快照自洽。
+ * usage-based 的持有量 = usageTotal（本次购买量）+ usageRemainingBefore（结转余量），
+ * 且到期边界取 min(推算耗尽日, 失效日)，与订阅行的边界口径一致。
  */
 export function computeBillingRecordPeriodEnd(record: {
   billingDate: string;
@@ -145,10 +162,13 @@ export function computeBillingRecordPeriodEnd(record: {
   customCycleUnit?: CustomCycleUnit | null | undefined;
   usageTotal?: number | null | undefined;
   usageDailyRate?: number | null | undefined;
+  usageRemainingBefore?: number | null | undefined;
+  usageExpiresAt?: string | null | undefined;
 }): DateOnly | null {
   if (record.billingCycle === "one-time") return null;
   if (record.billingCycle === "usage-based") {
-    return calculateUsageExhaustionDate(record.billingDate, record.usageTotal ?? 0, record.usageDailyRate ?? 0);
+    const holdingTotal = (record.usageTotal ?? 0) + (record.usageRemainingBefore ?? 0);
+    return calculateUsageBoundaryDate(record.billingDate, holdingTotal, record.usageDailyRate ?? 0, record.usageExpiresAt);
   }
   return addBillingCycles(record.billingDate, record.billingCycle, 1, record.customDays, record.customCycleUnit);
 }

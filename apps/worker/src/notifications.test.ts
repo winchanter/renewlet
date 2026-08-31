@@ -160,6 +160,7 @@ function subscriptionRow(overrides: Partial<SubscriptionRow> = {}): Subscription
     usage_unit: null,
     usage_total: null,
     usage_daily_rate: null,
+    usage_expires_at: null,
     category: "productivity",
     status: "active",
     pinned: 0,
@@ -515,7 +516,7 @@ describe("Cloudflare notifications", () => {
     expect(billingRecordInsertParams[0]?.[4]).toBe("2026-01-08");
     expect(billingRecordInsertParams[0]?.[5]).toBe("2026-02-08");
     expect(billingRecordInsertParams[0]?.[8]).toBe("monthly");
-    expect(billingRecordInsertParams[0]?.[16]).toBe("auto");
+    expect(billingRecordInsertParams[0]?.[18]).toBe("auto");
     expect(finalizeParams?.[0]).toBe("skipped");
   });
 

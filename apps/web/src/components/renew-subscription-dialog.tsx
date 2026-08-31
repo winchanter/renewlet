@@ -22,7 +22,7 @@ import { useDeferredDialogInitialFocus } from "@/hooks/use-deferred-dialog-initi
 import { compareDateOnly, type DateOnly } from "@/lib/time/date-only";
 import { parseMoneyInput, parsePositiveNumberInput } from "@/lib/subscription-form";
 import type { Subscription, SubscriptionCollectionItem } from "@/types/subscription";
-import { advanceSubscriptionRenewal, calculateNextBillingDate, usageBasedEstimatedDays } from "@renewlet/shared/subscription-renewal";
+import { advanceSubscriptionRenewal, calculateNextBillingDate, calculateUsageBoundaryDate, usageBasedEstimatedDays } from "@renewlet/shared/subscription-renewal";
 import type { SubscriptionRenewBody } from "@renewlet/shared/schemas/subscriptions";
 
 type RenewMode = SubscriptionRenewBody["mode"];
@@ -38,6 +38,10 @@ interface RenewFormState {
   usageUnit: string;
   usageTotal: string;
   usageDailyRate: string;
+  /** 本次续订前旧包余量（可选）：空串表示无结转，提交时按正数下发。 */
+  usageRemainingBefore: string;
+  /** 新量包失效日（可空）：null 表示未设置，到期边界仍按耗尽推算。 */
+  usageExpiresAt: DateOnly | null;
   /** 续订凭证 asset id 列表；上限由 ReceiptUploader 内部按 RECEIPT_ASSET_IDS_MAX 强制。 */
   receiptAssetIds: string[];
 }
@@ -50,6 +54,8 @@ interface RenewFormErrors {
   usageTotal?: string | undefined;
   usageDailyRate?: string | undefined;
   usageUnit?: string | undefined;
+  usageRemainingBefore?: string | undefined;
+  usageExpiresAt?: string | undefined;
 }
 
 export interface RenewSubscriptionDialogProps {
@@ -75,6 +81,54 @@ function usageAnchorFields(subscription: Subscription): { usageTotal: number | u
   return { usageTotal: subscription.usageTotal, usageDailyRate: subscription.usageDailyRate };
 }
 
+/** 结转余量输入解析：空串或 0 视为无结转（amount=null），非法负数返回 ok=false 触发校验错误。 */
+function parseOptionalUsageRemaining(value: string): { ok: true; amount: number | null } | { ok: false } {
+  const trimmed = value.trim();
+  if (trimmed === "" || /^0(?:\.0+)?$/.test(trimmed)) return { ok: true, amount: null };
+  const parsed = parsePositiveNumberInput(trimmed);
+  if (parsed != null) return { ok: true, amount: parsed };
+  return { ok: false };
+}
+
+/** 估算续订前旧包余量 = 日均 × 距预计耗尽日的剩余天数；已耗尽或无法推算时返回空（无结转）。 */
+function estimateUsageRemainingBefore(subscription: Subscription, today: DateOnly): string {
+  if (subscription.billingCycle !== "usage-based" || subscription.usageDailyRate == null) return "";
+  const daysLeft = compareDateOnly(subscription.nextBillingDate, today);
+  if (daysLeft <= 0) return "";
+  const remaining = Math.round(subscription.usageDailyRate * daysLeft * 100) / 100;
+  return remaining > 0 ? String(remaining) : "";
+}
+
+/**
+ * usage-based 续订到期边界预览 = min(预计耗尽日, 量包失效日)。
+ *
+ * 购买量 + 结转余量除以日均推算耗尽日，失效日更近时取失效日作为提醒与过期判定边界。
+ * 总量/日均留空时回退原订阅值作占位估算；推算失败（日均过小导致天数超限）返回 null。
+ */
+function previewUsageExhaustionDate(
+  startDate: DateOnly,
+  inputs: { usageTotal: string; usageDailyRate: string; usageRemainingBefore: string },
+  fallback: { usageTotal: number | undefined; usageDailyRate: number | undefined },
+  usageExpiresAt: DateOnly | null,
+): DateOnly | null {
+  const parsedTotal = parsePositiveNumberInput(inputs.usageTotal)
+    ?? (inputs.usageTotal.trim() === "" ? fallback.usageTotal ?? null : null);
+  const parsedRate = parsePositiveNumberInput(inputs.usageDailyRate)
+    ?? (inputs.usageDailyRate.trim() === "" ? fallback.usageDailyRate ?? null : null);
+  const parsedRemaining = parseOptionalUsageRemaining(inputs.usageRemainingBefore);
+  if (parsedTotal == null || parsedRate == null || !parsedRemaining.ok) return null;
+  try {
+    return calculateUsageBoundaryDate(
+      startDate,
+      parsedTotal + (parsedRemaining.amount ?? 0),
+      parsedRate,
+      usageExpiresAt,
+    );
+  } catch {
+    return null;
+  }
+}
+
 function defaultContinueNextBillingDate(subscription: Subscription, today: DateOnly): DateOnly {
   // continue 只能预览后端按原锚点会推进到哪里；用户在该模式下不能把日期当作新开始日提交。
   // 量包字段缺失或非法时退回当前耗尽日，避免弹窗初始化崩溃；提交时后端仍会校验。
@@ -96,8 +150,16 @@ function defaultContinueNextBillingDate(subscription: Subscription, today: DateO
   }
 }
 
-function defaultRestartNextBillingDate(subscription: Subscription, startDate: DateOnly): DateOnly {
+function defaultRestartNextBillingDate(subscription: Subscription, startDate: DateOnly, usageExpiresAt?: DateOnly | null): DateOnly {
   const { usageTotal, usageDailyRate } = usageAnchorFields(subscription);
+  if (subscription.billingCycle === "usage-based") {
+    // 量包到期边界 = min(预计耗尽日, 失效日)；失效日更近时提醒取失效日。
+    try {
+      return calculateUsageBoundaryDate(startDate, usageTotal ?? 0, usageDailyRate ?? 0, usageExpiresAt ?? null);
+    } catch {
+      return startDate;
+    }
+  }
   try {
     return calculateNextBillingDate(
       startDate,
@@ -128,12 +190,21 @@ function createInitialState(subscription: Subscription, today: DateOnly): RenewF
     usageUnit: "",
     usageTotal: "",
     usageDailyRate: "",
+    usageRemainingBefore: "",
+    usageExpiresAt: null,
     receiptAssetIds: [],
   };
   if (isUsageBased) {
     // 预填原订阅的单位与日均（用户可修改），总量留空（新量包是新购买）。
     state.usageUnit = subscription.usageUnit ?? "";
     state.usageDailyRate = subscription.usageDailyRate != null ? String(subscription.usageDailyRate) : "";
+    // 续订前余量每次都默认为空（无结转）：避免用户在「实际用量<估算」时把已消耗的量带进新包虚增购买量。
+    // 用户有真实结转时再手动填写；失效日仍沿用当前量包的显式设置（有就带、无就空）。
+    state.usageRemainingBefore = "";
+    state.usageExpiresAt = subscription.usageExpiresAt ?? null;
+    // 占位到期边界 = min(预计耗尽日, 失效日)；用户修改任一值后按新值重算。
+    state.nextBillingDate = previewUsageExhaustionDate(today, state, usageAnchorFields(subscription), state.usageExpiresAt)
+      ?? state.nextBillingDate;
   }
   return state;
 }
@@ -203,19 +274,15 @@ export function RenewSubscriptionDialogContent({
     setForm((current) => {
       if (!current) return current;
       const next = { ...current, [key]: value };
-      // usage-based：总量/日均变化时，按当前购买日重新推算耗尽日。
-      if (subscription?.billingCycle === "usage-based" && (key === "usageTotal" || key === "usageDailyRate")) {
+      // usage-based：总量/日均/结转余量/失效日变化时，按当前购买日重新推算到期边界 = min(耗尽日, 失效日)。
+      if (
+        subscription?.billingCycle === "usage-based"
+        && (key === "usageTotal" || key === "usageDailyRate" || key === "usageRemainingBefore" || key === "usageExpiresAt")
+      ) {
         const startDate = next.startDate ?? today;
-        const total = key === "usageTotal" ? value as string : next.usageTotal;
-        const dailyRate = key === "usageDailyRate" ? value as string : next.usageDailyRate;
-        const parsedTotal = parsePositiveNumberInput(total);
-        const parsedRate = parsePositiveNumberInput(dailyRate);
-        if (parsedTotal != null && parsedRate != null) {
-          try {
-            next.nextBillingDate = calculateNextBillingDate(startDate, "usage-based", undefined, undefined, undefined, parsedTotal, parsedRate) as DateOnly;
-          } catch {
-            // 推算失败（如日均过小），保留旧值；提交时由后端校验。
-          }
+        const exhaustion = previewUsageExhaustionDate(startDate, next, usageAnchorFields(subscription), next.usageExpiresAt);
+        if (exhaustion) {
+          next.nextBillingDate = exhaustion;
         }
       }
       return next;
@@ -241,7 +308,7 @@ export function RenewSubscriptionDialogContent({
         ...base,
         mode,
         startDate,
-        nextBillingDate: defaultRestartNextBillingDate(subscription, startDate),
+        nextBillingDate: defaultRestartNextBillingDate(subscription, startDate, base.usageExpiresAt),
         autoCalculateNextBillingDate: true,
       };
     });
@@ -255,7 +322,7 @@ export function RenewSubscriptionDialogContent({
       return {
         ...current,
         startDate: value,
-        nextBillingDate: current.autoCalculateNextBillingDate ? defaultRestartNextBillingDate(subscription, value) : current.nextBillingDate,
+        nextBillingDate: current.autoCalculateNextBillingDate ? defaultRestartNextBillingDate(subscription, value, current.usageExpiresAt) : current.nextBillingDate,
       };
     });
     setErrors((current) => ({ ...current, startDate: undefined, nextBillingDate: undefined }));
@@ -287,12 +354,24 @@ export function RenewSubscriptionDialogContent({
       nextErrors.nextBillingDate = t("subscription.validation.dateOrderInvalid");
     }
     // usage-based 量包字段校验：总量必填且为正数；日均必填且为正数；单位沿用原订阅（只读），不需校验。
+    // 结转余量可选（空/0 = 无结转）；失效日可空，但不得早于新购买日。
     if (subscription?.billingCycle === "usage-based") {
       if (parsePositiveNumberInput(value.usageTotal) === null) {
         nextErrors.usageTotal = t("subscription.validation.amountInvalid");
       }
       if (parsePositiveNumberInput(value.usageDailyRate) === null) {
         nextErrors.usageDailyRate = t("subscription.validation.amountInvalid");
+      }
+      if (!parseOptionalUsageRemaining(value.usageRemainingBefore).ok) {
+        nextErrors.usageRemainingBefore = t("subscription.validation.amountInvalid");
+      }
+      if (
+        value.mode === "restart"
+        && value.usageExpiresAt
+        && value.startDate
+        && compareDateOnly(value.usageExpiresAt, value.startDate) < 0
+      ) {
+        nextErrors.usageExpiresAt = t("subscription.validation.usageExpiryInvalid");
       }
     }
     return nextErrors;
@@ -313,27 +392,24 @@ export function RenewSubscriptionDialogContent({
     const price = parseMoneyInput(form.price);
     if (!price) return;
     const isUsageBasedRenew = subscription?.billingCycle === "usage-based";
-    // usage-based 续订即购买新量包：提交前按新值重新推算耗尽日，保证 nextBillingDate 与总量/日均一致。
+    // usage-based 续订即购买新量包：耗尽日按“本次购买量 + 结转余量”重新推算，保证 nextBillingDate 与后端吸收后的持有总量一致。
     let nextBillingDate = form.nextBillingDate;
     let usageTotal: number | undefined;
     let usageDailyRate: number | undefined;
+    let usageRemainingBefore: number | undefined;
+    let usageExpiresAt: string | null | undefined;
     if (isUsageBasedRenew && form.startDate) {
       usageTotal = parsePositiveNumberInput(form.usageTotal) ?? undefined;
       usageDailyRate = parsePositiveNumberInput(form.usageDailyRate) ?? undefined;
+      const parsedRemaining = parseOptionalUsageRemaining(form.usageRemainingBefore);
+      if (parsedRemaining.ok && parsedRemaining.amount != null) {
+        usageRemainingBefore = parsedRemaining.amount;
+      }
+      // 失效日始终显式下发：null 表示清空，仅按耗尽推算。
+      usageExpiresAt = form.usageExpiresAt ?? null;
       if (usageTotal != null && usageDailyRate != null) {
-        try {
-          nextBillingDate = calculateNextBillingDate(
-            form.startDate,
-            "usage-based",
-            undefined,
-            undefined,
-            undefined,
-            usageTotal,
-            usageDailyRate,
-          ) as DateOnly;
-        } catch {
-          // 推算失败（如日均过小导致天数超限），让后端给出权威错误。
-        }
+        nextBillingDate = previewUsageExhaustionDate(form.startDate, form, { usageTotal: undefined, usageDailyRate: undefined }, form.usageExpiresAt)
+          ?? nextBillingDate;
       }
     }
     const payload: SubscriptionRenewBody = {
@@ -343,7 +419,12 @@ export function RenewSubscriptionDialogContent({
       startDate: form.mode === "restart" ? form.startDate : null,
       nextBillingDate,
       autoCalculateNextBillingDate: form.mode === "restart" ? form.autoCalculateNextBillingDate : false,
-      ...(isUsageBasedRenew ? { usageTotal, usageDailyRate } : {}),
+      ...(isUsageBasedRenew ? {
+        usageTotal,
+        usageDailyRate,
+        ...(usageRemainingBefore !== undefined ? { usageRemainingBefore } : {}),
+        usageExpiresAt,
+      } : {}),
       ...(form.receiptAssetIds.length > 0 ? { receiptAssetIds: form.receiptAssetIds } : {}),
     };
     if (!hasRenewBodyDates(payload)) return;
@@ -415,6 +496,8 @@ export function RenewSubscriptionDialogContent({
             onUsageTotalChange={(v) => setField("usageTotal", v)}
             onUsageUnitChange={(v) => setField("usageUnit", v)}
             onUsageDailyRateChange={(v) => setField("usageDailyRate", v)}
+            onUsageRemainingChange={(v) => setField("usageRemainingBefore", v)}
+            onUsageExpiresAtChange={(v) => setField("usageExpiresAt", v ?? null)}
           />
         ) : (
           <FormField id="renew-mode" label={t("subscription.renew.mode")} description={modeDescription}>
@@ -663,13 +746,26 @@ interface UsagePackageSectionProps {
   onUsageTotalChange: (value: string) => void;
   onUsageUnitChange: (value: string) => void;
   onUsageDailyRateChange: (value: string) => void;
+  onUsageRemainingChange: (value: string) => void;
+  onUsageExpiresAtChange: (value: DateOnly | undefined) => void;
 }
 
-function UsagePackageSection({ form, errors, onUsageTotalChange, onUsageUnitChange, onUsageDailyRateChange }: UsagePackageSectionProps) {
+function UsagePackageSection({
+  form,
+  errors,
+  onUsageTotalChange,
+  onUsageUnitChange,
+  onUsageDailyRateChange,
+  onUsageRemainingChange,
+  onUsageExpiresAtChange,
+}: UsagePackageSectionProps) {
   const { t } = useI18n();
   const total = parsePositiveNumberInput(form.usageTotal);
   const dailyRate = parsePositiveNumberInput(form.usageDailyRate);
-  const estimatedDays = total != null && dailyRate != null ? safeUsageBasedEstimatedDays(total, dailyRate) : null;
+  const parsedRemaining = parseOptionalUsageRemaining(form.usageRemainingBefore);
+  // 可用天数按“购买量 + 结转余量”估算，与提交后的实际持有总量一致。
+  const effectiveTotal = total != null && parsedRemaining.ok ? total + (parsedRemaining.amount ?? 0) : null;
+  const estimatedDays = effectiveTotal != null && dailyRate != null ? safeUsageBasedEstimatedDays(effectiveTotal, dailyRate) : null;
   return (
     <div className="grid gap-4 rounded-lg border border-border bg-secondary/30 p-4" data-testid="renew-usage-package-section">
       <Label className="text-base font-medium">{t("subscription.field.usagePackage")}</Label>
@@ -754,6 +850,63 @@ function UsagePackageSection({ form, errors, onUsageTotalChange, onUsageUnitChan
           />
         )}
       </FormField>
+      <FormFieldRow
+        alignAt="sm"
+        rowClassName="sm:grid-cols-2"
+        errors={[
+          { id: "renew-usage-remaining-error", message: errors.usageRemainingBefore },
+          { id: "renew-usage-expiry-error", message: errors.usageExpiresAt },
+        ]}
+      >
+        <FormField
+          id="renew-usage-remaining"
+          label={t("subscription.renew.usageRemainingBefore")}
+          description={t("subscription.renew.usageRemainingBeforeHelp")}
+          error={errors.usageRemainingBefore}
+          errorId="renew-usage-remaining-error"
+          renderError={false}
+        >
+          {(field) => (
+            <NumericInput
+              id={field.id}
+              name="renew-usage-remaining"
+              allowNegative={false}
+              inputMode="decimal"
+              enterKeyHint="next"
+              placeholder={t("subscription.placeholder.usageRemainingBefore")}
+              thousandSeparator
+              value={form.usageRemainingBefore}
+              onRawValueChange={onUsageRemainingChange}
+              aria-label={t("subscription.renew.usageRemainingBefore")}
+              aria-invalid={field.invalid}
+              aria-describedby={field.describedBy}
+              className="min-w-0 border-border bg-secondary"
+            />
+          )}
+        </FormField>
+        <FormField
+          id="renew-usage-expiry"
+          label={t("subscription.field.usageExpiresAt")}
+          description={t("subscription.usageExpiresAtHelp")}
+          error={errors.usageExpiresAt}
+          errorId="renew-usage-expiry-error"
+          renderError={false}
+        >
+          {(field) => (
+            <DateOnlyPickerField
+              id={field.id}
+              value={form.usageExpiresAt ?? undefined}
+              onChange={onUsageExpiresAtChange}
+              placeholder={t("subscription.placeholder.date")}
+              aria-label={t("subscription.field.usageExpiresAt")}
+              describedBy={field.describedBy}
+              invalid={field.invalid}
+              defaultMonth={form.usageExpiresAt ?? form.startDate ?? undefined}
+              size="large"
+            />
+          )}
+        </FormField>
+      </FormFieldRow>
     </div>
   );
 }

@@ -146,12 +146,20 @@ const oneTimeTermUnitSchema = z.enum(CUSTOM_CYCLE_UNITS);
 const usageUnitSchema = z.string().trim().min(1).max(20);
 const usageTotalSchema = z.number().finite().positive().max(1_000_000_000);
 const usageDailyRateSchema = z.number().finite().positive().max(1_000_000_000);
+// 量包失效日是可选边界：空 = 仅按耗尽推算；非 usage-based 周期必须为空。
+const usageExpiresAtSchema = dateInputSchema.nullable().optional();
+// API 响应侧输出带品牌 DateOnly，前端领域类型可直接消费；写入侧仍接受原始日期字符串。
+const usageExpiresAtOutputSchema = dateOnlyOutputSchema.nullable().optional();
+// 续订前旧包余量只出现在续订请求与扣费记录快照；订阅行总量在续订时吸收余量，不单独存储。
+const usageRemainingBeforeSchema = z.number().finite().positive().max(1_000_000_000).nullable().optional();
 
 // 供 billing-records 快照 schema 复用同一套字段边界，避免两处数值上限漂移。
 export {
   oneTimeTermCountSchema,
   oneTimeTermUnitSchema,
   usageDailyRateSchema,
+  usageExpiresAtSchema,
+  usageRemainingBeforeSchema,
   usageTotalSchema,
   usageUnitSchema,
 };
@@ -161,13 +169,25 @@ export function usageBasedFieldsAreConsistent(value: {
   usageUnit?: string | null | undefined;
   usageTotal?: number | null | undefined;
   usageDailyRate?: number | null | undefined;
+  usageExpiresAt?: string | null | undefined;
 }): boolean {
   const hasUnit = value.usageUnit !== undefined && value.usageUnit !== null;
   const hasTotal = value.usageTotal !== undefined && value.usageTotal !== null;
   const hasRate = value.usageDailyRate !== undefined && value.usageDailyRate !== null;
+  const hasExpiry = value.usageExpiresAt !== undefined && value.usageExpiresAt !== null;
   // 量包字段必须成组出现或成组缺失；挂在其他周期上会污染统计摊销与耗尽日推算。
-  if (value.billingCycle !== "usage-based") return !hasUnit && !hasTotal && !hasRate;
+  if (value.billingCycle !== "usage-based") return !hasUnit && !hasTotal && !hasRate && !hasExpiry;
   return hasUnit && hasTotal && hasRate;
+}
+
+/** 量包失效日不得早于购买日，否则到期边界和摊销天数都会被脏数据扭曲。 */
+export function usageExpiryDateOrderIsValid(value: {
+  startDate?: string | null | undefined;
+  usageExpiresAt?: string | null | undefined;
+}): boolean {
+  if (value.usageExpiresAt === undefined || value.usageExpiresAt === null) return true;
+  if (value.startDate == null) return true;
+  return value.usageExpiresAt >= value.startDate;
 }
 
 /** 日均消耗过小导致预估可用天数超限时拒绝写入，与推算函数的钳制上限保持同一契约。 */
@@ -269,6 +289,7 @@ const subscriptionWriteFieldShape = {
   usageUnit: usageUnitSchema.nullable().optional(),
   usageTotal: usageTotalSchema.nullable().optional(),
   usageDailyRate: usageDailyRateSchema.nullable().optional(),
+  usageExpiresAt: usageExpiresAtSchema,
   category: z.string().trim().min(1).max(80),
   status: z.enum(SUBSCRIPTION_STATUSES),
   pinned: z.boolean(),
@@ -316,6 +337,10 @@ export const subscriptionCreateBodySchema = z.object(subscriptionCreateBodyShape
   .refine(usageEstimatedDaysAreWithinLimit, {
     path: ["usageDailyRate"],
     message: "Estimated usage days exceed the limit",
+  })
+  .refine(usageExpiryDateOrderIsValid, {
+    path: ["usageExpiresAt"],
+    message: "Usage expiry date must not be before start date",
   })
   .refine(startDateRequirementIsSatisfied, {
     path: ["startDate"],
@@ -379,6 +404,11 @@ export const subscriptionRenewBodySchema = z.object({
   // usage-based 续费即购买新量包：允许同步调整总量与日均消耗（单位沿用原订阅）。
   usageTotal: usageTotalSchema.nullable().optional(),
   usageDailyRate: usageDailyRateSchema.nullable().optional(),
+  // 本次续订前旧包余量（可选，单位沿用原订阅）：服务端把它结转吸收进订阅行总量，
+  // 并与本次购买量一起快照进扣费记录，用于精准记录实际购买量与推算下一次耗尽提醒。
+  usageRemainingBefore: usageRemainingBeforeSchema,
+  // 新量包的失效日期（可选）：设置后到期边界取 min(耗尽日, 失效日)。
+  usageExpiresAt: usageExpiresAtSchema,
   // 续订凭证（截图/发票）的 asset ID 列表；可选，上限 6 张。
   receiptAssetIds: z.array(z.string().min(1)).max(RECEIPT_ASSET_IDS_MAX).optional(),
 }).strict()
@@ -390,6 +420,10 @@ export const subscriptionRenewBodySchema = z.object({
   .refine((value) => value.startDate === undefined || value.startDate === null || value.nextBillingDate >= value.startDate, {
     path: ["nextBillingDate"],
     message: "Next billing date must not be before start date",
+  })
+  .refine(usageExpiryDateOrderIsValid, {
+    path: ["usageExpiresAt"],
+    message: "Usage expiry date must not be before start date",
   });
 
 const apiSubscriptionCollectionItemShape = {
@@ -419,6 +453,7 @@ const apiUsageAbsentCycleShape = {
   usageUnit: z.never().optional(),
   usageTotal: z.never().optional(),
   usageDailyRate: z.never().optional(),
+  usageExpiresAt: z.never().optional(),
 } satisfies z.ZodRawShape;
 const apiRecurringCycleShape = {
   billingCycle: z.enum(recurringBillingCycles),
@@ -461,6 +496,8 @@ const apiUsageBasedCycleShape = {
   usageUnit: usageUnitSchema,
   usageTotal: usageTotalSchema,
   usageDailyRate: usageDailyRateSchema,
+  // 旧数据无失效日时输出 null；存量响应必须能通过 schema 校验。
+  usageExpiresAt: usageExpiresAtOutputSchema,
 } satisfies z.ZodRawShape;
 
 const apiSubscriptionDetailShape = {

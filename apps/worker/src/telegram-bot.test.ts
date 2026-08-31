@@ -436,6 +436,7 @@ function subscriptionRow(overrides: Partial<SubscriptionRow> = {}): Subscription
     usage_unit: null,
     usage_total: null,
     usage_daily_rate: null,
+    usage_expires_at: null,
     category: "developer_tools",
     status: "active",
     pinned: 0,

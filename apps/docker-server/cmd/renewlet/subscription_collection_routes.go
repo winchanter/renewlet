@@ -47,6 +47,7 @@ type subscriptionCollectionItemResponse struct {
 	UsageUnit                    string                 `json:"usageUnit,omitempty"`
 	UsageTotal                   float64                `json:"usageTotal,omitempty"`
 	UsageDailyRate               float64                `json:"usageDailyRate,omitempty"`
+	UsageExpiresAt               *string                `json:"usageExpiresAt,omitempty"`
 	Category                     string                 `json:"category"`
 	Status                       string                 `json:"status"`
 	Pinned                       bool                   `json:"pinned"`
@@ -275,6 +276,10 @@ func subscriptionCollectionAPIFromRecord(record *core.Record) subscriptionCollec
 		out.UsageUnit = strings.TrimSpace(record.GetString("usageUnit"))
 		out.UsageTotal = record.GetFloat("usageTotal")
 		out.UsageDailyRate = record.GetFloat("usageDailyRate")
+		// 旧数据无失效日时省略（shared 侧 nullable+optional），新数据随包输出。
+		if expiry := strings.TrimSpace(record.GetString("usageExpiresAt")); expiry != "" {
+			out.UsageExpiresAt = &expiry
+		}
 	}
 	if costSharing := subscriptionRecordJSONMap(record, "costSharing"); len(costSharing) > 0 {
 		out.CostSharing = costSharing

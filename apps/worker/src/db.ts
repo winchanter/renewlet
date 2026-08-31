@@ -56,6 +56,7 @@ export const SUBSCRIPTION_COLUMN_NAMES = [
   "usage_unit",
   "usage_total",
   "usage_daily_rate",
+  "usage_expires_at",
   "category",
   "status",
   "pinned",
@@ -95,6 +96,7 @@ export const SUBSCRIPTION_COLLECTION_COLUMN_NAMES = [
   "usage_unit",
   "usage_total",
   "usage_daily_rate",
+  "usage_expires_at",
   "category",
   "status",
   "pinned",
@@ -354,8 +356,14 @@ export function toApiSubscriptionCollectionItem(row: SubscriptionCollectionRow):
     ...(row.custom_cycle_unit === null ? {} : { customCycleUnit: row.custom_cycle_unit }),
     ...(row.one_time_term_count && row.one_time_term_unit ? { oneTimeTermCount: row.one_time_term_count, oneTimeTermUnit: row.one_time_term_unit } : {}),
     // usage-based 量包字段成组出站；非 usage-based 周期保持缺席，避免读取方误用历史总量。
+    // 旧数据无失效日时省略（shared 侧 nullable+optional），新数据随包输出。
     ...(row.billing_cycle === "usage-based" && row.usage_unit !== null && row.usage_total !== null && row.usage_daily_rate !== null
-      ? { usageUnit: row.usage_unit, usageTotal: row.usage_total, usageDailyRate: row.usage_daily_rate }
+      ? {
+          usageUnit: row.usage_unit,
+          usageTotal: row.usage_total,
+          usageDailyRate: row.usage_daily_rate,
+          ...(row.usage_expires_at ? { usageExpiresAt: row.usage_expires_at } : {}),
+        }
       : {}),
     category: row.category,
     status: row.status,
@@ -409,7 +417,12 @@ export function toPublicApiSubscription(row: SubscriptionRow) {
       ? { oneTimeTermCount: row.one_time_term_count, oneTimeTermUnit: row.one_time_term_unit }
       : {}),
     ...(row.billing_cycle === "usage-based" && row.usage_unit !== null && row.usage_total !== null && row.usage_daily_rate !== null
-      ? { usageUnit: row.usage_unit, usageTotal: row.usage_total, usageDailyRate: row.usage_daily_rate }
+      ? {
+          usageUnit: row.usage_unit,
+          usageTotal: row.usage_total,
+          usageDailyRate: row.usage_daily_rate,
+          ...(row.usage_expires_at ? { usageExpiresAt: row.usage_expires_at } : {}),
+        }
       : {}),
     category: row.category,
     status: row.status,

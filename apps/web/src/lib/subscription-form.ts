@@ -58,6 +58,7 @@ export type SubscriptionFormValidationIssueCode =
   | "customCycleInvalid"
   | "oneTimeTermInvalid"
   | "usageFieldsInvalid"
+  | "usageExpiryInvalid"
   | "costSharingCollectionReminderOneTimeBuyoutInvalid"
   | "costSharingCollectionReminderInvalid"
   | "costSharingCollectionReminderAnchorRequired"
@@ -355,6 +356,14 @@ export function getSubscriptionFormValidationIssues(formData: SubscriptionFormSt
   if (formData.billingCycle === "usage-based" && parseUsageFormFields(formData) === null) {
     issues.push({ code: "usageFieldsInvalid", field: "usage", messageKey: "subscription.validation.usageFieldsInvalid" });
   }
+  if (
+    formData.billingCycle === "usage-based" &&
+    formData.usageExpiresAt &&
+    formData.startDate &&
+    compareDateOnly(formData.usageExpiresAt, formData.startDate) < 0
+  ) {
+    issues.push({ code: "usageExpiryInvalid", field: "usage", messageKey: "subscription.validation.usageExpiryInvalid" });
+  }
   if (formData.costSharing?.enabled) {
     const price = parseMoneyInput(formData.price);
     const collectionReminder = formData.costSharing.collectionReminder;
@@ -513,12 +522,14 @@ export function toSubscriptionFormSubmission(formData: SubscriptionFormState): S
   if (formData.billingCycle === "usage-based") {
     if (!usage || !formData.startDate) return null;
     // 量包耗尽日 = 购买日 + 预估可用天数；autoCalculate 固定为 true，让后端续费推进同样以 startDate 为锚点。
+    // 失效日（可空）单独下发：设置后到期边界取 min(耗尽日, 失效日)，由通知/日历推算层消费。
     return {
       ...base,
       billingCycle: "usage-based",
       usageUnit: usage.unit,
       usageTotal: usage.total,
       usageDailyRate: usage.dailyRate,
+      usageExpiresAt: formData.usageExpiresAt ?? null,
       nextBillingDate: calculateUsageExhaustionDate(formData.startDate, usage.total, usage.dailyRate),
       autoRenew: false,
       autoCalculateNextBillingDate: true,

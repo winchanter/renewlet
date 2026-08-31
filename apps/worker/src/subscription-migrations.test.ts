@@ -46,6 +46,7 @@ describe("Cloudflare D1 subscription migrations", () => {
 
       applyMigration(db, "0035_rebuild_cost_sharing_collection_reminder_schema.sql");
       applyMigration(db, "0040_subscription_usage_based.sql");
+      applyMigration(db, "0043_usage_expiry_and_remaining.sql");
 
       expect(subscriptionColumnNames(db)).toEqual(expect.arrayContaining([
         "cost_sharing_collection_reminder_enabled",
@@ -78,6 +79,7 @@ describe("Cloudflare D1 subscription migrations", () => {
 
       applyMigration(db, "0035_rebuild_cost_sharing_collection_reminder_schema.sql");
       applyMigration(db, "0040_subscription_usage_based.sql");
+      applyMigration(db, "0043_usage_expiry_and_remaining.sql");
 
       expect(subscriptionColumnNames(db)).toEqual(expect.arrayContaining([
         "cost_sharing_collection_reminder_enabled",
@@ -105,6 +107,7 @@ describe("Cloudflare D1 subscription migrations", () => {
       applyMigration(db, "0035_rebuild_cost_sharing_collection_reminder_schema.sql");
       applyMigration(db, "0036_subscription_derived_state_v2.sql");
       applyMigration(db, "0040_subscription_usage_based.sql");
+      applyMigration(db, "0043_usage_expiry_and_remaining.sql");
 
       const response = await readSubscriptions(new Request("https://renewlet.test/api/app/subscriptions?limit=10"), {
         DB: new SqliteD1Database(db) as unknown as D1Database,
@@ -204,6 +207,7 @@ describe("Cloudflare D1 subscription migrations", () => {
 
       applyMigration(db, "0039_rebuild_subscription_collection_projections.sql");
       applyMigration(db, "0040_subscription_usage_based.sql");
+      applyMigration(db, "0043_usage_expiry_and_remaining.sql");
 
       expect(db.prepare(`SELECT subscription_id, user_id, name, category, status
         FROM subscription_list_index`).get()).toEqual({
@@ -423,6 +427,9 @@ function openSubscriptionMigrationDatabase(): DatabaseSync {
     INSERT INTO users (id, email, name, role, password_hash, created_at, updated_at)
     VALUES ('${USER_ID}', 'owner@example.com', 'Owner', 'admin', 'hash', '${timestamp}', '${timestamp}');
   `);
+  // 0043 会 ALTER 扣费记录表；用 0041/0042 真实建表，保持迁移依赖与线上一致。
+  db.exec(readFileSync(resolve("migrations", "0041_billing_records.sql"), "utf8"));
+  db.exec(readFileSync(resolve("migrations", "0042_billing_records_receipts.sql"), "utf8"));
   return db;
 }
 

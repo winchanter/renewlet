@@ -174,6 +174,7 @@ function withCollectionBillingCycle(
       usageUnit: parsedRow.usageUnit,
       usageTotal: parsedRow.usageTotal,
       usageDailyRate: parsedRow.usageDailyRate,
+      usageExpiresAt: parsedRow.usageExpiresAt ?? null,
     };
   }
   return {
@@ -222,6 +223,7 @@ function toSubscriptionFormPayload(submission: SubscriptionFormSubmission) {
     usageUnit: submission.usageUnit ?? null,
     usageTotal: submission.usageTotal ?? null,
     usageDailyRate: submission.usageDailyRate ?? null,
+    usageExpiresAt: submission.usageExpiresAt ?? null,
     category: submission.category,
     status: submission.status,
     paymentMethod: submission.paymentMethod ?? null,

@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	billingRecordsCollectionName = "subscription_billing_records"
+	billingRecordsCollectionName   = "subscription_billing_records"
 	billingRecordQueryDefaultLimit = 50
 	billingRecordQueryMaxLimit     = 100
 	billingRecordCursorMaxChars    = 512
@@ -55,9 +55,13 @@ type billingRecordItem struct {
 	UsageUnit        string  `json:"usageUnit,omitempty"`
 	UsageTotal       float64 `json:"usageTotal,omitempty"`
 	UsageDailyRate   float64 `json:"usageDailyRate,omitempty"`
-	ReceiptAssetIds  []string `json:"receiptAssetIds"`
-	CreatedAt        string  `json:"createdAt,omitempty"`
-	UpdatedAt        string  `json:"updatedAt,omitempty"`
+	// usage-based 快照增量：usageTotal 是本次实际购买量，usageRemainingBefore 是结转的旧包余量，
+	// 两者之和 = 购买后的订阅持有量；无结转/无失效日时按 optional 语义直接省略。
+	UsageRemainingBefore *float64 `json:"usageRemainingBefore,omitempty"`
+	UsageExpiresAt       *string  `json:"usageExpiresAt,omitempty"`
+	ReceiptAssetIds      []string `json:"receiptAssetIds"`
+	CreatedAt            string   `json:"createdAt,omitempty"`
+	UpdatedAt            string   `json:"updatedAt,omitempty"`
 }
 
 type billingRecordResponse struct {
@@ -93,7 +97,10 @@ type billingRecordUpsert struct {
 	UsageUnit        string
 	UsageTotal       float64
 	UsageDailyRate   float64
-	ReceiptAssetIds  []string
+	// 余量/失效快照用零值表达“无”（remaining=0、expires=""），与 shared nullable+optional 语义对齐。
+	UsageRemainingBefore float64
+	UsageExpiresAt       string
+	ReceiptAssetIds      []string
 }
 
 // handleSubscriptionBillingRecordsList 输出某订阅的扣费历史：owner 过滤、billing_date DESC + id DESC keyset 分页。
@@ -204,6 +211,12 @@ func billingRecordItemFromRecord(record *core.Record) billingRecordItem {
 		out.UsageUnit = strings.TrimSpace(record.GetString("usage_unit"))
 		out.UsageTotal = record.GetFloat("usage_total")
 		out.UsageDailyRate = record.GetFloat("usage_daily_rate")
+		if remaining := record.GetFloat("usage_remaining_before"); remaining > 0 {
+			out.UsageRemainingBefore = &remaining
+		}
+		if expiry := strings.TrimSpace(record.GetString("usage_expires_at")); expiry != "" {
+			out.UsageExpiresAt = &expiry
+		}
 	}
 	// receipt_asset_ids 是 JSONField，PocketBase 返回 []any；逐项收敛为 string 切片。
 	out.ReceiptAssetIds = readReceiptAssetIds(record.Get("receipt_asset_ids"))
@@ -248,30 +261,34 @@ func readReceiptAssetIds(raw any) []string {
 // billingRecordPatchRequest 只开放事实修正字段；归属（subscriptionId）与来源（mode/name）字段靠
 // DisallowUnknownFields 在解码层直接拒绝，前端无法通过 patch 改写记录来源。
 type billingRecordPatchRequest struct {
-	Amount           optionalJSONField[string]  `json:"amount"`
-	Currency         optionalJSONField[string]  `json:"currency"`
-	BillingDate      optionalJSONField[string]  `json:"billingDate"`
-	BillingCycle     optionalJSONField[string]  `json:"billingCycle"`
-	CustomDays       optionalJSONField[int]     `json:"customDays"`
-	CustomCycleUnit  optionalJSONField[string]  `json:"customCycleUnit"`
-	OneTimeTermCount optionalJSONField[int]     `json:"oneTimeTermCount"`
-	OneTimeTermUnit  optionalJSONField[string]  `json:"oneTimeTermUnit"`
-	UsageUnit        optionalJSONField[string]  `json:"usageUnit"`
-	UsageTotal       optionalJSONField[float64] `json:"usageTotal"`
-	UsageDailyRate   optionalJSONField[float64] `json:"usageDailyRate"`
-	ReceiptAssetIds  optionalJSONField[[]string] `json:"receiptAssetIds"`
+	Amount               optionalJSONField[string]   `json:"amount"`
+	Currency             optionalJSONField[string]   `json:"currency"`
+	BillingDate          optionalJSONField[string]   `json:"billingDate"`
+	BillingCycle         optionalJSONField[string]   `json:"billingCycle"`
+	CustomDays           optionalJSONField[int]      `json:"customDays"`
+	CustomCycleUnit      optionalJSONField[string]   `json:"customCycleUnit"`
+	OneTimeTermCount     optionalJSONField[int]      `json:"oneTimeTermCount"`
+	OneTimeTermUnit      optionalJSONField[string]   `json:"oneTimeTermUnit"`
+	UsageUnit            optionalJSONField[string]   `json:"usageUnit"`
+	UsageTotal           optionalJSONField[float64]  `json:"usageTotal"`
+	UsageDailyRate       optionalJSONField[float64]  `json:"usageDailyRate"`
+	UsageRemainingBefore optionalJSONField[float64]  `json:"usageRemainingBefore"`
+	UsageExpiresAt       optionalJSONField[string]   `json:"usageExpiresAt"`
+	ReceiptAssetIds      optionalJSONField[[]string] `json:"receiptAssetIds"`
 }
 
 func (r *billingRecordPatchRequest) HasChanges() bool {
 	return r.Amount.Set || r.Currency.Set || r.BillingDate.Set || r.BillingCycle.Set ||
 		r.CustomDays.Set || r.CustomCycleUnit.Set || r.OneTimeTermCount.Set || r.OneTimeTermUnit.Set ||
-		r.UsageUnit.Set || r.UsageTotal.Set || r.UsageDailyRate.Set || r.ReceiptAssetIds.Set
+		r.UsageUnit.Set || r.UsageTotal.Set || r.UsageDailyRate.Set ||
+		r.UsageRemainingBefore.Set || r.UsageExpiresAt.Set || r.ReceiptAssetIds.Set
 }
 
 // touchesPeriod 与 shared billingRecordPatchTouchesPeriod 对齐：这些字段变化时必须重算 periodEndDate。
 func (r *billingRecordPatchRequest) touchesPeriod() bool {
 	return r.BillingDate.Set || r.BillingCycle.Set || r.CustomDays.Set ||
-		r.CustomCycleUnit.Set || r.UsageTotal.Set || r.UsageDailyRate.Set
+		r.CustomCycleUnit.Set || r.UsageTotal.Set || r.UsageDailyRate.Set ||
+		r.UsageRemainingBefore.Set || r.UsageExpiresAt.Set
 }
 
 // Validate 做 patch 白名单字段的逐项校验；金额/币种/日期只接受与订阅写入边界相同的 canonical 形状。
@@ -324,6 +341,15 @@ func (r *billingRecordPatchRequest) Validate(locale appLocale) error {
 	}
 	if r.UsageDailyRate.Set && !r.UsageDailyRate.Null && !isPositiveUsageNumber(r.UsageDailyRate.Value) {
 		return errors.New(serverText(locale, "common.invalidRequestParameters"))
+	}
+	if r.UsageRemainingBefore.Set && !r.UsageRemainingBefore.Null && !isPositiveUsageNumber(r.UsageRemainingBefore.Value) {
+		return errors.New(serverText(locale, "common.invalidRequestParameters"))
+	}
+	if r.UsageExpiresAt.Set && !r.UsageExpiresAt.Null {
+		r.UsageExpiresAt.Value = strings.TrimSpace(r.UsageExpiresAt.Value)
+		if err := requireDateOnly(r.UsageExpiresAt.Value, "USAGE_EXPIRES_AT"); err != nil {
+			return errors.New(serverText(locale, "common.invalidRequestParameters"))
+		}
 	}
 	if r.ReceiptAssetIds.Set && !r.ReceiptAssetIds.Null && len(r.ReceiptAssetIds.Value) > 6 {
 		return errors.New(serverText(locale, "common.invalidRequestParameters"))
@@ -502,6 +528,20 @@ func applyBillingRecordPatch(record *core.Record, body billingRecordPatchRequest
 			record.Set("usage_daily_rate", body.UsageDailyRate.Value)
 		}
 	}
+	if body.UsageRemainingBefore.Set {
+		if body.UsageRemainingBefore.Null {
+			record.Set("usage_remaining_before", 0)
+		} else {
+			record.Set("usage_remaining_before", body.UsageRemainingBefore.Value)
+		}
+	}
+	if body.UsageExpiresAt.Set {
+		if body.UsageExpiresAt.Null {
+			record.Set("usage_expires_at", "")
+		} else {
+			record.Set("usage_expires_at", body.UsageExpiresAt.Value)
+		}
+	}
 	if body.ReceiptAssetIds.Set {
 		if body.ReceiptAssetIds.Null {
 			record.Set("receipt_asset_ids", []string{})
@@ -531,23 +571,25 @@ func applyBillingRecordPatch(record *core.Record, body billingRecordPatchRequest
 // billingRecordUpsertFromRecord 把持久层行还原成写入形状，作为 patch 合并与校验的基准。
 func billingRecordUpsertFromRecord(record *core.Record) billingRecordUpsert {
 	return billingRecordUpsert{
-		UserID:           record.GetString("user_id"),
-		SubscriptionID:   record.GetString("subscription_id"),
-		Name:             record.GetString("name"),
-		BillingDate:      record.GetString("billing_date"),
-		PeriodEndDate:    record.GetString("period_end_date"),
-		Mode:             record.GetString("mode"),
-		Amount:           record.GetString("amount"),
-		Currency:         record.GetString("currency"),
-		BillingCycle:     record.GetString("billing_cycle"),
-		CustomDays:       record.GetInt("custom_days"),
-		CustomCycleUnit:  record.GetString("custom_cycle_unit"),
-		OneTimeTermCount: record.GetInt("one_time_term_count"),
-		OneTimeTermUnit:  record.GetString("one_time_term_unit"),
-		UsageUnit:        record.GetString("usage_unit"),
-		UsageTotal:       record.GetFloat("usage_total"),
-		UsageDailyRate:   record.GetFloat("usage_daily_rate"),
-		ReceiptAssetIds:  readReceiptAssetIds(record.Get("receipt_asset_ids")),
+		UserID:               record.GetString("user_id"),
+		SubscriptionID:       record.GetString("subscription_id"),
+		Name:                 record.GetString("name"),
+		BillingDate:          record.GetString("billing_date"),
+		PeriodEndDate:        record.GetString("period_end_date"),
+		Mode:                 record.GetString("mode"),
+		Amount:               record.GetString("amount"),
+		Currency:             record.GetString("currency"),
+		BillingCycle:         record.GetString("billing_cycle"),
+		CustomDays:           record.GetInt("custom_days"),
+		CustomCycleUnit:      record.GetString("custom_cycle_unit"),
+		OneTimeTermCount:     record.GetInt("one_time_term_count"),
+		OneTimeTermUnit:      record.GetString("one_time_term_unit"),
+		UsageUnit:            record.GetString("usage_unit"),
+		UsageTotal:           record.GetFloat("usage_total"),
+		UsageDailyRate:       record.GetFloat("usage_daily_rate"),
+		UsageRemainingBefore: record.GetFloat("usage_remaining_before"),
+		UsageExpiresAt:       strings.TrimSpace(record.GetString("usage_expires_at")),
+		ReceiptAssetIds:      readReceiptAssetIds(record.Get("receipt_asset_ids")),
 	}
 }
 
@@ -555,15 +597,19 @@ func billingRecordUpsertFromRecord(record *core.Record) billingRecordUpsert {
 // custom→customDays+customCycleUnit 成对且其余周期字段为空；one-time→termCount/termUnit 成对；
 // usage-based→usageUnit+usageTotal+usageDailyRate 齐全；其余周期→全部为空。
 func billingRecordCycleIsConsistent(value billingRecordUpsert) bool {
+	// 余量/失效快照是 usage-based 专用；其余周期必须为空，避免切周期后残留值扭曲重算。
+	withoutUsageSnapshot := value.UsageRemainingBefore == 0 && value.UsageExpiresAt == ""
 	switch value.BillingCycle {
 	case "custom":
 		return value.CustomDays > 0 && isValidCustomCycleUnit(value.CustomCycleUnit) &&
 			value.OneTimeTermCount == 0 && value.OneTimeTermUnit == "" &&
-			value.UsageUnit == "" && value.UsageTotal == 0 && value.UsageDailyRate == 0
+			value.UsageUnit == "" && value.UsageTotal == 0 && value.UsageDailyRate == 0 &&
+			withoutUsageSnapshot
 	case "one-time":
 		return (value.OneTimeTermCount > 0) == isValidCustomCycleUnit(value.OneTimeTermUnit) &&
 			value.CustomDays == 0 && value.CustomCycleUnit == "" &&
-			value.UsageUnit == "" && value.UsageTotal == 0 && value.UsageDailyRate == 0
+			value.UsageUnit == "" && value.UsageTotal == 0 && value.UsageDailyRate == 0 &&
+			withoutUsageSnapshot
 	case "usage-based":
 		return value.UsageUnit != "" && value.UsageTotal > 0 && value.UsageDailyRate > 0 &&
 			value.CustomDays == 0 && value.CustomCycleUnit == "" &&
@@ -571,7 +617,8 @@ func billingRecordCycleIsConsistent(value billingRecordUpsert) bool {
 	default:
 		return value.CustomDays == 0 && value.CustomCycleUnit == "" &&
 			value.OneTimeTermCount == 0 && value.OneTimeTermUnit == "" &&
-			value.UsageUnit == "" && value.UsageTotal == 0 && value.UsageDailyRate == 0
+			value.UsageUnit == "" && value.UsageTotal == 0 && value.UsageDailyRate == 0 &&
+			withoutUsageSnapshot
 	}
 }
 
@@ -582,7 +629,9 @@ func computeBillingRecordPeriodEnd(value billingRecordUpsert) (string, error) {
 		return "", nil
 	}
 	if value.BillingCycle == "usage-based" {
-		days, err := usageEstimatedDays(value.UsageTotal, value.UsageDailyRate)
+		// 持有量 = 本次购买量 + 结转余量；到期边界取 min(推算耗尽日, 失效日)，与订阅行口径一致。
+		holding := value.UsageTotal + value.UsageRemainingBefore
+		days, err := usageEstimatedDays(holding, value.UsageDailyRate)
 		if err != nil {
 			return "", err
 		}
@@ -590,7 +639,11 @@ func computeBillingRecordPeriodEnd(value billingRecordUpsert) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return formatDateOnly(anchor.AddDate(0, 0, days)), nil
+		exhaustion := formatDateOnly(anchor.AddDate(0, 0, days))
+		if value.UsageExpiresAt != "" && isValidDateOnly(value.UsageExpiresAt) && value.UsageExpiresAt < exhaustion {
+			return value.UsageExpiresAt, nil
+		}
+		return exhaustion, nil
 	}
 	anchor, err := parseDateOnly(value.BillingDate)
 	if err != nil {
@@ -620,7 +673,17 @@ func billingRecordUpsertSnapshot(subscription *core.Record) billingRecordUpsert 
 		UsageUnit:        subscription.GetString("usageUnit"),
 		UsageTotal:       subscription.GetFloat("usageTotal"),
 		UsageDailyRate:   subscription.GetFloat("usageDailyRate"),
+		// 订阅行不保存结转余量（余量只在续订瞬间吸收进总量并快照进记录）；失效日随订阅快照。
+		UsageExpiresAt: subscription.GetString("usageExpiresAt"),
 	}
+}
+
+// billingRecordUsageOverride 是手动续订生成扣费记录时的 usage 快照覆盖：
+// restart 购买新量包时记录里存“本次实际购买量 + 结转余量”，而不是订阅行吸收后的持有总量。
+type billingRecordUsageOverride struct {
+	UsageTotal           float64
+	UsageRemainingBefore float64
+	UsageExpiresAt       string
 }
 
 // upsertInitialBillingRecord 在创建订阅的同一事务内生成 mode=initial 首期记录：
@@ -638,12 +701,18 @@ func upsertInitialBillingRecord(app core.App, subscription *core.Record) error {
 
 // upsertManualRenewalBillingRecord 在手动续订的同一事务内生成 manual_continue/manual_restart 记录；
 // billingDate 由调用方按 continue=旧 nextBillingDate / restart=请求 startDate 提供，区间终点是续订后的新到期日。
-func upsertManualRenewalBillingRecord(app core.App, subscription *core.Record, mode string, billingDate string, receiptAssetIds []string) error {
+// usageOverride 仅在 usage-based restart 购买新量包时提供：把“购买量+结转余量”快照进记录。
+func upsertManualRenewalBillingRecord(app core.App, subscription *core.Record, mode string, billingDate string, receiptAssetIds []string, usageOverride *billingRecordUsageOverride) error {
 	input := billingRecordUpsertSnapshot(subscription)
 	input.BillingDate = billingDate
 	input.PeriodEndDate = subscription.GetString("nextBillingDate")
 	input.Mode = mode
 	input.ReceiptAssetIds = receiptAssetIds
+	if usageOverride != nil {
+		input.UsageTotal = usageOverride.UsageTotal
+		input.UsageRemainingBefore = usageOverride.UsageRemainingBefore
+		input.UsageExpiresAt = usageOverride.UsageExpiresAt
+	}
 	return upsertBillingRecord(app, input)
 }
 
@@ -710,6 +779,14 @@ func upsertBillingRecord(app core.App, input billingRecordUpsert) error {
 			return errors.New("BILLING_RECORD_PERIOD_END_BEFORE_BILLING_DATE")
 		}
 	}
+	if input.UsageExpiresAt != "" {
+		if err := requireDateOnly(input.UsageExpiresAt, "USAGE_EXPIRES_AT"); err != nil {
+			return err
+		}
+		if input.UsageExpiresAt < input.BillingDate {
+			return errors.New("BILLING_RECORD_USAGE_EXPIRES_BEFORE_BILLING_DATE")
+		}
+	}
 	amount, err := canonicalMoneyString(input.Amount)
 	if err != nil {
 		return errors.New("BILLING_RECORD_AMOUNT_INVALID")
@@ -750,6 +827,8 @@ func upsertBillingRecord(app core.App, input billingRecordUpsert) error {
 	record.Set("usage_unit", input.UsageUnit)
 	record.Set("usage_total", input.UsageTotal)
 	record.Set("usage_daily_rate", input.UsageDailyRate)
+	record.Set("usage_remaining_before", input.UsageRemainingBefore)
+	record.Set("usage_expires_at", input.UsageExpiresAt)
 	record.Set("mode", input.Mode)
 	if input.ReceiptAssetIds == nil {
 		input.ReceiptAssetIds = []string{}

@@ -1,4 +1,5 @@
 import { memo, useCallback } from "react";
+import { DateOnlyPickerField } from "@/components/date-only-picker-field";
 import { FormField, FormFieldRow } from "@/components/ui/form-field";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
@@ -72,7 +73,7 @@ interface UsagePackageFieldsProps {
   errors: SubscriptionFormErrors;
 }
 
-/** usage-based 预付量包输入：总量 + 单位 + 日均消耗预估，耗尽日由 auto-dates hook 推算并回填。 */
+/** usage-based 预付量包输入：总量 + 单位 + 日均消耗预估 + 可选失效日，耗尽日由 auto-dates hook 推算并回填。 */
 function UsagePackageFields({ id, formData, update, errors }: UsagePackageFieldsProps) {
   const { t } = useI18n();
   const usage = parseUsageFormFields(formData);
@@ -146,6 +147,24 @@ function UsagePackageFields({ id, formData, update, errors }: UsagePackageFields
             onRawValueChange={(value: string) => update("usageDailyRate", value)}
             aria-label={t("subscription.field.usageDailyRate")}
             className="min-w-0 border-border bg-secondary"
+          />
+        )}
+      </FormField>
+      <FormField
+        id={id("usageExpiresAt")}
+        label={t("subscription.field.usageExpiresAt")}
+        description={t("subscription.usageExpiresAtHelp")}
+        renderError={false}
+      >
+        {() => (
+          <DateOnlyPickerField
+            id={id("usageExpiresAt")}
+            value={formData.usageExpiresAt}
+            onChange={(value) => update("usageExpiresAt", value)}
+            placeholder={t("subscription.placeholder.date")}
+            defaultMonth={formData.usageExpiresAt ?? formData.startDate}
+            size="large"
+            aria-label={t("subscription.field.usageExpiresAt")}
           />
         )}
       </FormField>

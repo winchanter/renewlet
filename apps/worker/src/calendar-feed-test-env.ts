@@ -129,6 +129,7 @@ export function subscriptionRow(
     usage_unit: null,
     usage_total: null,
     usage_daily_rate: null,
+    usage_expires_at: null,
     category: "developer_tools",
     status,
     pinned: 0,

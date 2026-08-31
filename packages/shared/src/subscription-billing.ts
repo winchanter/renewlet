@@ -5,6 +5,7 @@ import {
   calculateNextBillingDate as calculateRenewalNextBillingDate,
   calculateUsageExhaustionDate,
   requireCustomBillingCycle,
+  usageBasedAmortizationDays,
   usageBasedEstimatedDays,
 } from "./subscription-renewal";
 
@@ -18,6 +19,8 @@ export interface SubscriptionBillingFields {
   oneTimeTermUnit?: CustomCycleUnit | null | undefined;
   usageTotal?: number | null | undefined;
   usageDailyRate?: number | null | undefined;
+  usageExpiresAt?: string | null | undefined;
+  startDate?: string | null | undefined;
 }
 
 // usage-based 推算函数的事实源在 subscription-renewal；这里 re-export 供统计与表单共用同一实现。
@@ -37,6 +40,8 @@ export function toMonthlyAmount(
   oneTimeTermUnit?: CustomCycleUnit | null | undefined,
   usageTotal?: number | null | undefined,
   usageDailyRate?: number | null | undefined,
+  usageStartDate?: string | null | undefined,
+  usageExpiresAt?: string | null | undefined,
 ): number {
   switch (cycle) {
     case "weekly":
@@ -60,8 +65,9 @@ export function toMonthlyAmount(
       return customCycleToMonthlyAmount(amount, term.count, term.unit);
     }
     case "usage-based": {
-      // 预付量包按预估可用天数摊销总价，等价于“单价 × 日均 × 30”。
-      const days = usageBasedEstimatedDays(usageTotal, usageDailyRate);
+      // 预付量包按预估可用天数摊销总价，等价于“单价 × 日均 × 30”；
+      // 设置失效日时摊销天数取 min(耗尽天数, 失效前天数)，与到期边界口径一致。
+      const days = usageBasedAmortizationDays(usageTotal, usageDailyRate, usageStartDate, usageExpiresAt);
       return customCycleToMonthlyAmount(amount, days, "day");
     }
   }
@@ -77,6 +83,8 @@ export function toSubscriptionMonthlyAmount(amount: MoneyString | number, subscr
     subscription.oneTimeTermUnit,
     subscription.usageTotal,
     subscription.usageDailyRate,
+    subscription.startDate,
+    subscription.usageExpiresAt,
   );
 }
 

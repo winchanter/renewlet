@@ -60,9 +60,9 @@ type uploadAssetResponse struct {
 const maxAssetUploadBodyBytes = maxImageBytes + 64*1024
 
 type assetInUseDetails struct {
-	UsageCount              int64 `json:"usageCount"`
-	SubscriptionLogoCount   int64 `json:"subscriptionLogoCount"`
-	PaymentMethodIconCount  int64 `json:"paymentMethodIconCount"`
+	UsageCount                int64 `json:"usageCount"`
+	SubscriptionLogoCount     int64 `json:"subscriptionLogoCount"`
+	PaymentMethodIconCount    int64 `json:"paymentMethodIconCount"`
 	BillingRecordReceiptCount int64 `json:"billingRecordReceiptCount"`
 }
 
@@ -79,6 +79,7 @@ type subscriptionWriteRequest struct {
 	UsageUnit                    optionalJSONField[string]                 `json:"usageUnit"`
 	UsageTotal                   optionalJSONField[float64]                `json:"usageTotal"`
 	UsageDailyRate               optionalJSONField[float64]                `json:"usageDailyRate"`
+	UsageExpiresAt               optionalJSONField[string]                 `json:"usageExpiresAt"`
 	Category                     optionalJSONField[string]                 `json:"category"`
 	Status                       optionalJSONField[string]                 `json:"status"`
 	Pinned                       optionalJSONField[bool]                   `json:"pinned"`
@@ -497,7 +498,7 @@ func findOwnedSubscription(app core.App, e *core.RequestEvent) (*core.Record, er
 func (r subscriptionWriteRequest) HasChanges() bool {
 	return r.Name.Set || r.Logo.Set || r.Price.Set || r.Currency.Set || r.BillingCycle.Set || r.CustomDays.Set ||
 		r.CustomCycleUnit.Set || r.OneTimeTermCount.Set || r.OneTimeTermUnit.Set ||
-		r.UsageUnit.Set || r.UsageTotal.Set || r.UsageDailyRate.Set ||
+		r.UsageUnit.Set || r.UsageTotal.Set || r.UsageDailyRate.Set || r.UsageExpiresAt.Set ||
 		r.Category.Set || r.Status.Set ||
 		r.Pinned.Set || r.PublicHidden.Set || r.PaymentMethod.Set || r.StartDate.Set || r.NextBillingDate.Set ||
 		r.AutoRenew.Set || r.AutoCalculateNextBillingDate.Set || r.TrialEndDate.Set || r.Website.Set || r.Notes.Set ||
@@ -540,6 +541,9 @@ func applySubscriptionWriteRequest(record *core.Record, body subscriptionWriteRe
 		return err
 	}
 	if err := setFloatRecordField(record, "usageDailyRate", body.UsageDailyRate, false, true); err != nil {
+		return err
+	}
+	if err := setStringRecordField(record, "usageExpiresAt", body.UsageExpiresAt, false, true, true); err != nil {
 		return err
 	}
 	if err := setStringRecordField(record, "category", body.Category, create, false, true); err != nil {

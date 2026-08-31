@@ -100,6 +100,7 @@ function toSubscriptionRow(record: SubscriptionPerformanceRecord): SubscriptionR
     usage_unit: null,
     usage_total: null,
     usage_daily_rate: null,
+    usage_expires_at: null,
     category: record.category,
     status: record.status,
     pinned: Number(record.pinned),

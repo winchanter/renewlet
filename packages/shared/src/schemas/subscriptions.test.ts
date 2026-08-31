@@ -604,4 +604,74 @@ describe("subscription usage-based contract", () => {
       autoRenew: false,
     }).success).toBe(false);
   });
+
+  it("keeps the usage expiry date out of non usage-based cycles and date-ordered with startDate", () => {
+    const usageBody = {
+      ...recurringBody,
+      billingCycle: "usage-based",
+      usageUnit: "条",
+      usageTotal: 1000,
+      usageDailyRate: 10,
+      startDate: "2026-01-01",
+      nextBillingDate: "2026-04-11",
+      autoRenew: false,
+    } as const;
+    expect(subscriptionCreateBodySchema.safeParse({
+      ...usageBody,
+      usageExpiresAt: "2026-03-01",
+    }).success).toBe(true);
+    expect(subscriptionCreateBodySchema.safeParse({
+      ...usageBody,
+      usageExpiresAt: "2025-12-31",
+    }).success).toBe(false);
+    // 失效日挂在周期订阅上会污染到期边界，必须在写入边界拒绝。
+    expect(subscriptionCreateBodySchema.safeParse({
+      ...recurringBody,
+      usageExpiresAt: "2026-03-01",
+    }).success).toBe(false);
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...recurringCollectionItem,
+      usageExpiresAt: "2026-03-01",
+    }).success).toBe(false);
+    // 存量 usage-based 行可以输出 null（未设置失效日）。
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...usageBasedCollectionItem,
+      usageExpiresAt: null,
+    }).success).toBe(true);
+    expect(apiSubscriptionCollectionItemSchema.safeParse({
+      ...usageBasedCollectionItem,
+      usageExpiresAt: "2026-03-01",
+    }).success).toBe(true);
+  });
+
+  it("accepts carry-over remainder and expiry on usage-based renew payloads", () => {
+    const usageRenew = {
+      mode: "restart",
+      price: "50",
+      currency: "CNY",
+      startDate: "2026-08-12",
+      nextBillingDate: "2026-09-13",
+      autoCalculateNextBillingDate: true,
+      usageTotal: 200,
+      usageDailyRate: 10,
+    } as const;
+    expect(subscriptionRenewBodySchema.safeParse({
+      ...usageRenew,
+      usageRemainingBefore: 60,
+      usageExpiresAt: "2026-09-01",
+    }).success).toBe(true);
+    expect(subscriptionRenewBodySchema.safeParse({
+      ...usageRenew,
+      usageExpiresAt: "2026-08-01",
+    }).success).toBe(false);
+    expect(subscriptionRenewBodySchema.safeParse({
+      ...usageRenew,
+      usageRemainingBefore: 0,
+    }).success).toBe(false);
+    // 清空失效日（null）是合法的续订输入。
+    expect(subscriptionRenewBodySchema.safeParse({
+      ...usageRenew,
+      usageExpiresAt: null,
+    }).success).toBe(true);
+  });
 });

@@ -380,6 +380,10 @@ type subscriptionRenewRequest struct {
 	// usage-based 续费即购买新量包：可选同步调整总量与日均消耗（单位沿用原订阅）。
 	UsageTotal     *float64 `json:"usageTotal,omitempty"`
 	UsageDailyRate *float64 `json:"usageDailyRate,omitempty"`
+	// 本次续订前旧包余量（可选）：服务端结转吸收进订阅行总量，并与本次购买量一起快照进扣费记录。
+	UsageRemainingBefore *float64 `json:"usageRemainingBefore,omitempty"`
+	// 新量包失效日（可选）：显式 null 清空（只按耗尽推算），未传保持原值。
+	UsageExpiresAt optionalJSONField[string] `json:"usageExpiresAt"`
 	// 续订凭证（截图/发票）的 asset ID 列表；可选，上限 6 张。
 	ReceiptAssetIds []string `json:"receiptAssetIds,omitempty"`
 }
@@ -422,6 +426,18 @@ func (r *subscriptionRenewRequest) Validate(locale appLocale) error {
 	}
 	if r.UsageDailyRate != nil && *r.UsageDailyRate <= 0 {
 		return errors.New(serverText(locale, "common.invalidRequestParameters"))
+	}
+	if r.UsageRemainingBefore != nil && *r.UsageRemainingBefore <= 0 {
+		return errors.New(serverText(locale, "common.invalidRequestParameters"))
+	}
+	if r.UsageExpiresAt.Set && !r.UsageExpiresAt.Null {
+		r.UsageExpiresAt.Value = strings.TrimSpace(r.UsageExpiresAt.Value)
+		if err := requireDateOnly(r.UsageExpiresAt.Value, "USAGE_EXPIRES_AT"); err != nil {
+			return errors.New(serverText(locale, "common.invalidRequestParameters"))
+		}
+		if r.StartDate.Set && !r.StartDate.Null && r.StartDate.Value != "" && r.UsageExpiresAt.Value < r.StartDate.Value {
+			return errors.New(serverText(locale, "common.invalidRequestParameters"))
+		}
 	}
 	if len(r.ReceiptAssetIds) > 6 {
 		return errors.New(serverText(locale, "common.invalidRequestParameters"))

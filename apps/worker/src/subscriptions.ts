@@ -63,12 +63,12 @@ export async function createSubscription(request: Request, env: Env): Promise<Re
   const factStatement = env.DB.prepare(`
     INSERT INTO subscriptions (
       id, user_id, name, logo, price, currency, billing_cycle, custom_days, custom_cycle_unit, one_time_term_count, one_time_term_unit,
-      usage_unit, usage_total, usage_daily_rate,
+      usage_unit, usage_total, usage_daily_rate, usage_expires_at,
       category, status, pinned, public_hidden, payment_method,
       start_date, next_billing_date, auto_renew, auto_calculate_next_billing_date, trial_end_date, website, notes, tags_json,
       reminder_days, repeat_reminder_enabled, repeat_reminder_interval, repeat_reminder_window, cost_sharing_json,
       cost_sharing_collection_reminder_enabled, cost_sharing_next_collection_reminder_date, extra_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(...subscriptionRowValues(row));
   const derived = subscriptionDerivedMutationPlan(env, { before: null, after: row, kind: "create" }, settings);
   // 创建订阅与首期扣费记录（mode=initial）必须落在同一 D1 batch，保证事实行原子生成。
@@ -95,7 +95,8 @@ export async function updateSubscription(request: Request, env: Env, id: string)
   const factStatement = env.DB.prepare(`
     UPDATE subscriptions SET
       name = ?, logo = ?, price = ?, currency = ?, billing_cycle = ?, custom_days = ?, custom_cycle_unit = ?,
-      one_time_term_count = ?, one_time_term_unit = ?, usage_unit = ?, usage_total = ?, usage_daily_rate = ?, category = ?, status = ?,
+      one_time_term_count = ?, one_time_term_unit = ?, usage_unit = ?, usage_total = ?, usage_daily_rate = ?, usage_expires_at = ?,
+      category = ?, status = ?,
       pinned = ?, public_hidden = ?, payment_method = ?, start_date = ?, next_billing_date = ?, auto_renew = ?, auto_calculate_next_billing_date = ?,
       trial_end_date = ?, website = ?, notes = ?, tags_json = ?, reminder_days = ?, repeat_reminder_enabled = ?,
       repeat_reminder_interval = ?, repeat_reminder_window = ?, cost_sharing_json = ?,
@@ -114,6 +115,7 @@ export async function updateSubscription(request: Request, env: Env, id: string)
     merged.usage_unit,
     merged.usage_total,
     merged.usage_daily_rate,
+    merged.usage_expires_at,
     merged.category,
     merged.status,
     merged.pinned,
@@ -175,7 +177,7 @@ export async function renewSubscription(request: Request, env: Env, id: string):
   const factStatement = env.DB.prepare(`
     UPDATE subscriptions SET
       price = ?, currency = ?, start_date = ?, next_billing_date = ?, auto_calculate_next_billing_date = ?,
-      usage_total = ?, usage_daily_rate = ?,
+      usage_total = ?, usage_daily_rate = ?, usage_expires_at = ?,
       cost_sharing_collection_reminder_enabled = ?, cost_sharing_next_collection_reminder_date = ?, status = ?, updated_at = ?
     WHERE user_id = ? AND id = ?
   `).bind(
@@ -186,6 +188,7 @@ export async function renewSubscription(request: Request, env: Env, id: string):
     merged.auto_calculate_next_billing_date,
     merged.usage_total,
     merged.usage_daily_rate,
+    merged.usage_expires_at,
     merged.cost_sharing_collection_reminder_enabled,
     merged.cost_sharing_next_collection_reminder_date,
     merged.status,
@@ -229,8 +232,16 @@ function renewSubscriptionRow(
       ? body.autoCalculateNextBillingDate
       : existingBody.autoCalculateNextBillingDate,
     // usage-based 续费即购买新量包：restart 允许同步调整总量与日均消耗，continue 保持原值由耗尽日算法重推。
-    usageTotal: body.mode === "restart" ? body.usageTotal ?? existingBody.usageTotal : existingBody.usageTotal,
+    // 结转余量吸收进订阅行持有总量（与 Go 一致：只在购买量与余量同时提供时相加）；失效日显式传入（null 表示清空）。
+    usageTotal: body.mode === "restart"
+      ? body.usageTotal != null
+        ? body.usageRemainingBefore != null
+          ? body.usageTotal + body.usageRemainingBefore
+          : body.usageTotal
+        : existingBody.usageTotal
+      : existingBody.usageTotal,
     usageDailyRate: body.mode === "restart" ? body.usageDailyRate ?? existingBody.usageDailyRate : existingBody.usageDailyRate,
+    usageExpiresAt: body.mode === "restart" && body.usageExpiresAt !== undefined ? body.usageExpiresAt : existingBody.usageExpiresAt,
     status: body.mode === "restart" && existing.status === "expired" ? "active" : continueResult.status,
   }, locale);
   return toSubscriptionRow(existing.id, existing.user_id, mergedBody, existing.created_at, timestamp, { settings, referenceDate });
@@ -252,6 +263,7 @@ export function normalizeSubscriptionBodyForStorage(body: unknown): Subscription
       usageUnit: null,
       usageTotal: null,
       usageDailyRate: null,
+      usageExpiresAt: null,
     };
   }
   if (parsed.billingCycle === "one-time") {
@@ -265,6 +277,7 @@ export function normalizeSubscriptionBodyForStorage(body: unknown): Subscription
       usageUnit: null,
       usageTotal: null,
       usageDailyRate: null,
+      usageExpiresAt: null,
       autoRenew: false,
       autoCalculateNextBillingDate: false,
     };
@@ -283,6 +296,7 @@ export function normalizeSubscriptionBodyForStorage(body: unknown): Subscription
       usageUnit: parsed.usageUnit,
       usageTotal: parsed.usageTotal,
       usageDailyRate: parsed.usageDailyRate,
+      usageExpiresAt: parsed.usageExpiresAt ?? null,
       // 量包耗尽必须由用户购买新包推进；autoRenew 无意义，强制关闭。
       autoRenew: false,
     };
@@ -296,6 +310,7 @@ export function normalizeSubscriptionBodyForStorage(body: unknown): Subscription
     usageUnit: null,
     usageTotal: null,
     usageDailyRate: null,
+    usageExpiresAt: null,
   };
 }
 
@@ -327,6 +342,7 @@ function toBody(row: SubscriptionRow): SubscriptionBody {
     usageUnit: row.usage_unit,
     usageTotal: row.usage_total,
     usageDailyRate: row.usage_daily_rate,
+    usageExpiresAt: row.usage_expires_at,
     category: row.category,
     status: row.status as SubscriptionBody["status"],
     pinned: row.pinned === 1,
@@ -379,6 +395,7 @@ export function toSubscriptionRow(
     usage_unit: body.billingCycle === "usage-based" ? body.usageUnit ?? null : null,
     usage_total: body.billingCycle === "usage-based" ? body.usageTotal ?? null : null,
     usage_daily_rate: body.billingCycle === "usage-based" ? body.usageDailyRate ?? null : null,
+    usage_expires_at: body.billingCycle === "usage-based" ? body.usageExpiresAt ?? null : null,
     category: body.category,
     status: body.status,
     pinned: boolToInt(body.pinned),

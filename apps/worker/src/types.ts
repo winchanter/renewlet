@@ -166,6 +166,8 @@ export interface SubscriptionRow {
   usage_unit: string | null;
   usage_total: number | null;
   usage_daily_rate: number | null;
+  // 量包失效日（可空）：设置后到期边界取 min(耗尽日, 失效日)；非 usage-based 行必须为 null。
+  usage_expires_at: string | null;
   category: string;
   status: string;
   pinned: number;
@@ -210,6 +212,9 @@ export interface BillingRecordRow {
   usage_unit: string | null;
   usage_total: number | null;
   usage_daily_rate: number | null;
+  // usage-based 快照专用：结转余量（0 = 无结转）与随包失效日（"" = 未设置）；其余周期写入边界强制清空。
+  usage_remaining_before: number;
+  usage_expires_at: string;
   mode: string;
   // JSON 字符串，存储续订凭证 asset ID 数组；旧记录无此列时 D1 返回 undefined，出站时收敛为 []。
   receipt_asset_ids: string | null;
@@ -232,6 +237,7 @@ export type SubscriptionCollectionRow = Pick<SubscriptionRow,
   | "usage_unit"
   | "usage_total"
   | "usage_daily_rate"
+  | "usage_expires_at"
   | "category"
   | "status"
   | "pinned"

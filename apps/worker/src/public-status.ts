@@ -91,12 +91,15 @@ export async function readPublicStatus(request: Request, env: Env, token: string
     page: {
       title: "Renewo",
       showPrices,
+      // vault 仅 Go/Docker 面提供；Worker 公开页不携带账号访问区块。
+      vaultEnabled: false,
       ...(showPrices ? { currency: effectivePublicStatusCurrency(settings) } : {}),
       ...(showPrices ? { exchangeRateBasis: await getExchangeRatePublicBasis(env, page.user_id) } : {}),
       generatedAt: nowIso(),
       truncated,
     },
     subscriptions: rows.map((row) => publicStatusSubscription(row, request, page, resolver, today)),
+    vault: { enabled: false, subscriptions: [] },
   });
   return successJson(response, { headers: publicStatusHeaders() });
 }
@@ -214,6 +217,12 @@ function publicStatusPriceProjection(subscription: ReturnType<typeof toApiSubscr
       oneTimeTermCount: subscription.oneTimeTermCount,
       oneTimeTermUnit: subscription.oneTimeTermUnit,
     } : {}),
+    ...(subscription.billingCycle === "usage-based" ? {
+      // 公开页只投影月均摊销所需字段；量包单位不在公开 allowlist。失效日参与 min(耗尽, 失效) 摊销口径。
+      usageTotal: subscription.usageTotal,
+      usageDailyRate: subscription.usageDailyRate,
+      ...(subscription.usageExpiresAt ? { usageExpiresAt: subscription.usageExpiresAt } : {}),
+    } : {}),
   };
 }
 
@@ -297,12 +306,14 @@ function localizedConfigLabel(labels: ApiCustomConfig["categories"][number]["lab
 }
 
 function publicStatusPageStatus(row: PublicStatusPageRow | null, request: Request) {
-  if (!row) return { enabled: false, showPrices: false };
+  // vault 账号访问仅 Go/Docker 面实现；Worker 部署恒为关闭，与 shared schema 的 required boolean 对齐。
+  if (!row) return { enabled: false, showPrices: false, vaultEnabled: false };
   return {
     enabled: true,
     createdAt: row.created_at,
     pageUrl: publicStatusPageUrl(request, row.token),
     showPrices: intToBool(row.show_prices),
+    vaultEnabled: false,
     updatedAt: row.updated_at,
   };
 }

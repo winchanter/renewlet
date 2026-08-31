@@ -289,6 +289,8 @@ func ensureSubscriptionsCollection(app core.App, users *core.Collection) error {
 			&core.TextField{Name: "usageUnit", Max: 20},
 			&core.NumberField{Name: "usageTotal", Min: &minZero, Max: &maxUsage},
 			&core.NumberField{Name: "usageDailyRate", Min: &minZero, Max: &maxUsage},
+			// 量包失效日（可空）：设置后到期边界取 min(耗尽日, 失效日)，与 shared usageExpiresAtSchema 对齐。
+			&core.TextField{Name: "usageExpiresAt", Max: 10, Pattern: `^$|^\d{4}-\d{2}-\d{2}$`},
 			&core.TextField{Name: "category", Required: true, Max: 80},
 			&core.SelectField{Name: "status", Required: true, Values: []string{"trial", "active", "expired", "paused", "cancelled"}},
 			&core.BoolField{Name: "pinned"},
@@ -405,6 +407,7 @@ func ensureSubscriptionBillingRecordsCollection(app core.App, users *core.Collec
 		c.DeleteRule = nil
 		minZero := 0.0
 		maxTermCount := float64(maxReminderDays)
+		maxUsage := float64(maxSubscriptionPrice)
 		fields := []core.Field{
 			// user_id 级联删除跟随用户清理；subscription_id 用普通文本保留历史：
 			// name 是订阅删除后的展示兜底，记录必须在订阅被删除后继续存在。
@@ -423,6 +426,9 @@ func ensureSubscriptionBillingRecordsCollection(app core.App, users *core.Collec
 			&core.TextField{Name: "usage_unit", Max: 20},
 			&core.NumberField{Name: "usage_total", Min: &minZero},
 			&core.NumberField{Name: "usage_daily_rate", Min: &minZero},
+			// usage-based 扣费记录快照：本次购买量与结转余量分离存储，失效日随包快照。
+			&core.NumberField{Name: "usage_remaining_before", Min: &minZero, Max: &maxUsage},
+			&core.TextField{Name: "usage_expires_at", Max: 10, Pattern: `^$|^\d{4}-\d{2}-\d{2}$`},
 			&core.SelectField{Name: "mode", Required: true, Values: []string{"initial", "auto", "manual_continue", "manual_restart"}},
 			// 续订凭证（截图/发票）的 asset ID JSON 数组；可选，上限由 shared schema 约束。
 			&core.JSONField{Name: "receipt_asset_ids", MaxSize: 2048},

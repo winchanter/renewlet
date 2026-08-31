@@ -59,9 +59,22 @@ describe("apiBillingRecordSchema", () => {
     expect(apiBillingRecordSchema.parse(record)).toBeTruthy();
   });
 
-  it("拒绝周期字段组合矛盾（monthly 带量包字段）", () => {
-    const record = recurringRecord({ usageTotal: 500 });
-    expect(() => apiBillingRecordSchema.parse(record)).toThrow();
+  it("接受 usage-based 结转余量与失效日快照", () => {
+    const record = recurringRecord({
+      billingCycle: "usage-based",
+      periodEndDate: "2026-12-01",
+      usageUnit: "GB",
+      usageTotal: 500,
+      usageDailyRate: 2,
+      usageRemainingBefore: 80,
+      usageExpiresAt: "2026-11-15",
+    });
+    expect(apiBillingRecordSchema.parse(record)).toBeTruthy();
+  });
+
+  it("拒绝周期字段组合矛盾（monthly 带结转余量或失效日）", () => {
+    expect(() => apiBillingRecordSchema.parse(recurringRecord({ usageRemainingBefore: 10 }))).toThrow();
+    expect(() => apiBillingRecordSchema.parse(recurringRecord({ usageExpiresAt: "2026-12-01" }))).toThrow();
   });
 
   it("拒绝 custom 周期缺失数量或单位", () => {
@@ -105,6 +118,9 @@ describe("billingRecordPatchTouchesPeriod", () => {
     expect(billingRecordPatchTouchesPeriod({ billingDate: "2026-09-02" })).toBe(true);
     expect(billingRecordPatchTouchesPeriod({ billingCycle: "annual" })).toBe(true);
     expect(billingRecordPatchTouchesPeriod({ usageTotal: 300 })).toBe(true);
+    expect(billingRecordPatchTouchesPeriod({ usageRemainingBefore: 20 })).toBe(true);
+    expect(billingRecordPatchTouchesPeriod({ usageExpiresAt: "2026-12-01" })).toBe(true);
+    expect(billingRecordPatchTouchesPeriod({ usageExpiresAt: null })).toBe(true);
   });
 });
 
@@ -123,6 +139,27 @@ describe("computeBillingRecordPeriodEnd", () => {
       usageTotal: 100,
       usageDailyRate: 2,
     })).toBe("2026-10-21");
+  });
+
+  it("量包重算把结转余量计入持有量", () => {
+    // 持有量 = 100 + 40 = 140 → ceil(140/2) = 70 天：2026-09-01 + 70 天 = 2026-11-10。
+    expect(computeBillingRecordPeriodEnd({
+      billingDate: "2026-09-01",
+      billingCycle: "usage-based",
+      usageTotal: 100,
+      usageDailyRate: 2,
+      usageRemainingBefore: 40,
+    })).toBe("2026-11-10");
+  });
+
+  it("量包重算在失效日更近时取失效日", () => {
+    expect(computeBillingRecordPeriodEnd({
+      billingDate: "2026-09-01",
+      billingCycle: "usage-based",
+      usageTotal: 100,
+      usageDailyRate: 2,
+      usageExpiresAt: "2026-09-15",
+    })).toBe("2026-09-15");
   });
 
   it("one-time 买断没有到期日", () => {

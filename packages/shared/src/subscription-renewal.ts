@@ -189,6 +189,44 @@ export function calculateUsageExhaustionDate(
 }
 
 /**
+ * 量包到期边界 = min(预计耗尽日, 失效日)。
+ *
+ * 失效日为空或非法时退化为纯耗尽推算；失效日更近时以失效日作为提醒与过期判定边界。
+ */
+export function calculateUsageBoundaryDate(
+  startDate: string,
+  usageTotal: number,
+  usageDailyRate: number,
+  usageExpiresAt?: string | null | undefined,
+): DateOnly {
+  const exhaustion = calculateUsageExhaustionDate(startDate, usageTotal, usageDailyRate);
+  if (!usageExpiresAt || !isValidDateOnly(usageExpiresAt)) return exhaustion;
+  const expires = assertDateOnly(usageExpiresAt);
+  return compareDateOnly(expires, exhaustion) < 0 ? expires : exhaustion;
+}
+
+/**
+ * 量包摊销天数 = min(预估可用天数, 失效前可用天数)。
+ *
+ * 摊销口径与到期边界一致：失效日早于耗尽日时（如 30 天有效期没用完就作废），
+ * 总价按更短的实际持有期摊入月均。失效日或购买日缺失时退化为纯耗尽推算。
+ */
+export function usageBasedAmortizationDays(
+  usageTotal: number | null | undefined,
+  usageDailyRate: number | null | undefined,
+  startDate?: string | null | undefined,
+  usageExpiresAt?: string | null | undefined,
+): number {
+  const estimatedDays = usageBasedEstimatedDays(usageTotal, usageDailyRate);
+  if (!startDate || !isValidDateOnly(startDate) || !usageExpiresAt || !isValidDateOnly(usageExpiresAt)) {
+    return estimatedDays;
+  }
+  const termDays = toPlainDate(startDate).until(toPlainDate(usageExpiresAt), { largestUnit: "day" }).days;
+  // 失效日早于购买日属于脏数据（写入边界已拒绝）；这里钳制为 1 天避免摊销除零或负数。
+  return Math.min(estimatedDays, Math.max(1, termDays));
+}
+
+/**
  * 将一个 date-only 按账单周期前进 N 期。
  *
  * 使用 Temporal 是为了让月末夹取语义稳定，例如 1 月 31 日按月推进到 2 月最后一天。

@@ -107,6 +107,7 @@ function subscriptionRow(overrides: Partial<SubscriptionRow> = {}): Subscription
     usage_unit: null,
     usage_total: null,
     usage_daily_rate: null,
+    usage_expires_at: null,
     category: "productivity",
     status: "expired",
     pinned: 0,
@@ -168,7 +169,7 @@ describe("Cloudflare subscription renewal route", () => {
     // usage 量包字段在续订（购买新包）时保持清空，直到用户显式写入新的量包数据。
     expect(fixture.updateParams?.[5]).toBeNull();
     expect(fixture.updateParams?.[6]).toBeNull();
-    expect(fixture.updateParams?.[9]).toBe("active");
+    expect(fixture.updateParams?.[10]).toBe("active");
     expect(json.subscription).toMatchObject({
       autoRenew: false,
       price: "15.5",

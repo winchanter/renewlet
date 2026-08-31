@@ -588,6 +588,9 @@ function RedeemResultView({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  // 复制兜底（execCommand）的选区落在弹窗内展示元素上，避免 Radix FocusScope 抢焦点导致复制失败。
+  const usernameRef = useRef<HTMLDivElement | null>(null);
+  const passwordRef = useRef<HTMLDivElement | null>(null);
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
@@ -595,16 +598,16 @@ function RedeemResultView({
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2">
           <div>
             <div className="text-xs text-muted-foreground">{t("vault.form.usernameLabel")}</div>
-            <div className="font-mono text-sm break-all">{result.username || "—"}</div>
+            <div ref={usernameRef} tabIndex={-1} className="font-mono text-sm break-all">{result.username || "—"}</div>
           </div>
-          <CopyField value={result.username} />
+          <CopyField value={result.username} targetRef={usernameRef} />
         </div>
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2">
           <div>
             <div className="text-xs text-muted-foreground">{t("vault.form.passwordLabel")}</div>
-            <div className="font-mono text-sm break-all">{result.password || "—"}</div>
+            <div ref={passwordRef} tabIndex={-1} className="font-mono text-sm break-all">{result.password || "—"}</div>
           </div>
-          <CopyField value={result.password} onCopied={() => toast.success(t("vault.codes.redeem.passwordCopied"))} />
+          <CopyField value={result.password} targetRef={passwordRef} onCopied={() => toast.success(t("vault.codes.redeem.passwordCopied"))} />
         </div>
         {result.url ? (
           <div className="rounded-md border border-border bg-card px-3 py-2">
@@ -633,7 +636,15 @@ function RedeemResultView({
   );
 }
 
-function CopyField({ value, onCopied }: { value: string; onCopied?: () => void }) {
+function CopyField({
+  value,
+  targetRef,
+  onCopied,
+}: {
+  value: string;
+  targetRef?: { current: HTMLElement | null };
+  onCopied?: () => void;
+}) {
   const { t } = useI18n();
   return (
     <Button
@@ -641,7 +652,7 @@ function CopyField({ value, onCopied }: { value: string; onCopied?: () => void }
       variant="ghost"
       disabled={!value}
       onClick={async () => {
-        const result = await copyTextToClipboard(value);
+        const result = await copyTextToClipboard(value, { target: targetRef?.current ?? null });
         if (result.ok) {
           if (onCopied) onCopied();
           else toast.success(t("vault.card.copied"));

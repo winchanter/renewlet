@@ -1,6 +1,8 @@
 services:
   web:
     # 本地源码构建入口：适合开发者验证 Dockerfile；正式部署建议使用 deploy/docker-compose.yml 的固定镜像。
+    # 构建产物统一打 renewo 品牌标签；发布时另打 renewo:<版本号> 固定标签用于回滚。
+    image: renewo:latest
     build:
       context: .
       dockerfile: Dockerfile

@@ -16,6 +16,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { Header } from '@/components/header';
 import { BackToTopFloatButton } from '@/components/back-to-top-float-button';
 import { SubscriptionGrid } from '@/components/subscription-grid';
+import { SubscriptionGroupedView } from '@/components/subscription-grouped-view';
+import { SubscriptionGroupManageDialog } from '@/components/subscription-group-manage-dialog';
 import { SubscriptionDetailDialog } from '@/components/subscription-detail-dialog';
 import { AddToCalendarDialog } from '@/components/add-to-calendar-dialog';
 import { subscriptionFilterLayout } from '@/components/subscription-filter-layout';
@@ -42,7 +44,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Subscription, SubscriptionCollectionItem, SubscriptionStatus } from '@/types/subscription';
 import { BILLING_CYCLES, CYCLE_LABELS, DEFAULT_NOTIFICATION_REMINDER_DAYS, DEFAULT_SETTINGS } from '@/types/subscription';
-import { Search, Plus, Grid, List as ListIcon, Download, Upload, Sparkles } from 'lucide-react';
+import { Search, Plus, Grid, List as ListIcon, Download, Upload, Sparkles, Layers, FolderCog } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -55,6 +57,7 @@ import {
   useSubscriptionFacets,
   useSubscriptionIndex,
 } from '@/hooks/use-subscriptions';
+import { useSubscriptionGroups } from '@/hooks/use-subscription-groups';
 import { useCustomConfigState } from '@/contexts/CustomConfigContext';
 import { useSettingsEnvelope } from '@/hooks/use-settings';
 import { useSubscriptionCrud } from '@/modules/subscriptions/application/use-subscription-crud';
@@ -133,6 +136,8 @@ const Subscriptions = () => {
   const { convert, loading: ratesLoading, sourceDate: ratesSourceDate } = useExchangeRates(exchangeRateProvider);
   const currencyRatesReady = Boolean(ratesSourceDate) && !ratesLoading;
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [groupedView, setGroupedView] = useState(false);
+  const [groupManageOpen, setGroupManageOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [aiRecognitionDialogOpen, setAIRecognitionDialogOpen] = useState(false);
   const isMobileTagFilter = useMediaQuery("(max-width: 767px)");
@@ -172,6 +177,9 @@ const Subscriptions = () => {
   const indexQuery = useSubscriptionIndex(subscriptionListFilters, hasActiveControls);
   const indexedSubscriptions = indexQuery.data?.subscriptions ?? EMPTY_SUBSCRIPTIONS;
   const displaySourceSubscriptions = hasActiveControls ? indexedSubscriptions : subscriptions;
+  // 订阅组在分组视图或管理弹窗开启时拉取；平铺视图不需要组数据。
+  const groupsQuery = useSubscriptionGroups(groupedView || groupManageOpen);
+  const subscriptionGroups = groupsQuery.groups;
   // index 已经是全库筛选真相源；客户端只应用用户选择的排序，不再读取轻量 DTO 中不存在的详情字段。
   const filteredSubscriptions = useMemo(
     () => hasActiveControls ? sortSubscriptionsForDisplay(displaySourceSubscriptions) : localFilteredSubscriptions,
@@ -349,6 +357,39 @@ const Subscriptions = () => {
             >
               {viewMode === 'grid' ? <ListIcon className="h-4 w-4" /> : <Grid className="h-4 w-4" />}
             </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setGroupedView((prev) => !prev)}
+                  className={cn("border-border", groupedView && "bg-primary/10 text-primary")}
+                  aria-label={t("subscriptions.groupedView")}
+                  aria-pressed={groupedView}
+                >
+                  <Layers className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end" className="text-xs">
+                {t("subscriptions.groupedView")}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setGroupManageOpen(true)}
+                  className="border-border"
+                  aria-label={t("subscriptions.grouped.manageGroups")}
+                >
+                  <FolderCog className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end" className="text-xs">
+                {t("subscriptions.grouped.manageGroups")}
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
@@ -608,27 +649,53 @@ const Subscriptions = () => {
           </div>
         ) : (
           <>
-            <SubscriptionGrid
-              subscriptions={filteredSubscriptions}
-              viewMode={viewMode}
-              timeZone={timeZone}
-              inheritedReminderDays={inheritedReminderDays}
-              currencyConvert={convert}
-              currencyRatesReady={currencyRatesReady}
-              priceReferenceCurrency={priceReferenceCurrency}
-              categoryByValue={categoryByValue}
-              paymentMethodByValue={paymentMethodByValue}
-              onEdit={handleEditSubscription}
-              onDelete={handleDeleteSubscription}
-              onClone={handleCloneSubscription}
-              onTogglePinned={handleTogglePinnedSubscription}
-              onTogglePublicHidden={handleTogglePublicHiddenSubscription}
-              onRenew={handleRenewSubscription}
-              onViewBillingRecords={showBillingRecords}
-              onViewDetails={handleViewDetails}
-              onAddToCalendar={calendarDialog.show}
-              onPrefetchDetails={handlePrefetchSubscription}
-            />
+            {groupedView && subscriptionGroups.length > 0 ? (
+              <SubscriptionGroupedView
+                subscriptions={filteredSubscriptions}
+                groups={subscriptionGroups}
+                viewMode={viewMode}
+                timeZone={timeZone}
+                inheritedReminderDays={inheritedReminderDays}
+                currencyConvert={convert}
+                currencyRatesReady={currencyRatesReady}
+                priceReferenceCurrency={priceReferenceCurrency}
+                defaultCurrency={defaultCurrency}
+                categoryByValue={categoryByValue}
+                paymentMethodByValue={paymentMethodByValue}
+                onEdit={handleEditSubscription}
+                onDelete={handleDeleteSubscription}
+                onClone={handleCloneSubscription}
+                onTogglePinned={handleTogglePinnedSubscription}
+                onTogglePublicHidden={handleTogglePublicHiddenSubscription}
+                onRenew={handleRenewSubscription}
+                onViewBillingRecords={showBillingRecords}
+                onViewDetails={handleViewDetails}
+                onAddToCalendar={calendarDialog.show}
+                onPrefetchDetails={handlePrefetchSubscription}
+              />
+            ) : (
+              <SubscriptionGrid
+                subscriptions={filteredSubscriptions}
+                viewMode={viewMode}
+                timeZone={timeZone}
+                inheritedReminderDays={inheritedReminderDays}
+                currencyConvert={convert}
+                currencyRatesReady={currencyRatesReady}
+                priceReferenceCurrency={priceReferenceCurrency}
+                categoryByValue={categoryByValue}
+                paymentMethodByValue={paymentMethodByValue}
+                onEdit={handleEditSubscription}
+                onDelete={handleDeleteSubscription}
+                onClone={handleCloneSubscription}
+                onTogglePinned={handleTogglePinnedSubscription}
+                onTogglePublicHidden={handleTogglePublicHiddenSubscription}
+                onRenew={handleRenewSubscription}
+                onViewBillingRecords={showBillingRecords}
+                onViewDetails={handleViewDetails}
+                onAddToCalendar={calendarDialog.show}
+                onPrefetchDetails={handlePrefetchSubscription}
+              />
+            )}
             {!hasActiveControls && subscriptionsQuery.hasNextPage && (
               <div className="mt-6 flex justify-center [overflow-anchor:none]" data-testid="subscriptions-load-more-row">
                 <Button
@@ -719,6 +786,10 @@ const Subscriptions = () => {
         apiKeyConfigured={settingsQuery.data?.secretStatus["aiRecognition.apiKey"].configured ?? false}
         config={config}
         availableTags={allTags}
+      />
+      <SubscriptionGroupManageDialog
+        open={groupManageOpen}
+        onOpenChange={setGroupManageOpen}
       />
     </div>
   );

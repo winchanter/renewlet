@@ -23,13 +23,15 @@ export interface VaultCredentialCardProps {
   credential: VaultCredential;
   /** 关联订阅名；未关联时为 null。 */
   subscriptionName: string | null;
+  /** 关联组名；未关联组时为 null。与 subscriptionName 互斥展示。 */
+  groupName: string | null;
   onEdit: (credential: VaultCredential) => void;
   onDelete: (credential: VaultCredential) => void;
   /** 打开「生成授权码」弹窗（绑定账号锁定为本卡片账号）；未提供时不渲染入口。 */
   onGenerateCode?: ((credential: VaultCredential) => void) | undefined;
 }
 
-export function VaultCredentialCard({ credential, subscriptionName, onEdit, onDelete, onGenerateCode }: VaultCredentialCardProps) {
+export function VaultCredentialCard({ credential, subscriptionName, groupName, onEdit, onDelete, onGenerateCode }: VaultCredentialCardProps) {
   const { t } = useI18n();
   const revealMutation = useRevealVaultCredentialPassword();
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
@@ -93,6 +95,11 @@ export function VaultCredentialCard({ credential, subscriptionName, onEdit, onDe
             {subscriptionName ? (
               <Badge variant="secondary" className="max-w-full truncate">
                 {subscriptionName}
+              </Badge>
+            ) : null}
+            {groupName ? (
+              <Badge variant="secondary" className="max-w-full truncate bg-primary/10 text-primary">
+                {t("vault.card.linkedToGroup")}：{groupName}
               </Badge>
             ) : null}
             {credential.url ? (

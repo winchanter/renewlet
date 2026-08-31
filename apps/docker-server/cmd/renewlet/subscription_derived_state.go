@@ -68,7 +68,8 @@ var subscriptionDerivedTableColumns = map[string][]string{
 	"subscription_list_index": {
 		"subscription_id", "user_id", "name", "website", "notes", "search_text_lower", "category", "billing_cycle",
 		"currency", "payment_method", "status", "pinned", "public_hidden", "next_billing_date", "trial_end_date",
-		"one_time_term_count", "auto_renew", "reminder_days", "repeat_reminder_enabled", "created_at", "updated_at",
+		"one_time_term_count", "auto_renew", "reminder_days", "repeat_reminder_enabled", "group_id",
+		"created_at", "updated_at",
 	},
 	"subscription_tags": {
 		"user_id", "subscription_id", "tag_norm", "tag", "created_at", "updated_at",
@@ -92,6 +93,7 @@ var subscriptionDerivedIndexColumns = map[string][]string{
 	"idx_subscription_list_index_user_public_hidden_order":  {"user_id", "public_hidden", "-created_at", "-subscription_id"},
 	"idx_subscription_list_index_user_reminder_order":       {"user_id", "reminder_days", "-created_at", "-subscription_id"},
 	"idx_subscription_list_index_user_repeat_order":         {"user_id", "repeat_reminder_enabled", "-created_at", "-subscription_id"},
+	"idx_subscription_list_index_user_group_order":          {"user_id", "group_id", "-created_at", "-subscription_id"},
 	"idx_subscription_tags_user_tag_order":                  {"user_id", "tag_norm", "-created_at", "-subscription_id"},
 	"idx_subscription_tags_user_updated":                    {"user_id", "-updated_at", "tag_norm"},
 	"idx_subscription_repeat_schedule_due":                  {"user_id", "next_due_at_utc", "subscription_id"},
@@ -247,6 +249,7 @@ func createSubscriptionDerivedTables(app core.App) error {
 			auto_renew INTEGER NOT NULL DEFAULT 0,
 			reminder_days INTEGER NOT NULL DEFAULT -1,
 			repeat_reminder_enabled INTEGER NOT NULL DEFAULT 0,
+			group_id TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL DEFAULT '',
 			updated_at TEXT NOT NULL DEFAULT ''
 		)`,
@@ -259,6 +262,7 @@ func createSubscriptionDerivedTables(app core.App) error {
 		`CREATE INDEX IF NOT EXISTS idx_subscription_list_index_user_public_hidden_order ON subscription_list_index (user_id, public_hidden, created_at DESC, subscription_id DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_subscription_list_index_user_reminder_order ON subscription_list_index (user_id, reminder_days, created_at DESC, subscription_id DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_subscription_list_index_user_repeat_order ON subscription_list_index (user_id, repeat_reminder_enabled, created_at DESC, subscription_id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_subscription_list_index_user_group_order ON subscription_list_index (user_id, group_id, created_at DESC, subscription_id DESC)`,
 		`CREATE TABLE IF NOT EXISTS subscription_tags (
 			user_id TEXT NOT NULL,
 			subscription_id TEXT NOT NULL,
@@ -442,25 +446,27 @@ func upsertSubscriptionListProjection(app core.App, record *core.Record) error {
 	_, err := app.DB().NewQuery(`INSERT INTO subscription_list_index (
 		subscription_id, user_id, name, website, notes, search_text_lower, category, billing_cycle, currency,
 		payment_method, status, pinned, public_hidden, next_billing_date, trial_end_date, one_time_term_count,
-		auto_renew, reminder_days, repeat_reminder_enabled, created_at, updated_at
+		auto_renew, reminder_days, repeat_reminder_enabled, group_id, created_at, updated_at
 	) VALUES (
 		{:id}, {:user}, {:name}, {:website}, {:notes}, {:search}, {:category}, {:billingCycle}, {:currency},
 		{:paymentMethod}, {:status}, {:pinned}, {:publicHidden}, {:nextBillingDate}, {:trialEndDate}, {:oneTimeTermCount},
-		{:autoRenew}, {:reminderDays}, {:repeatReminderEnabled}, {:createdAt}, {:updatedAt}
+		{:autoRenew}, {:reminderDays}, {:repeatReminderEnabled}, {:groupId}, {:createdAt}, {:updatedAt}
 	) ON CONFLICT(subscription_id) DO UPDATE SET
 		user_id = excluded.user_id, name = excluded.name, website = excluded.website, notes = excluded.notes,
 		search_text_lower = excluded.search_text_lower, category = excluded.category, billing_cycle = excluded.billing_cycle,
 		currency = excluded.currency, payment_method = excluded.payment_method, status = excluded.status, pinned = excluded.pinned,
 		public_hidden = excluded.public_hidden, next_billing_date = excluded.next_billing_date, trial_end_date = excluded.trial_end_date,
 		one_time_term_count = excluded.one_time_term_count, auto_renew = excluded.auto_renew, reminder_days = excluded.reminder_days,
-		repeat_reminder_enabled = excluded.repeat_reminder_enabled, created_at = excluded.created_at, updated_at = excluded.updated_at`).Bind(dbx.Params{
+		repeat_reminder_enabled = excluded.repeat_reminder_enabled, group_id = excluded.group_id,
+		created_at = excluded.created_at, updated_at = excluded.updated_at`).Bind(dbx.Params{
 		"id": record.Id, "user": record.GetString("user"), "name": record.GetString("name"), "website": record.GetString("website"),
 		"notes": record.GetString("notes"), "search": subscriptionSearchTextLower(record, tags), "category": record.GetString("category"),
 		"billingCycle": record.GetString("billingCycle"), "currency": record.GetString("currency"), "paymentMethod": record.GetString("paymentMethod"),
 		"status": record.GetString("status"), "pinned": boolToSQLiteInt(record.GetBool("pinned")), "publicHidden": boolToSQLiteInt(record.GetBool("publicHidden")),
 		"nextBillingDate": record.GetString("nextBillingDate"), "trialEndDate": record.GetString("trialEndDate"), "oneTimeTermCount": record.GetInt("oneTimeTermCount"),
 		"autoRenew": boolToSQLiteInt(record.GetBool("autoRenew")), "reminderDays": record.GetInt("reminderDays"),
-		"repeatReminderEnabled": boolToSQLiteInt(record.GetBool("repeatReminderEnabled")), "createdAt": projectionRecordTimeString(record, "created"),
+		"repeatReminderEnabled": boolToSQLiteInt(record.GetBool("repeatReminderEnabled")), "groupId": record.GetString("group"),
+		"createdAt": projectionRecordTimeString(record, "created"),
 		"updatedAt": projectionRecordTimeString(record, "updated"),
 	}).Execute()
 	return err

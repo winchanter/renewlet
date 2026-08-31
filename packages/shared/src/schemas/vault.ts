@@ -14,6 +14,8 @@ import { okResponseSchema } from "./common";
 export const vaultCredentialSchema = z.object({
   id: z.string().trim().min(1),
   subscriptionId: z.string(),
+  // 组级共享账号时返回组 ID；空串表示未绑定组。
+  groupId: z.string(),
   title: z.string().trim().min(1).max(120),
   url: z.string().max(2048),
   username: z.string().max(200),
@@ -46,6 +48,8 @@ export type VaultCredentialRevealPayload = z.infer<typeof vaultCredentialRevealP
 /** 创建请求：缺省字段落空值；password 只在创建时允许非空明文。 */
 export const vaultCredentialCreateRequestSchema = z.object({
   subscriptionId: z.string().trim().max(128).optional(),
+  // 组级共享账号：传入 groupId 绑定到组；与 subscriptionId 互斥（服务端校验）。
+  groupId: z.string().trim().max(128).optional(),
   title: z.string().trim().min(1).max(120),
   url: z.string().trim().max(2048).optional(),
   username: z.string().trim().max(200).optional(),
@@ -58,6 +62,8 @@ export type VaultCredentialCreateRequest = z.infer<typeof vaultCredentialCreateR
 /** 更新请求：null 清空，缺省保持不变，密码不 trim。 */
 export const vaultCredentialUpdateRequestSchema = z.object({
   subscriptionId: z.string().trim().max(128).nullable().optional(),
+  // 组级共享账号：null 清空组绑定；与 subscriptionId 互斥（服务端校验）。
+  groupId: z.string().trim().max(128).nullable().optional(),
   title: z.string().trim().min(1).max(120).nullable().optional(),
   url: z.string().trim().max(2048).nullable().optional(),
   username: z.string().trim().max(200).nullable().optional(),
@@ -133,6 +139,8 @@ export const vaultAccessCodeRedeemPayloadSchema = z.object({
   password: z.string().max(1024),
   credentialId: z.string().min(1),
   subscriptionId: z.string().max(128), // 冗余，独立账号可能为空
+  // 组级共享账号时返回组 ID；空串表示未绑定组。
+  groupId: z.string().max(128),
   title: z.string().max(120),
   url: z.string().max(2048),
   username: z.string().max(200),
@@ -160,7 +168,10 @@ export type VaultAccessRequestStatus = z.infer<typeof vaultAccessRequestStatusSc
 
 export const vaultAccessRequestSchema = z.object({
   id: z.string().trim().min(1),
-  subscriptionId: z.string().trim().min(1).max(128),
+  // 按组申请时为空串（组 ID 见 groupId）；空串合法，不能 min(1)。
+  subscriptionId: z.string().trim().max(128),
+  // 组级访问申请时返回组 ID；空串表示按订阅申请。
+  groupId: z.string().trim().max(128),
   publicStatusPageId: z.string().trim().min(1).max(128),
   note: z.string().max(500),
   status: vaultAccessRequestStatusSchema,
@@ -178,9 +189,10 @@ export const vaultAccessRequestsListPayloadSchema = z.object({
 export const vaultAccessRequestsListResponseSchema = apiSuccessResponseSchema(vaultAccessRequestsListPayloadSchema);
 export type VaultAccessRequestsListPayload = z.infer<typeof vaultAccessRequestsListPayloadSchema>;
 
-/** 公开页面发起访问申请。 */
+/** 公开页面发起访问申请。subscriptionId 与 groupId 二选一：前者按订阅、后者按组。 */
 export const vaultAccessRequestCreatePublicBodySchema = z.object({
-  subscriptionId: z.string().trim().min(1).max(128),
+  subscriptionId: z.string().trim().min(1).max(128).optional(),
+  groupId: z.string().trim().min(1).max(128).optional(),
   note: z.string().trim().max(500).optional(),
 }).strict();
 export type VaultAccessRequestCreatePublicBody = z.infer<typeof vaultAccessRequestCreatePublicBodySchema>;

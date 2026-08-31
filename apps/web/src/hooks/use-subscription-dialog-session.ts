@@ -216,7 +216,8 @@ function isCreateFormPristine(formData: SubscriptionFormState): boolean {
     formData.costSharing === baseline.costSharing &&
     formData.website === baseline.website &&
     formData.notes === baseline.notes &&
-    formData.tags.length === 0
+    formData.tags.length === 0 &&
+    formData.groupId === baseline.groupId
   );
 }
 
@@ -259,5 +260,6 @@ function subscriptionToFormState(subscription: Subscription): SubscriptionFormSt
     website: subscription.website ?? "",
     notes: subscription.notes ?? "",
     tags: subscription.tags,
+    groupId: subscription.groupId,
   };
 }

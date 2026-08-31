@@ -40,6 +40,8 @@ type subscriptionListQuery struct {
 	PublicHidden    *bool
 	ReminderMode    string
 	RepeatReminder  *bool
+	Groups          []string
+	Ungrouped       *bool
 }
 
 type subscriptionListPage struct {
@@ -140,13 +142,20 @@ func parseSubscriptionCollectionFilters(values url.Values, query subscriptionLis
 	if query.RepeatReminder, err = parseSubscriptionListBool(values, "repeatReminder"); err != nil {
 		return subscriptionListQuery{}, err
 	}
+	if query.Groups, err = parseSubscriptionListStrings(values["group"], 200, 128, nil); err != nil {
+		return subscriptionListQuery{}, err
+	}
+	if query.Ungrouped, err = parseSubscriptionListBool(values, "ungrouped"); err != nil {
+		return subscriptionListQuery{}, err
+	}
 	return query, nil
 }
 
 func isSubscriptionCollectionFilterKey(key string) bool {
 	switch key {
 	case "q", "category", "tag", "billingCycle", "paymentMethod", "currency", "status", "renewal",
-		"nextBillingFrom", "nextBillingTo", "pinned", "publicHidden", "reminderMode", "repeatReminder":
+		"nextBillingFrom", "nextBillingTo", "pinned", "publicHidden", "reminderMode", "repeatReminder",
+		"group", "ungrouped":
 		return true
 	default:
 		return false
@@ -258,6 +267,11 @@ func subscriptionProjectionBaseQuery(userID string, query subscriptionListQuery)
 	if query.RepeatReminder != nil {
 		base.conditions = append(base.conditions, "idx.repeat_reminder_enabled = {:repeatReminder}")
 		base.params["repeatReminder"] = boolToSQLiteInt(*query.RepeatReminder)
+	}
+	// 按组筛选：group_id IN (...) 匹配指定组；ungrouped=true 只看 group_id 为空的订阅。
+	appendSQLInCondition(&base, "idx.group_id", "group", query.Groups)
+	if query.Ungrouped != nil && *query.Ungrouped {
+		base.conditions = append(base.conditions, "idx.group_id = ''")
 	}
 	return base
 }

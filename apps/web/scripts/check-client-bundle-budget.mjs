@@ -29,8 +29,9 @@ const budgets = {
   // route Brotli 再上调 2 KB：订阅详情弹窗新增「关联账号」区块（vault service/hooks 轻量接线）。
   // route Brotli 再上调 2 KB：Vault P2 授权码/访问申请/审计日志 三块 UI + 订阅详情联动（vault P2 hooks/service 共享）。
   // route Brotli 再上调 2 KB：公开页新增「账号访问」区块（解锁/申请表单 + toast/搜索选择器共享 chunk 增量）。
+  // route gzip/brotli 再上调 5 KB/3 KB：订阅组功能（分组视图 + 管理组弹窗 + Radix Collapsible 原语）。
   startup: { gzip: 400000, brotli: 344000 },
-  route: { gzip: 400000, brotli: 351000 },
+  route: { gzip: 405000, brotli: 354000 },
 };
 const forbiddenStartupModules = [
   ["Recharts", (id) => id.includes("node_modules/recharts/")],

@@ -31,6 +31,8 @@ import {
   XSquare,
 } from "lucide-react";
 import { useDecideVaultAccessRequest, useRevealVaultAccessCodePlain, useVaultAccessRequests } from "@/hooks/use-vault-p2";
+import { useSubscriptionGroups } from "@/hooks/use-subscription-groups";
+import { useSubscriptionIndex } from "@/hooks/use-subscriptions";
 import { PlainCodeRevealDialog } from "@/components/vault/plain-code-reveal-dialog";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { MessageKey } from "@/i18n/messages";
@@ -52,6 +54,8 @@ export function AccessRequestsSection({ subscriptions, credentials }: AccessRequ
 
   const queryFilter = statusFilter === "pending" ? "pending" : "all";
   const requestsQuery = useVaultAccessRequests({ status: queryFilter });
+  const groupsQuery = useSubscriptionGroups();
+  const subscriptionsFullQuery = useSubscriptionIndex();
   const decideMutation = useDecideVaultAccessRequest();
   const revealPlainMutation = useRevealVaultAccessCodePlain();
   const [revealedCode, setRevealedCode] = useState<string | null>(null);
@@ -74,6 +78,16 @@ export function AccessRequestsSection({ subscriptions, credentials }: AccessRequ
   const pendingCount = useMemo(
     () => requests.filter((r) => r.status === "pending").length,
     [requests],
+  );
+
+  // 组名映射 + 订阅→组映射：按组申请的卡片标题，以及审核时圈定组共享账号候选。
+  const groupNameById = useMemo(
+    () => new Map(groupsQuery.groups.map((g) => [g.id, g.name])),
+    [groupsQuery.groups],
+  );
+  const subGroupById = useMemo(
+    () => new Map((subscriptionsFullQuery.data?.subscriptions ?? []).map((s) => [s.id, s.groupId])),
+    [subscriptionsFullQuery.data?.subscriptions],
   );
 
   return (
@@ -109,7 +123,9 @@ export function AccessRequestsSection({ subscriptions, credentials }: AccessRequ
                 <RequestCard
                   key={req.id}
                   request={req}
-                  subscriptionName={subscriptions.find((s) => s.id === req.subscriptionId)?.name ?? req.subscriptionId}
+                  subscriptionName={req.subscriptionId
+                    ? subscriptions.find((s) => s.id === req.subscriptionId)?.name ?? req.subscriptionId
+                    : groupNameById.get(req.groupId) ?? req.groupId}
                   formatDateTime={formatDateTime}
                   onDecide={(action) => setDeciding({ request: req, action })}
                   onViewCode={(codeId) => void handleViewCode(codeId)}
@@ -125,6 +141,11 @@ export function AccessRequestsSection({ subscriptions, credentials }: AccessRequ
         request={deciding?.request ?? null}
         action={deciding?.action ?? "approve"}
         credentials={credentials}
+        targetGroupId={deciding
+          ? deciding.request.subscriptionId
+            ? subGroupById.get(deciding.request.subscriptionId)
+            : deciding.request.groupId || undefined
+          : undefined}
         submitting={decideMutation.isPending}
         onSubmit={async (body) => {
           if (!deciding) return;
@@ -310,6 +331,8 @@ interface DecideDialogProps {
   request: VaultAccessRequest | null;
   action: "approve" | "decline";
   credentials: VaultCredential[];
+  /** 申请目标关联的组：按订阅申请时=订阅所属组；按组申请时=申请的组。undefined 表示无组关联。 */
+  targetGroupId?: string | undefined;
   submitting: boolean;
   onSubmit: (body: {
     action: "approve" | "decline";
@@ -326,6 +349,7 @@ function DecideDialog({
   request,
   action,
   credentials,
+  targetGroupId,
   submitting,
   onSubmit,
 }: DecideDialogProps) {
@@ -352,9 +376,16 @@ function DecideDialog({
 
   const titleKey: MessageKey = action === "approve" ? "vault.requests.approve" : "vault.requests.decline";
 
+  // 候选账号 = 申请目标的直接账号 ∪ 目标关联组的共享账号：
+  // 按订阅申请时含订阅级子账号 + 所属组共享账号；按组申请时仅组共享账号。
   const subscriptionCredentials =
     action === "approve" && request
-      ? credentials.filter((c) => c.subscriptionId === request.subscriptionId)
+      ? credentials.filter((c) =>
+          request.subscriptionId
+            ? c.subscriptionId === request.subscriptionId
+              || (!!targetGroupId && c.groupId === targetGroupId)
+            : !!targetGroupId && c.groupId === targetGroupId,
+        )
       : [];
   const noCredentialsForSubscription = action === "approve" && subscriptionCredentials.length === 0;
   const canSubmit =
@@ -404,7 +435,9 @@ function DecideDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {subscriptionCredentials.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.groupId ? `${c.title} · ${t("vault.card.linkedToGroup")}` : c.title}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

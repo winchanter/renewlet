@@ -37,11 +37,11 @@ import { parseUsageFormFields, toReminderDays } from "@/lib/subscription-form";
 import { customCycleUnitLabelKey, usageBasedEstimatedDays } from "@/lib/subscription-billing";
 import { useI18n } from "@/i18n/I18nProvider";
 import { localizedLabel } from "@/i18n/locales";
-import { getErrorFieldsToClearForFormChange, type SubscriptionFormErrors, type SubscriptionFormFieldUpdater, type SubscriptionFormFieldsProps } from "@/components/subscription-form-fields-model";
+import { getErrorFieldsToClearForFormChange, type SubscriptionFormErrors, type SubscriptionFormFieldUpdater, type SubscriptionFormFieldsProps, type SubscriptionGroupOption } from "@/components/subscription-form-fields-model";
 
 export type { SubscriptionFormReminderType };
 export type { SubscriptionFormState };
-export type { SubscriptionFormErrors, SubscriptionFormFieldsProps };
+export type { SubscriptionFormErrors, SubscriptionFormFieldsProps, SubscriptionGroupOption };
 
 function disabledReminderFields(): Pick<SubscriptionFormState, "reminderType" | "reminderDays" | "repeatReminderEnabled"> {
   return {
@@ -178,6 +178,7 @@ export const SubscriptionFormFields = memo(function SubscriptionFormFields({
   formData,
   setFormData,
   currencyOptions,
+  groupOptions = [],
   availableTags = [],
   showLogoField = true,
   onLogoUploadStatusChange,
@@ -424,6 +425,29 @@ export const SubscriptionFormFields = memo(function SubscriptionFormFields({
           )}
         </FormField>
       </FormFieldRow>
+
+      {groupOptions.length > 0 ? (
+        <FormField id={id("group")} label={t("subscription.field.group")} description={t("subscription.field.groupHelp")}>
+          {({ id: fieldId }) => (
+            <Select
+              value={formData.groupId ?? "__none"}
+              onValueChange={(value) => update("groupId", value === "__none" ? undefined : value)}
+            >
+              <SelectTrigger id={fieldId} className="border-border bg-secondary" tooltipContent={groupOptions.find((opt) => opt.value === formData.groupId)?.label}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">{t("subscription.field.groupNone")}</SelectItem>
+                {groupOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
+      ) : null}
 
       <FormFieldRow
         alignAt="sm"

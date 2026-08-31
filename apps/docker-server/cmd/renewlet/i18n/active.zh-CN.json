@@ -270,6 +270,7 @@
   "smtp.startTlsMissing": "SMTP 服务器未声明 STARTTLS，Cloudflare 版不能明文发送邮件。",
   "smtp.usernamePasswordTogether": "SMTP 用户名和密码必须同时填写",
   "subscription.notFound": "订阅不存在",
+  "subscriptionGroup.notFound": "订阅组不存在",
   "system.alreadyLatest": "当前已经是最新版本",
   "system.checkVersionFailed": "检查版本失败",
   "system.cloudflareRestartUnsupported": "Cloudflare 部署不支持页面内重启，请使用 Cloudflare 部署流程重新发布。",
@@ -376,5 +377,6 @@
   "vault.requestAlreadyDecided": "该申请已处理，无法再次决策",
   "vault.requestNotFound": "访问申请不存在",
   "vault.subscriptionNotFound": "关联订阅不存在",
-  "vault.subscriptionRequired": "授权码必须绑定具体订阅"
+  "vault.subscriptionRequired": "授权码必须绑定具体订阅",
+  "vault.subscriptionGroupMutex": "账号不能同时绑定订阅和组"
 }

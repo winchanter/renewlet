@@ -270,6 +270,7 @@
   "smtp.startTlsMissing": "SMTP server does not advertise STARTTLS; Cloudflare cannot send email in plaintext.",
   "smtp.usernamePasswordTogether": "SMTP username and password must be filled together",
   "subscription.notFound": "Subscription not found",
+  "subscriptionGroup.notFound": "Subscription group not found",
   "system.alreadyLatest": "Renewo is already up to date",
   "system.checkVersionFailed": "Failed to check version",
   "system.cloudflareRestartUnsupported": "Cloudflare deployments do not support in-app restarts. Redeploy from the Cloudflare deployment workflow.",
@@ -376,5 +377,6 @@
   "vault.requestAlreadyDecided": "This request has already been decided",
   "vault.requestNotFound": "Access request not found",
   "vault.subscriptionNotFound": "Linked subscription not found",
-  "vault.subscriptionRequired": "Access codes must be bound to a subscription"
+  "vault.subscriptionRequired": "Access codes must be bound to a subscription",
+  "vault.subscriptionGroupMutex": "Credential cannot bind to both subscription and group"
 }

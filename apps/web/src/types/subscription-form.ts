@@ -75,6 +75,8 @@ export type SubscriptionFormState = {
   website: string;
   notes: string;
   tags: string[];
+  /** 所属组 ID：undefined 表示未分组（新建默认或编辑态无组）。 */
+  groupId: string | undefined;
 };
 
 export function createSubscriptionFormState(
@@ -114,6 +116,7 @@ export function createSubscriptionFormState(
     website: "",
     notes: "",
     tags: [],
+    groupId: undefined,
     ...overrides,
   };
 }

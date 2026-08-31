@@ -490,6 +490,8 @@ export function toSubscriptionFormSubmission(formData: SubscriptionFormState): S
     tags: normalizeTagsArray(formData.tags),
     // 试用到期日期仅在试用态下提交；非试用态显式置 undefined 以清除历史值，保持状态与字段一致。
     trialEndDate: formData.status === "trial" ? formData.trialEndDate : undefined,
+    // 所属组：undefined 表示未分组，写入层会转 null 清空绑定。
+    groupId: formData.groupId,
   } satisfies SubscriptionFormSubmissionBase;
   if (formData.billingCycle === "custom") {
     if (typeof customDays !== "number") return null;

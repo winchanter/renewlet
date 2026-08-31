@@ -354,6 +354,13 @@ func registerRoutes(app core.App, router *router.Router[*core.RequestEvent]) []a
 	// 汇率快照是登录态报表口径 API；Public API token 不读取也不能写入这组用户级私有报表状态。
 	auth.GET("/exchange-rate-snapshots", func(e *core.RequestEvent) error { return handleExchangeRateSnapshotsList(app, e) })
 	auth.PUT("/exchange-rate-snapshots/{month}", func(e *core.RequestEvent) error { return handleExchangeRateSnapshotPut(app, e) })
+	// 订阅组（Subscription Group）：组 CRUD + 统计；静态路由先于 {id} 注册。
+	auth.GET("/subscription-groups", func(e *core.RequestEvent) error { return handleSubscriptionGroupsList(app, e) })
+	auth.POST("/subscription-groups", func(e *core.RequestEvent) error { return handleSubscriptionGroupCreate(app, e) })
+	auth.GET("/subscription-groups/{id}", func(e *core.RequestEvent) error { return handleSubscriptionGroupRead(app, e) })
+	auth.PATCH("/subscription-groups/{id}", func(e *core.RequestEvent) error { return handleSubscriptionGroupUpdate(app, e) })
+	auth.DELETE("/subscription-groups/{id}", func(e *core.RequestEvent) error { return handleSubscriptionGroupDelete(app, e) })
+	auth.GET("/subscription-groups/{id}/stats", func(e *core.RequestEvent) error { return handleSubscriptionGroupStats(app, e) })
 	auth.GET("/subscriptions", func(e *core.RequestEvent) error { return handleSubscriptionsList(app, e) })
 	auth.POST("/subscriptions", func(e *core.RequestEvent) error { return handleSubscriptionCreate(app, e) })
 	// 静态集合路由必须先于 {id} 详情路由注册，防止 index/analytics/calendar-feeds/facets/export 被解释成订阅 ID。

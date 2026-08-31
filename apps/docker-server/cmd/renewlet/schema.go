@@ -32,6 +32,7 @@ const (
 var schemaAutodateCollections = []string{
 	"subscriptions",
 	"subscription_scheduler_states",
+	"subscription_groups",
 	"settings",
 	"custom_configs",
 	"exchange_rate_snapshots",
@@ -80,7 +81,14 @@ func ensureCollectionsSchema(app core.App) error {
 	if err := migrateLegacySubscriptionPriceNumberField(app); err != nil {
 		return err
 	}
-	if err := ensureSubscriptionsCollection(app, users); err != nil {
+	if err := ensureSubscriptionGroupsCollection(app, users); err != nil {
+		return err
+	}
+	groups, err := app.FindCollectionByNameOrId("subscription_groups")
+	if err != nil {
+		return err
+	}
+	if err := ensureSubscriptionsCollection(app, users, groups); err != nil {
 		return err
 	}
 	if err := ensureSubscriptionSchedulerStatesCollection(app, users); err != nil {
@@ -264,7 +272,7 @@ func userRelation(users *core.Collection) *core.RelationField {
 	}
 }
 
-func ensureSubscriptionsCollection(app core.App, users *core.Collection) error {
+func ensureSubscriptionsCollection(app core.App, users *core.Collection, groups *core.Collection) error {
 	return ensureCollectionWithSave(app, "subscriptions", func(c *core.Collection) (bool, error) {
 		ownerRules(c)
 		minZero := 0.0
@@ -292,6 +300,8 @@ func ensureSubscriptionsCollection(app core.App, users *core.Collection) error {
 			// 量包失效日（可空）：设置后到期边界取 min(耗尽日, 失效日)，与 shared usageExpiresAtSchema 对齐。
 			&core.TextField{Name: "usageExpiresAt", Max: 10, Pattern: `^$|^\d{4}-\d{2}-\d{2}$`},
 			&core.TextField{Name: "category", Required: true, Max: 80},
+			// 所属组：可选 relation，删除组时订阅保留（PocketBase 自动置空）。
+			subscriptionGroupRelationField(groups),
 			&core.SelectField{Name: "status", Required: true, Values: []string{"trial", "active", "expired", "paused", "cancelled"}},
 			&core.BoolField{Name: "pinned"},
 			&core.BoolField{Name: "publicHidden"},
@@ -337,6 +347,7 @@ func ensureSubscriptionsCollection(app core.App, users *core.Collection) error {
 		c.AddIndex("idx_subscriptions_user_logo", false, "user, logo", "")
 		c.AddIndex("idx_subscriptions_user_next_billing", false, "user, nextBillingDate", "")
 		c.AddIndex("idx_subscriptions_user_category_order", false, "user, category, created, id", "")
+		c.AddIndex("idx_subscriptions_user_group_order", false, "user, group, created, id", "")
 		c.AddIndex("idx_subscriptions_user_billing_cycle_order", false, "user, billingCycle, created, id", "")
 		c.AddIndex("idx_subscriptions_user_currency_order", false, "user, currency, created, id", "")
 		c.AddIndex("idx_subscriptions_user_payment_method_order", false, "user, paymentMethod, created, id", "")

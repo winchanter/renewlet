@@ -12,8 +12,11 @@ const VAULT_STALE_TIME_MS = 60_000;
 
 export const vaultQueryKeys = {
   all: ["vault"] as const,
-  list: (subscriptionId?: string | null) =>
-    subscriptionId ? (["vault", "list", subscriptionId] as const) : (["vault", "list"] as const),
+  list: (subscriptionId?: string | null, groupId?: string | null) => {
+    if (subscriptionId) return ["vault", "list", "sub", subscriptionId] as const;
+    if (groupId) return ["vault", "list", "group", groupId] as const;
+    return ["vault", "list"] as const;
+  },
 };
 
 export function invalidateVaultLists(queryClient: QueryClient): void {
@@ -21,17 +24,24 @@ export function invalidateVaultLists(queryClient: QueryClient): void {
 }
 
 export interface UseVaultCredentialsOptions {
-  /** 只看某个订阅的关联账号；null/undefined 表示拉全量列表。 */
+  /** 只看某个订阅的关联账号；null/undefined 表示不按订阅过滤。 */
   subscriptionId?: string | null | undefined;
+  /** 只看某个组的共享账号；null/undefined 表示不按组过滤。与 subscriptionId 互斥。 */
+  groupId?: string | null | undefined;
   enabled?: boolean | undefined;
 }
 
 /** 账号库列表；订阅详情弹窗与独立账号库页共用同一缓存族，变更后统一失效。 */
 export function useVaultCredentials(options: UseVaultCredentialsOptions = {}) {
-  const { subscriptionId = null, enabled = true } = options;
+  const { subscriptionId = null, groupId = null, enabled = true } = options;
   return useQuery({
-    queryKey: vaultQueryKeys.list(subscriptionId),
-    queryFn: ({ signal }) => listVaultCredentials({ subscriptionId: subscriptionId ?? undefined, signal }),
+    queryKey: vaultQueryKeys.list(subscriptionId, groupId),
+    queryFn: ({ signal }) =>
+      listVaultCredentials({
+        subscriptionId: subscriptionId ?? undefined,
+        groupId: groupId ?? undefined,
+        signal,
+      }),
     staleTime: VAULT_STALE_TIME_MS,
     enabled,
   });

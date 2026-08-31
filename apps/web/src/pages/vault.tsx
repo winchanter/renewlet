@@ -19,6 +19,7 @@ import { VaultCredentialCard } from "@/components/vault/credential-card";
 import {
   VaultCredentialFormDialog,
   type VaultCredentialFormSubmitResult,
+  type VaultGroupOption,
   type VaultSubscriptionOption,
 } from "@/components/vault/credential-form-dialog";
 import { AccessCodesSection, CreateCodeDialog } from "@/components/vault/access-codes-section";
@@ -52,15 +53,16 @@ import {
 } from "@/hooks/use-vault";
 import { useCreateVaultAccessCode } from "@/hooks/use-vault-p2";
 import { useSubscriptionIndex } from "@/hooks/use-subscriptions";
+import { useSubscriptionGroups } from "@/hooks/use-subscription-groups";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { getDisplayErrorMessage } from "@/lib/display-error";
 import type { VaultCredential } from "@renewlet/shared/schemas/vault";
 
 type VaultTab = "credentials" | "accessCodes" | "requests" | "auditLogs";
-type VaultScopeFilter = "all" | "linked" | "standalone";
+type VaultScopeFilter = "all" | "linked" | "grouped" | "standalone";
 
-const SCOPE_FILTERS: VaultScopeFilter[] = ["all", "linked", "standalone"];
+const SCOPE_FILTERS: VaultScopeFilter[] = ["all", "linked", "grouped", "standalone"];
 const TAB_VALUES: VaultTab[] = ["credentials", "accessCodes", "requests", "auditLogs"];
 
 function credentialMatchesQuery(credential: VaultCredential, query: string): boolean {
@@ -77,6 +79,7 @@ export default function Vault() {
   const { t } = useI18n();
   const credentialsQuery = useVaultCredentials();
   const subscriptionsQuery = useSubscriptionIndex();
+  const groupsQuery = useSubscriptionGroups();
   const createMutation = useCreateVaultCredential();
   const updateMutation = useUpdateVaultCredential();
   const deleteMutation = useDeleteVaultCredential();
@@ -103,11 +106,24 @@ export default function Vault() {
     () => (subscriptionsQuery.data?.subscriptions ?? []).map((item) => ({ id: item.id, name: item.name })),
     [subscriptionsQuery.data?.subscriptions],
   );
+  const groupNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const group of groupsQuery.groups) {
+      map.set(group.id, group.name);
+    }
+    return map;
+  }, [groupsQuery.groups]);
+  const groupOptions = useMemo<VaultGroupOption[]>(
+    () => groupsQuery.groups.map((group) => ({ id: group.id, name: group.name })),
+    [groupsQuery.groups],
+  );
 
   const visibleCredentials = useMemo(
     () => credentials.filter((credential) => {
+      // 组级共享账号 subscriptionId 为空但有 groupId；按 scope 分别过滤。
       if (scopeFilter === "linked" && credential.subscriptionId === "") return false;
-      if (scopeFilter === "standalone" && credential.subscriptionId !== "") return false;
+      if (scopeFilter === "grouped" && credential.groupId === "") return false;
+      if (scopeFilter === "standalone" && (credential.subscriptionId !== "" || credential.groupId !== "")) return false;
       return credentialMatchesQuery(credential, searchQuery);
     }),
     [credentials, scopeFilter, searchQuery],
@@ -130,8 +146,25 @@ export default function Vault() {
       }))
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [visibleCredentials, subscriptionNameById]);
+  // 组级共享账号按组名分组展示。
+  const groupedCredentials = useMemo(() => {
+    const groups = new Map<string, VaultCredential[]>();
+    for (const credential of visibleCredentials) {
+      if (credential.groupId === "") continue;
+      const bucket = groups.get(credential.groupId);
+      if (bucket) bucket.push(credential);
+      else groups.set(credential.groupId, [credential]);
+    }
+    return [...groups.entries()]
+      .map(([groupId, items]) => ({
+        key: groupId,
+        name: groupNameById.get(groupId) ?? groupId,
+        items,
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }, [visibleCredentials, groupNameById]);
   const standaloneCredentials = useMemo(
-    () => visibleCredentials.filter((credential) => credential.subscriptionId === ""),
+    () => visibleCredentials.filter((credential) => credential.subscriptionId === "" && credential.groupId === ""),
     [visibleCredentials],
   );
 
@@ -220,6 +253,7 @@ export default function Vault() {
             key={credential.id}
             credential={credential}
             subscriptionName={credential.subscriptionId === "" ? null : subscriptionNameById.get(credential.subscriptionId) ?? null}
+            groupName={credential.groupId === "" ? null : groupNameById.get(credential.groupId) ?? null}
             onEdit={openEdit}
             onDelete={setDeletingCredential}
             onGenerateCode={setCodeTarget}
@@ -311,6 +345,7 @@ export default function Vault() {
             ) : (
               <>
                 {linkedGroups.map((group) => renderGroup(group.name, group.items, `vault-group-${group.key}`))}
+                {groupedCredentials.map((group) => renderGroup(group.name, group.items, `vault-group-shared-${group.key}`))}
                 {standaloneCredentials.length > 0
                   ? renderGroup(t("vault.group.standalone"), standaloneCredentials, "vault-group-standalone")
                   : null}
@@ -337,6 +372,7 @@ export default function Vault() {
         onOpenChange={setFormOpen}
         credential={editingCredential}
         subscriptions={subscriptionOptions}
+        groups={groupOptions}
         submitting={submitting}
         onSubmit={handleFormSubmit}
       />

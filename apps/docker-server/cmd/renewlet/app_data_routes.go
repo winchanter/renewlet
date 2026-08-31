@@ -98,6 +98,7 @@ type subscriptionWriteRequest struct {
 	RepeatReminderInterval       optionalJSONField[string]                 `json:"repeatReminderInterval"`
 	RepeatReminderWindow         optionalJSONField[string]                 `json:"repeatReminderWindow"`
 	CostSharing                  optionalJSONField[map[string]interface{}] `json:"costSharing"`
+	GroupID                      optionalJSONField[string]                 `json:"groupId"`
 	Extra                        optionalJSONField[map[string]interface{}] `json:"extra"`
 }
 
@@ -258,6 +259,9 @@ func handleSubscriptionCreate(app core.App, e *core.RequestEvent) error {
 	if err != nil {
 		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
 	}
+	if err := validateSubscriptionWriteGroup(app, locale, e.Auth.Id, body.GroupID); err != nil {
+		return e.BadRequestError(err.Error(), nil)
+	}
 	collection, err := app.FindCollectionByNameOrId("subscriptions")
 	if err != nil {
 		return e.InternalServerError(serverText(locale, "common.internalError"), err)
@@ -287,6 +291,9 @@ func handleSubscriptionUpdate(app core.App, e *core.RequestEvent) error {
 	}
 	if !body.HasChanges() {
 		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
+	}
+	if err := validateSubscriptionWriteGroup(app, locale, e.Auth.Id, body.GroupID); err != nil {
+		return e.BadRequestError(err.Error(), nil)
 	}
 	record, err := findOwnedSubscription(app, e)
 	if err != nil {
@@ -598,6 +605,10 @@ func applySubscriptionWriteRequest(record *core.Record, body subscriptionWriteRe
 		return err
 	}
 	if err := setNullableMapRecordField(record, "costSharing", body.CostSharing, false); err != nil {
+		return err
+	}
+	// groupId 是可选 relation；null/空串表示未分组。
+	if err := setStringRecordField(record, "group", body.GroupID, false, true, true); err != nil {
 		return err
 	}
 	if err := setMapRecordField(record, "extra", body.Extra, false); err != nil {

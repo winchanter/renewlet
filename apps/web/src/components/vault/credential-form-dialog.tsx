@@ -24,10 +24,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { VaultCredential, VaultCredentialCreateRequest, VaultCredentialUpdateRequest } from "@renewlet/shared/schemas/vault";
 
-/** Radix Select 不接受空串 value；用哨兵表示「不关联订阅」。 */
+/** Radix Select 不接受空串 value；用哨兵表示「不关联订阅/组」。 */
 const SUBSCRIPTION_NONE_VALUE = "__none__";
+const GROUP_NONE_VALUE = "__none__";
 
 export interface VaultSubscriptionOption {
+  id: string;
+  name: string;
+}
+
+export interface VaultGroupOption {
   id: string;
   name: string;
 }
@@ -45,6 +51,8 @@ export interface VaultCredentialFormDialogProps {
   /** 创建时预选的关联订阅（订阅详情入口使用）。 */
   defaultSubscriptionId?: string | null | undefined;
   subscriptions: VaultSubscriptionOption[];
+  /** 可绑定的订阅组列表；组级共享账号与订阅级子账号互斥。 */
+  groups?: VaultGroupOption[];
   submitting: boolean;
   onSubmit: (result: VaultCredentialFormSubmitResult) => void;
 }
@@ -56,6 +64,7 @@ interface CredentialDraft {
   password: string;
   notes: string;
   subscriptionId: string;
+  groupId: string;
   clearPassword: boolean;
 }
 
@@ -67,6 +76,7 @@ function buildDraft(credential: VaultCredential | null, defaultSubscriptionId: s
     password: "",
     notes: credential?.notes ?? "",
     subscriptionId: credential?.subscriptionId || defaultSubscriptionId || "",
+    groupId: credential?.groupId ?? "",
     clearPassword: false,
   };
 }
@@ -77,6 +87,7 @@ export function VaultCredentialFormDialog({
   credential,
   defaultSubscriptionId,
   subscriptions,
+  groups,
   submitting,
   onSubmit,
 }: VaultCredentialFormDialogProps) {
@@ -90,21 +101,31 @@ export function VaultCredentialFormDialog({
 
   const isEditMode = credential !== null;
   const canSubmit = draft.title.trim().length > 0 && !submitting;
+  // 组选择器仅在存在可选组时渲染；与订阅选择互斥。
+  const hasGroupOptions = !!groups && groups.length > 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     const title = draft.title.trim();
     const url = draft.url.trim();
     const username = draft.username.trim();
+    // 哨兵值归一为空串；空串即"不绑定"。
     const subscriptionValue = draft.subscriptionId === SUBSCRIPTION_NONE_VALUE ? "" : draft.subscriptionId;
+    const groupValue = draft.groupId === GROUP_NONE_VALUE ? "" : draft.groupId;
     const notes = draft.notes;
     if (isEditMode) {
       const patch: VaultCredentialUpdateRequest = { title };
       if (url !== credential.url) patch.url = url;
       if (username !== credential.username) patch.username = username;
       if (notes !== credential.notes) patch.notes = notes;
+      // 订阅与组互斥：改动任一方时，显式把另一方清空，避免服务端残留旧绑定。
       if (subscriptionValue !== credential.subscriptionId) {
         patch.subscriptionId = subscriptionValue === "" ? null : subscriptionValue;
+        if (credential.groupId !== "") patch.groupId = null;
+      }
+      if (groupValue !== credential.groupId) {
+        patch.groupId = groupValue === "" ? null : groupValue;
+        if (credential.subscriptionId !== "") patch.subscriptionId = null;
       }
       if (draft.clearPassword) patch.password = null;
       else if (draft.password.length > 0) patch.password = draft.password;
@@ -115,7 +136,9 @@ export function VaultCredentialFormDialog({
       if (username !== "") create.username = username;
       if (draft.password.length > 0) create.password = draft.password;
       if (notes.trim() !== "") create.notes = notes;
+      // 订阅与组互斥：优先订阅，否则组，都没有即独立账号。
       if (subscriptionValue !== "") create.subscriptionId = subscriptionValue;
+      else if (groupValue !== "") create.groupId = groupValue;
       onSubmit({ create });
     }
   };
@@ -223,9 +246,16 @@ export function VaultCredentialFormDialog({
             <Label htmlFor="vault-credential-subscription">{t("vault.form.subscriptionLabel")}</Label>
             <Select
               value={draft.subscriptionId === "" ? SUBSCRIPTION_NONE_VALUE : draft.subscriptionId}
-              onValueChange={(value) =>
-                setDraft((current) => ({ ...current, subscriptionId: value === SUBSCRIPTION_NONE_VALUE ? "" : value }))
-              }
+              onValueChange={(value) => {
+                const next = value === SUBSCRIPTION_NONE_VALUE ? "" : value;
+                // 互斥：选择订阅时清空组绑定。
+                setDraft((current) => ({
+                  ...current,
+                  subscriptionId: next,
+                  groupId: next !== "" ? "" : current.groupId,
+                }));
+              }}
+              disabled={draft.groupId !== ""}
             >
               <SelectTrigger id="vault-credential-subscription" className="border-border bg-secondary">
                 <SelectValue />
@@ -240,6 +270,38 @@ export function VaultCredentialFormDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {hasGroupOptions ? (
+            <div className="grid gap-2">
+              <Label htmlFor="vault-credential-group">{t("vault.form.groupLabel")}</Label>
+              <Select
+                value={draft.groupId === "" ? GROUP_NONE_VALUE : draft.groupId}
+                onValueChange={(value) => {
+                  const next = value === GROUP_NONE_VALUE ? "" : value;
+                  // 互斥：选择组时清空订阅绑定。
+                  setDraft((current) => ({
+                    ...current,
+                    groupId: next,
+                    subscriptionId: next !== "" ? "" : current.subscriptionId,
+                  }));
+                }}
+                disabled={draft.subscriptionId !== ""}
+              >
+                <SelectTrigger id="vault-credential-group" className="border-border bg-secondary">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={GROUP_NONE_VALUE}>{t("vault.form.groupNone")}</SelectItem>
+                  {groups!.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{t("vault.form.groupHelp")}</p>
+            </div>
+          ) : null}
 
           <div className="grid gap-2">
             <Label htmlFor="vault-credential-notes">{t("vault.form.notesLabel")}</Label>

@@ -29,35 +29,36 @@ const (
 	vaultPasswordMax = 1024
 	vaultNotesMax    = 5000
 
-	vaultLogActionCredentialViewed      = "credential_viewed"
-	vaultLogActionCredentialCreated     = "credential_created"
-	vaultLogActionCredentialUpdated     = "credential_updated"
-	vaultLogActionCredentialDeleted     = "credential_deleted"
-	vaultLogActionCodeGenerated         = "code_generated"
-	vaultLogActionCodeRedeemed          = "code_redeemed"
-	vaultLogActionCodeRevoked           = "code_revoked"
-	vaultLogActionCodeViewed            = "code_viewed"
-	vaultLogActionRequestSubmitted      = "request_submitted"
-	vaultLogActionRequestApproved       = "request_approved"
-	vaultLogActionRequestDeclined       = "request_declined"
-	vaultLogActionRequestClosed         = "request_closed"
-	vaultLogSourceAdmin                 = "admin"
-	vaultLogSourcePublic                = "public"
-	vaultLogResultSuccess               = "success"
-	vaultLogResultFailure               = "failure"
-	vaultCodeMaxAttemptsDefault         = 5
-	vaultCodeExpireHoursDefault         = 48
-	vaultCodeExpireHoursMax             = 7 * 24
-	vaultRequestStatusPending           = "pending"
-	vaultRequestStatusApproved          = "approved"
-	vaultRequestStatusDeclined          = "declined"
-	vaultRequestStatusExpired           = "expired"
-	vaultRequestStatusClosed            = "closed"
+	vaultLogActionCredentialViewed  = "credential_viewed"
+	vaultLogActionCredentialCreated = "credential_created"
+	vaultLogActionCredentialUpdated = "credential_updated"
+	vaultLogActionCredentialDeleted = "credential_deleted"
+	vaultLogActionCodeGenerated     = "code_generated"
+	vaultLogActionCodeRedeemed      = "code_redeemed"
+	vaultLogActionCodeRevoked       = "code_revoked"
+	vaultLogActionCodeViewed        = "code_viewed"
+	vaultLogActionRequestSubmitted  = "request_submitted"
+	vaultLogActionRequestApproved   = "request_approved"
+	vaultLogActionRequestDeclined   = "request_declined"
+	vaultLogActionRequestClosed     = "request_closed"
+	vaultLogSourceAdmin             = "admin"
+	vaultLogSourcePublic            = "public"
+	vaultLogResultSuccess           = "success"
+	vaultLogResultFailure           = "failure"
+	vaultCodeMaxAttemptsDefault     = 5
+	vaultCodeExpireHoursDefault     = 48
+	vaultCodeExpireHoursMax         = 7 * 24
+	vaultRequestStatusPending       = "pending"
+	vaultRequestStatusApproved      = "approved"
+	vaultRequestStatusDeclined      = "declined"
+	vaultRequestStatusExpired       = "expired"
+	vaultRequestStatusClosed        = "closed"
 )
 
 type vaultCredentialView struct {
 	ID             string `json:"id"`
 	SubscriptionID string `json:"subscriptionId"`
+	GroupID        string `json:"groupId"`
 	Title          string `json:"title"`
 	URL            string `json:"url"`
 	Username       string `json:"username"`
@@ -74,6 +75,7 @@ type vaultCredentialsListResponse struct {
 // vaultCredentialCreateRequest 只服务创建路径；缺省字段一律落空值，避免创建语义里混入 PATCH 三态。
 type vaultCredentialCreateRequest struct {
 	SubscriptionID string `json:"subscriptionId"`
+	GroupID        string `json:"groupId"`
 	Title          string `json:"title"`
 	URL            string `json:"url"`
 	Username       string `json:"username"`
@@ -84,6 +86,7 @@ type vaultCredentialCreateRequest struct {
 // vaultCredentialUpdateRequest 区分缺字段、显式 null 与空串：null 清空，缺省保持不变，密码不 trim。
 type vaultCredentialUpdateRequest struct {
 	SubscriptionID optionalJSONField[string] `json:"subscriptionId"`
+	GroupID        optionalJSONField[string] `json:"groupId"`
 	Title          optionalJSONField[string] `json:"title"`
 	URL            optionalJSONField[string] `json:"url"`
 	Username       optionalJSONField[string] `json:"username"`
@@ -92,7 +95,7 @@ type vaultCredentialUpdateRequest struct {
 }
 
 func (r vaultCredentialUpdateRequest) HasChanges() bool {
-	return r.SubscriptionID.Set || r.Title.Set || r.URL.Set || r.Username.Set ||
+	return r.SubscriptionID.Set || r.GroupID.Set || r.Title.Set || r.URL.Set || r.Username.Set ||
 		r.Password.Set || r.Notes.Set
 }
 
@@ -153,6 +156,7 @@ func vaultCredentialAPIFromRecord(app core.App, record *core.Record) vaultCreden
 	view := vaultCredentialView{
 		ID:             record.Id,
 		SubscriptionID: record.GetString("subscription"),
+		GroupID:        record.GetString("group"),
 		Title:          record.GetString("title"),
 		URL:            record.GetString("url"),
 		Username:       record.GetString("username"),
@@ -202,11 +206,29 @@ func truncateVaultLogText(value string, max int) string {
 func handleVaultCredentialsList(app core.App, e *core.RequestEvent) error {
 	locale := requestLocale(e.Request)
 	subscriptionFilter := strings.TrimSpace(e.Request.URL.Query().Get("subscriptionId"))
+	groupFilter := strings.TrimSpace(e.Request.URL.Query().Get("groupId"))
 	filter := "user = {:user}"
 	params := dbx.Params{"user": e.Auth.Id}
 	if subscriptionFilter != "" {
-		filter += " && subscription = {:subscription}"
+		// 订阅的关联账号 = 订阅级子账号 + 所属组的共享账号（组内共享语义）。
+		filter += " && (subscription = {:subscription}"
 		params["subscription"] = subscriptionFilter
+		subscriptionRecord, subErr := app.FindFirstRecordByFilter(
+			"subscriptions",
+			"id = {:id} && user = {:user}",
+			dbx.Params{"id": subscriptionFilter, "user": e.Auth.Id},
+		)
+		if subErr == nil && subscriptionRecord != nil {
+			if groupID := subscriptionRecord.GetString("group"); groupID != "" {
+				filter += " || group = {:subGroup}"
+				params["subGroup"] = groupID
+			}
+		}
+		filter += ")"
+	}
+	if groupFilter != "" {
+		filter += " && group = {:group}"
+		params["group"] = groupFilter
 	}
 	records, err := app.FindRecordsByFilter("vault_credentials", filter, "-created, -id", 0, 0, params)
 	if err != nil {
@@ -243,6 +265,14 @@ func handleVaultCredentialCreate(app core.App, e *core.RequestEvent) error {
 	if err != nil {
 		return e.BadRequestError(err.Error(), nil)
 	}
+	groupID, _, err := resolveSubscriptionGroupID(app, locale, e.Auth.Id, body.GroupID)
+	if err != nil {
+		return e.BadRequestError(err.Error(), nil)
+	}
+	// subscription 与 group 互斥：组级共享账号与订阅级子账号不能同时绑定。
+	if subscriptionID != "" && groupID != "" {
+		return e.BadRequestError(serverText(locale, "vault.subscriptionGroupMutex"), nil)
+	}
 	if len([]rune(body.URL)) > vaultURLMax || len([]rune(body.Username)) > vaultUsernameMax ||
 		len([]rune(body.Password)) > vaultPasswordMax || len([]rune(body.Notes)) > vaultNotesMax {
 		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
@@ -254,6 +284,7 @@ func handleVaultCredentialCreate(app core.App, e *core.RequestEvent) error {
 	record := core.NewRecord(collection)
 	record.Set("user", e.Auth.Id)
 	record.Set("subscription", subscriptionID)
+	record.Set("group", groupID)
 	record.Set("title", title)
 	record.Set("url", strings.TrimSpace(body.URL))
 	record.Set("username", strings.TrimSpace(body.Username))
@@ -298,6 +329,17 @@ func handleVaultCredentialUpdate(app core.App, e *core.RequestEvent) error {
 			return e.BadRequestError(resolveErr.Error(), nil)
 		}
 		record.Set("subscription", subscriptionID)
+	}
+	if body.GroupID.Set {
+		groupID, _, resolveErr := resolveSubscriptionGroupID(app, locale, e.Auth.Id, body.GroupID.Value)
+		if resolveErr != nil {
+			return e.BadRequestError(resolveErr.Error(), nil)
+		}
+		record.Set("group", groupID)
+	}
+	// 写入后校验互斥：subscription 与 group 不能同时非空。
+	if record.GetString("subscription") != "" && record.GetString("group") != "" {
+		return e.BadRequestError(serverText(locale, "vault.subscriptionGroupMutex"), nil)
 	}
 	if body.Title.Set {
 		title := strings.TrimSpace(body.Title.Value)
@@ -440,6 +482,7 @@ type vaultAccessCodeRedeemResponse struct {
 	Password       string `json:"password"`
 	CredentialID   string `json:"credentialId"`
 	SubscriptionID string `json:"subscriptionId"`
+	GroupID        string `json:"groupId"`
 	Title          string `json:"title"`
 	URL            string `json:"url"`
 	Username       string `json:"username"`
@@ -744,6 +787,7 @@ func vaultAccessCodeRedeemCore(app core.App, e *core.RequestEvent, body vaultAcc
 		Password:       password,
 		CredentialID:   credential.Id,
 		SubscriptionID: subscriptionID,
+		GroupID:        credential.GetString("group"),
 		Title:          credential.GetString("title"),
 		URL:            credential.GetString("url"),
 		Username:       credential.GetString("username"),
@@ -763,8 +807,8 @@ func handleVaultAccessCodeRedeemAuth(app core.App, e *core.RequestEvent) error {
 // ================== P3：公开页访客兑换 ==================
 
 const (
-	vaultPublicRedeemRateLimitMax     = 10
-	vaultPublicRedeemRateLimitWindow  = time.Minute
+	vaultPublicRedeemRateLimitMax    = 10
+	vaultPublicRedeemRateLimitWindow = time.Minute
 )
 
 type vaultPublicRedeemBucket struct {
@@ -828,6 +872,7 @@ func handleVaultAccessCodeRedeemPublic(app core.App, e *core.RequestEvent) error
 type vaultAccessRequestView struct {
 	ID                 string `json:"id"`
 	SubscriptionID     string `json:"subscriptionId"`
+	GroupID            string `json:"groupId"`
 	PublicStatusPageID string `json:"publicStatusPageId"`
 	Note               string `json:"note"`
 	Status             string `json:"status"`
@@ -838,6 +883,7 @@ type vaultAccessRequestView struct {
 
 type vaultAccessRequestCreateRequest struct {
 	SubscriptionID string `json:"subscriptionId"`
+	GroupID        string `json:"groupId"`
 	Note           string `json:"note"`
 }
 
@@ -857,6 +903,7 @@ func vaultAccessRequestAPIFromRecord(rec *core.Record, codeID string) vaultAcces
 	view := vaultAccessRequestView{
 		ID:                 rec.Id,
 		SubscriptionID:     rec.GetString("subscription"),
+		GroupID:            rec.GetString("group"),
 		PublicStatusPageID: rec.GetString("publicStatusPage"),
 		Note:               rec.GetString("note"),
 		Status:             rec.GetString("status"),
@@ -876,6 +923,7 @@ func handleVaultAccessRequestsList(app core.App, e *core.RequestEvent) error {
 	locale := requestLocale(e.Request)
 	statusFilter := strings.TrimSpace(e.Request.URL.Query().Get("status"))
 	subscriptionFilter := strings.TrimSpace(e.Request.URL.Query().Get("subscriptionId"))
+	groupFilter := strings.TrimSpace(e.Request.URL.Query().Get("groupId"))
 	filter := "user = {:user}"
 	params := dbx.Params{"user": e.Auth.Id}
 	if statusFilter != "" {
@@ -885,6 +933,10 @@ func handleVaultAccessRequestsList(app core.App, e *core.RequestEvent) error {
 	if subscriptionFilter != "" {
 		filter += " && subscription = {:subscription}"
 		params["subscription"] = subscriptionFilter
+	}
+	if groupFilter != "" {
+		filter += " && group = {:group}"
+		params["group"] = groupFilter
 	}
 	all, err := app.FindRecordsByFilter("vault_access_requests", filter, "-created, -id", 0, 0, params)
 	if err != nil {
@@ -905,8 +957,10 @@ func handleVaultAccessRequestCreatePublic(app core.App, e *core.RequestEvent) er
 		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", err), err)
 	}
 	subscriptionID := strings.TrimSpace(body.SubscriptionID)
+	groupID := strings.TrimSpace(body.GroupID)
 	token := strings.TrimSpace(e.Request.PathValue("token"))
-	if subscriptionID == "" || token == "" {
+	// subscription 与 group 二选一非空；token 必填。
+	if (subscriptionID == "" && groupID == "") || (subscriptionID != "" && groupID != "") || token == "" {
 		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
 	}
 	// 公开页 URL 携带的是 bearer token（与 status 读取路由一致），必须按 token 解析页面记录；
@@ -915,16 +969,26 @@ func handleVaultAccessRequestCreatePublic(app core.App, e *core.RequestEvent) er
 	if pageErr != nil || page == nil {
 		return e.NotFoundError(serverText(locale, "publicStatus.pageNotFound"), nil)
 	}
-	subs, subsErr := app.FindFirstRecordByFilter(
-		"subscriptions",
-		"id = {:id}",
-		dbx.Params{"id": subscriptionID},
-	)
-	if subsErr != nil || subs == nil {
-		return e.NotFoundError(serverText(locale, "vault.subscriptionNotFound"), nil)
-	}
-	if subs.GetString("user") != page.GetString("user") {
-		return e.NotFoundError(serverText(locale, "vault.subscriptionNotFound"), nil)
+	pageOwner := page.GetString("user")
+	// 按订阅申请时校验订阅归属；按组申请时校验组归属。
+	if subscriptionID != "" {
+		subs, subsErr := app.FindFirstRecordByFilter(
+			"subscriptions",
+			"id = {:id} && user = {:user}",
+			dbx.Params{"id": subscriptionID, "user": pageOwner},
+		)
+		if subsErr != nil || subs == nil {
+			return e.NotFoundError(serverText(locale, "vault.subscriptionNotFound"), nil)
+		}
+	} else {
+		group, groupErr := app.FindFirstRecordByFilter(
+			"subscription_groups",
+			"id = {:id} && user = {:user}",
+			dbx.Params{"id": groupID, "user": pageOwner},
+		)
+		if groupErr != nil || group == nil {
+			return e.NotFoundError(serverText(locale, "subscriptionGroup.notFound"), nil)
+		}
 	}
 	if len([]rune(body.Note)) > 500 {
 		return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), nil)
@@ -934,8 +998,9 @@ func handleVaultAccessRequestCreatePublic(app core.App, e *core.RequestEvent) er
 		return e.InternalServerError(serverText(locale, "common.internalError"), findErr)
 	}
 	record := core.NewRecord(collection)
-	record.Set("user", subs.GetString("user"))
+	record.Set("user", pageOwner)
 	record.Set("subscription", subscriptionID)
+	record.Set("group", groupID)
 	record.Set("publicStatusPage", page.Id)
 	record.Set("note", body.Note)
 	record.Set("status", vaultRequestStatusPending)
@@ -944,8 +1009,8 @@ func handleVaultAccessRequestCreatePublic(app core.App, e *core.RequestEvent) er
 	if saveErr := app.Save(record); saveErr != nil {
 		return e.BadRequestError(validationErrorMessage(locale, "common.invalidRequestBody", saveErr), saveErr)
 	}
-	writeVaultAccessLog(app, subs.GetString("user"), vaultLogActionRequestSubmitted, vaultLogSourcePublic, vaultLogResultSuccess,
-		subscriptionID, "", "", clientIP(e.Request), e.Request.UserAgent(), map[string]any{"requestId": record.Id, "note": body.Note})
+	writeVaultAccessLog(app, pageOwner, vaultLogActionRequestSubmitted, vaultLogSourcePublic, vaultLogResultSuccess,
+		subscriptionID, "", "", clientIP(e.Request), e.Request.UserAgent(), map[string]any{"requestId": record.Id, "groupId": groupID, "note": body.Note})
 	return apiSuccessJSON(e, http.StatusCreated, map[string]any{"id": record.Id, "status": vaultRequestStatusPending})
 }
 
@@ -961,9 +1026,18 @@ func handleVaultAccessRequestDecide(app core.App, e *core.RequestEvent) error {
 		return e.NotFoundError(serverText(locale, "vault.requestNotFound"), findErr)
 	}
 	subscriptionID := req.GetString("subscription")
-	owned, ownerErr := app.FindFirstRecordByFilter("subscriptions", "id = {:id} && user = {:user}", dbx.Params{"id": subscriptionID, "user": e.Auth.Id})
-	if ownerErr != nil || owned == nil {
-		return e.NotFoundError(serverText(locale, "vault.requestNotFound"), nil)
+	requestGroupID := req.GetString("group")
+	// 归属校验：申请按订阅提交时校验订阅归属；按组提交时校验组归属。
+	if subscriptionID != "" {
+		owned, ownerErr := app.FindFirstRecordByFilter("subscriptions", "id = {:id} && user = {:user}", dbx.Params{"id": subscriptionID, "user": e.Auth.Id})
+		if ownerErr != nil || owned == nil {
+			return e.NotFoundError(serverText(locale, "vault.requestNotFound"), nil)
+		}
+	} else {
+		ownedGroup, ownerGroupErr := app.FindFirstRecordByFilter("subscription_groups", "id = {:id} && user = {:user}", dbx.Params{"id": requestGroupID, "user": e.Auth.Id})
+		if ownerGroupErr != nil || ownedGroup == nil {
+			return e.NotFoundError(serverText(locale, "vault.requestNotFound"), nil)
+		}
 	}
 	body, decodeErr := decodeStrictJSON[vaultAccessRequestDecideRequest](e.Request, locale)
 	if decodeErr != nil {
@@ -991,7 +1065,21 @@ func handleVaultAccessRequestDecide(app core.App, e *core.RequestEvent) error {
 			}
 			return e.BadRequestError(credErr.Error(), nil)
 		}
-		if subscriptionID != "" && credSubID != subscriptionID {
+		// 凭据匹配：订阅级账号须属于申请的订阅；组共享账号须属于申请订阅所属的组（按订阅申请），
+		// 或属于申请的组本身（按组申请）。
+		targetMatch := false
+		if subscriptionID != "" {
+			if credSubID == subscriptionID {
+				targetMatch = true
+			} else if ownedSub, subErr := app.FindFirstRecordByFilter("subscriptions", "id = {:id} && user = {:user}", dbx.Params{"id": subscriptionID, "user": e.Auth.Id}); subErr == nil && ownedSub != nil {
+				if subGroup := ownedSub.GetString("group"); subGroup != "" && credential.GetString("group") == subGroup {
+					targetMatch = true
+				}
+			}
+		} else if requestGroupID != "" && credential.GetString("group") == requestGroupID {
+			targetMatch = true
+		}
+		if !targetMatch {
 			return e.BadRequestError(serverText(locale, "vault.credentialMismatchSubscription"), nil)
 		}
 		expireHours := body.ExpireHours
@@ -1133,6 +1221,7 @@ func handleVaultAccessLogsList(app core.App, e *core.RequestEvent) error {
 	action := strings.TrimSpace(q.Get("action"))
 	credentialID := strings.TrimSpace(q.Get("credentialId"))
 	subscriptionID := strings.TrimSpace(q.Get("subscriptionId"))
+	groupID := strings.TrimSpace(q.Get("groupId"))
 	filter := "user = {:user}"
 	params := dbx.Params{"user": e.Auth.Id}
 	if action != "" {
@@ -1146,6 +1235,10 @@ func handleVaultAccessLogsList(app core.App, e *core.RequestEvent) error {
 	if subscriptionID != "" {
 		filter += " && subscriptionId = {:subscriptionId}"
 		params["subscriptionId"] = subscriptionID
+	}
+	if groupID != "" {
+		filter += " && groupId = {:groupId}"
+		params["groupId"] = groupID
 	}
 	// keyset 分页：按 (created DESC, id DESC)
 	sort := "-created, -id"

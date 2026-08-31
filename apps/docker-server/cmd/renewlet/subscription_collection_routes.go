@@ -61,6 +61,7 @@ type subscriptionCollectionItemResponse struct {
 	ReminderDays                 int                    `json:"reminderDays"`
 	CostSharing                  map[string]interface{} `json:"costSharing,omitempty"`
 	Tags                         []string               `json:"tags"`
+	GroupID                      string                 `json:"groupId"`
 }
 
 type subscriptionFacetsResponse struct {
@@ -285,6 +286,7 @@ func subscriptionCollectionAPIFromRecord(record *core.Record) subscriptionCollec
 		out.CostSharing = costSharing
 	}
 	out.Tags = subscriptionRecordStringSlice(record, "tags")
+	out.GroupID = record.GetString("group")
 	return out
 }
 

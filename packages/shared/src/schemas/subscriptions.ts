@@ -308,6 +308,8 @@ const subscriptionWriteFieldShape = {
   repeatReminderInterval: z.enum(REPEAT_REMINDER_INTERVALS),
   repeatReminderWindow: z.enum(REPEAT_REMINDER_WINDOWS),
   costSharing: costSharingSchema.nullable().optional(),
+  // 所属组 ID：空串/null 表示未分组；跨运行面写入与响应共用此字段。
+  groupId: z.string().trim().max(128).nullable().optional(),
   // extra 是跨运行面的非展示元数据通道；seed/import 依赖它做幂等，不参与订阅 UI。
   extra: extraSchema,
 } satisfies z.ZodRawShape;
@@ -446,6 +448,8 @@ const apiSubscriptionCollectionItemShape = {
   reminderDays: reminderDaysSchema,
   costSharing: costSharingSchema.optional(),
   tags: z.array(z.string()).optional(),
+  // 所属组 ID：空串表示未分组。
+  groupId: z.string().optional(),
 } satisfies z.ZodRawShape;
 
 const recurringBillingCycles = ["weekly", "monthly", "quarterly", "semi-annual", "annual"] as const;
@@ -510,6 +514,8 @@ const apiSubscriptionDetailShape = {
   extra: z.record(z.string(), z.unknown()),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
+  // 详情响应也输出 groupId；空串表示未分组。
+  groupId: z.string().optional(),
 } satisfies z.ZodRawShape;
 
 function subscriptionRenewalFieldsAreConsistent(value: {
@@ -631,6 +637,9 @@ const subscriptionCollectionFilterShape = {
   publicHidden: queryBooleanSchema.optional(),
   reminderMode: z.enum(SUBSCRIPTION_REMINDER_MODES).optional(),
   repeatReminder: queryBooleanSchema.optional(),
+  // 按组筛选：group 是组 ID 数组（IN 语义）；ungrouped=true 只看未分组订阅。
+  group: z.array(z.string().trim().min(1).max(128)).max(200).optional(),
+  ungrouped: queryBooleanSchema.optional(),
 } satisfies z.ZodRawShape;
 
 function subscriptionDateRangeIsValid(value: { nextBillingFrom?: string | undefined; nextBillingTo?: string | undefined }): boolean {

@@ -22,6 +22,7 @@ import { useExchangeRates } from "@/hooks/use-exchange-rates";
 import { useSubscriptionDialogSession } from "@/hooks/use-subscription-dialog-session";
 import { useSubscriptionFormAutoDates } from "@/hooks/use-subscription-form-auto-dates";
 import { useManagedCurrencyOptions } from "@/hooks/use-managed-currency-options";
+import { useSubscriptionGroups } from "@/hooks/use-subscription-groups";
 import { useDeferredDialogInitialFocus } from "@/hooks/use-deferred-dialog-initial-focus";
 import { useSettings } from "@/hooks/use-settings";
 import {
@@ -125,6 +126,12 @@ export function SubscriptionDialogContent(props: SubscriptionDialogContentProps)
     includeDisabledCurrent: formData.currency,
     locale,
   });
+  // 订阅组选项：只服务 Go/Docker 运行面；未登录或无组时返回空数组，组选择器自动隐藏。
+  const { groups } = useSubscriptionGroups();
+  const groupOptions = useMemo(
+    () => groups.map((group) => ({ value: group.id, label: group.name })),
+    [groups],
+  );
   const collectionReminderAllowed = costSharingCollectionReminderIsAllowedForBillingCycle({
     billingCycle: formData.billingCycle,
     oneTimeMode: formData.oneTimeMode,
@@ -227,6 +234,7 @@ export function SubscriptionDialogContent(props: SubscriptionDialogContentProps)
           formData={formData}
           setFormData={setFormData}
           currencyOptions={currencyOptions}
+          groupOptions={groupOptions}
           availableTags={props.availableTags}
           onLogoUploadStatusChange={setLogoUploadStatus}
           onFieldChange={handleFieldChange}

@@ -25,6 +25,7 @@
     "./schemas/public-status": "./src/schemas/public-status.ts",
     "./schemas/secrets": "./src/schemas/secrets.ts",
     "./schemas/settings": "./src/schemas/settings.ts",
+    "./schemas/subscription-groups": "./src/schemas/subscription-groups.ts",
     "./schemas/subscriptions": "./src/schemas/subscriptions.ts",
     "./schemas/telegram-bot": "./src/schemas/telegram-bot.ts",
     "./schemas/upstream": "./src/schemas/upstream.ts",

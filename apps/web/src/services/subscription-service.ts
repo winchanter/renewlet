@@ -50,6 +50,8 @@ type SubscriptionCollectionBaseForService = Pick<
   | "reminderDays"
   | "costSharing"
   | "tags"
+  // 所属组 ID：undefined 表示未分组（API 返回空串或缺省）。
+  | "groupId"
 >;
 
 type SubscriptionDetailFieldsForService = Pick<
@@ -61,6 +63,7 @@ type SubscriptionDetailFieldsForService = Pick<
   | "repeatReminderInterval"
   | "repeatReminderWindow"
   | "extra"
+  | "groupId"
 >;
 
 export interface SubscriptionPage {
@@ -98,6 +101,9 @@ function appendSubscriptionListFilters(params: URLSearchParams, filters?: Subscr
   if (filters.publicHidden !== undefined) params.set("publicHidden", String(filters.publicHidden));
   if (filters.reminderMode) params.set("reminderMode", filters.reminderMode);
   if (filters.repeatReminder !== undefined) params.set("repeatReminder", String(filters.repeatReminder));
+  // 按组筛选：group 是组 ID 数组（IN 语义）；ungrouped=true 只看未分组订阅。
+  for (const value of filters.group ?? []) params.append("group", value);
+  if (filters.ungrouped !== undefined) params.set("ungrouped", String(filters.ungrouped));
 }
 
 function fromApiSubscriptionCollectionBase(
@@ -126,6 +132,8 @@ function fromApiSubscriptionCollectionBase(
     reminderDays: parsedRow.reminderDays,
     costSharing: parsedRow.costSharing,
     tags: parsedRow.tags ?? [],
+    // API 返回空串或缺省都归一为 undefined；UI 用 undefined 表示“未分组”。
+    groupId: parsedRow.groupId || undefined,
   };
 }
 
@@ -138,6 +146,7 @@ function fromApiSubscriptionDetailFields(parsedRow: ApiSubscription): Subscripti
     repeatReminderInterval: parsedRow.repeatReminderInterval,
     repeatReminderWindow: parsedRow.repeatReminderWindow,
     extra: parsedRow.extra,
+    groupId: parsedRow.groupId || undefined,
   };
 }
 
@@ -244,6 +253,8 @@ function toSubscriptionFormPayload(submission: SubscriptionFormSubmission) {
     costSharing: submission.costSharing ?? null,
     // trialEndDate 现归表单所有；null 显式清空（非试用态或试用未填），日期字符串写入试用到期日。
     trialEndDate: submission.trialEndDate ?? null,
+    // 所属组：null 表示未分组（清空绑定）；表单显式管理 groupId，空值统一落 null。
+    groupId: submission.groupId ?? null,
   };
 }
 

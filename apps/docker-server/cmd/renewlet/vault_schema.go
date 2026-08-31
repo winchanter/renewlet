@@ -18,8 +18,12 @@ func ensureVaultCollections(app core.App, users *core.Collection) error {
 	if err != nil {
 		return err
 	}
+	groups, err := app.FindCollectionByNameOrId("subscription_groups")
+	if err != nil {
+		return err
+	}
 	// 先收敛 vault_credentials：全新库首次运行时它还不存在，不能在创建前预查询。
-	if err := ensureVaultCredentialsCollection(app, users, subscriptions); err != nil {
+	if err := ensureVaultCredentialsCollection(app, users, subscriptions, groups); err != nil {
 		return err
 	}
 	vaultCredentials, err := app.FindCollectionByNameOrId("vault_credentials")
@@ -35,7 +39,7 @@ func ensureVaultCollections(app core.App, users *core.Collection) error {
 	return ensureVaultAccessLogsCollection(app, users)
 }
 
-func ensureVaultCredentialsCollection(app core.App, users *core.Collection, subscriptions *core.Collection) error {
+func ensureVaultCredentialsCollection(app core.App, users *core.Collection, subscriptions *core.Collection, groups *core.Collection) error {
 	return ensureCollection(app, "vault_credentials", func(c *core.Collection) error {
 		ownerRules(c)
 		minZero := 0.0
@@ -43,6 +47,8 @@ func ensureVaultCredentialsCollection(app core.App, users *core.Collection, subs
 			userRelation(users),
 			// 订阅删除时凭据固定保留为独立账号：relation 不级联，PocketBase 会自动把引用置空。
 			&core.RelationField{Name: "subscription", CollectionId: subscriptions.Id, MaxSelect: 1},
+			// 组级共享账号：与 subscription 互斥（服务端校验），组删除时凭据保留。
+			subscriptionGroupRelationField(groups),
 			&core.TextField{Name: "title", Required: true, Max: 120},
 			&core.TextField{Name: "url", Max: maxLogoReferenceLength},
 			&core.TextField{Name: "username", Max: 200},
@@ -61,6 +67,7 @@ func ensureVaultCredentialsCollection(app core.App, users *core.Collection, subs
 		}
 		c.AddIndex("idx_vault_credentials_user", false, "user", "")
 		c.AddIndex("idx_vault_credentials_user_subscription", false, "user, subscription", "")
+		c.AddIndex("idx_vault_credentials_user_group", false, "user, group", "")
 		return nil
 	})
 }
@@ -76,6 +83,8 @@ func ensureVaultAccessCodesCollection(app core.App, users *core.Collection, vaul
 			&core.RelationField{Name: "credential", CollectionId: vaultCredentials.Id, MaxSelect: 1},
 			// subscription 文本快照冗余（可为空，用于独立账号），订阅删除后历史码仍能展示归属。
 			&core.TextField{Name: "subscription", Max: 128},
+			// group 文本快照冗余（可为空，组级共享账号兑换时记录组名），组删除后历史码仍能展示归属。
+			&core.TextField{Name: "group", Max: 128},
 			// credentialTitle 文本快照冗余：凭据改名后历史码列表不会漂移。
 			&core.TextField{Name: "credentialTitle", Required: true, Max: 120},
 			&core.TextField{Name: "codeHash", Required: true, Max: 128, Pattern: `^[a-f0-9]{64}$`},
@@ -112,7 +121,10 @@ func ensureVaultAccessRequestsCollection(app core.App, users *core.Collection) e
 		secretCollectionRules(c)
 		fields := []core.Field{
 			userRelation(users),
-			&core.TextField{Name: "subscription", Required: true, Max: 128},
+			// subscription 与 group 二选一非空（handler 校验）；schema 层都允许空以支持组级申请。
+			&core.TextField{Name: "subscription", Max: 128},
+			// group 文本快照（可为空，组级访问申请时记录组名）；subscription 与 group 二选一非空。
+			&core.TextField{Name: "group", Max: 128},
 			&core.TextField{Name: "publicStatusPage", Required: true, Max: 128},
 			&core.TextField{Name: "note", Max: 500},
 			&core.SelectField{Name: "status", Required: true, Values: []string{"pending", "approved", "declined", "expired", "closed"}},
@@ -145,13 +157,15 @@ func ensureVaultAccessLogsCollection(app core.App, users *core.Collection) error
 		c.CreateRule = nil
 		c.UpdateRule = nil
 		c.DeleteRule = nil
-	fields := []core.Field{
+		fields := []core.Field{
 			userRelation(users),
 			&core.TextField{Name: "action", Required: true, Max: 40},
 			&core.SelectField{Name: "source", Required: true, Values: []string{"admin", "public"}},
 			&core.SelectField{Name: "result", Required: true, Values: []string{"success", "failure"}},
 			// 关联对象用文本快照：订阅/凭据删除后日志必须保持可读。
 			&core.TextField{Name: "subscriptionId", Max: 128},
+			// groupId 文本快照：组级操作时记录组 ID，组删除后日志仍可读。
+			&core.TextField{Name: "groupId", Max: 128},
 			&core.TextField{Name: "credentialId", Max: 128},
 			&core.TextField{Name: "codeId", Max: 128},
 			&core.TextField{Name: "ip", Max: 64},

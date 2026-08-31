@@ -15,6 +15,7 @@ import {
   useRevealVaultCredentialPassword,
   useVaultCredentials,
 } from "@/hooks/use-vault";
+import { useSubscriptionGroups } from "@/hooks/use-subscription-groups";
 import { useSubscriptionIndex } from "@/hooks/use-subscriptions";
 import { copyTextToClipboard } from "@/shared/browser/clipboard";
 import { toast } from "@/components/ui/sonner";
@@ -26,7 +27,7 @@ interface LinkedAccountsSectionProps {
   subscriptionId: string;
 }
 
-function LinkedCredentialRow({ credential }: { credential: VaultCredential }) {
+function LinkedCredentialRow({ credential, groupName }: { credential: VaultCredential; groupName: string | null }) {
   const { t } = useI18n();
   const revealMutation = useRevealVaultCredentialPassword();
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
@@ -55,7 +56,14 @@ function LinkedCredentialRow({ credential }: { credential: VaultCredential }) {
   return (
     <div className="grid gap-2 rounded-lg border border-border bg-secondary/40 p-3" data-testid="vault-linked-credential-row">
       <div className="flex min-w-0 items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-sm font-medium text-foreground">{credential.title}</p>
+        <p className="min-w-0 truncate text-sm font-medium text-foreground">
+          {credential.title}
+          {groupName ? (
+            <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 align-middle text-[10px] font-normal text-primary">
+              {t("vault.card.linkedToGroup")}
+            </span>
+          ) : null}
+        </p>
         {credential.url ? (
           <a
             href={credential.url}
@@ -117,10 +125,12 @@ export function LinkedAccountsSection({ subscriptionId }: LinkedAccountsSectionP
   const { t } = useI18n();
   const credentialsQuery = useVaultCredentials({ subscriptionId });
   const subscriptionsQuery = useSubscriptionIndex();
+  const groupsQuery = useSubscriptionGroups();
   const createMutation = useCreateVaultCredential();
   const [formOpen, setFormOpen] = useState(false);
 
   const credentials = credentialsQuery.data ?? [];
+  const groupNameById = new Map(groupsQuery.groups.map((group) => [group.id, group.name]));
   const subscriptionOptions = (subscriptionsQuery.data?.subscriptions ?? []).map((item) => ({
     id: item.id,
     name: item.name,
@@ -148,7 +158,11 @@ export function LinkedAccountsSection({ subscriptionId }: LinkedAccountsSectionP
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
           {credentials.map((credential) => (
-            <LinkedCredentialRow key={credential.id} credential={credential} />
+            <LinkedCredentialRow
+              key={credential.id}
+              credential={credential}
+              groupName={credential.groupId ? groupNameById.get(credential.groupId) ?? null : null}
+            />
           ))}
         </div>
       )}

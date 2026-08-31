@@ -49,14 +49,16 @@ export type {
 
 export interface ListVaultCredentialsOptions {
   subscriptionId?: string | undefined;
+  groupId?: string | undefined;
   signal?: AbortSignal | undefined;
 }
 
-/** 拉取当前用户凭据列表；传 subscriptionId 时只返回该订阅的关联账号。 */
+/** 拉取当前用户凭据列表；传 subscriptionId/groupId 时只返回对应关联账号。 */
 export async function listVaultCredentials(options: ListVaultCredentialsOptions = {}): Promise<VaultCredential[]> {
   if (!getCurrentUserId()) return [];
   const params = new URLSearchParams();
   if (options.subscriptionId) params.set("subscriptionId", options.subscriptionId);
+  if (options.groupId) params.set("groupId", options.groupId);
   const query = params.toString();
   const data = await apiFetch(
     `/api/app/vault/credentials${query ? `?${query}` : ""}`,
@@ -182,6 +184,7 @@ export async function redeemVaultAccessCode(
 export interface ListVaultAccessRequestsOptions {
   status?: "pending" | "approved" | "declined" | "expired" | "closed" | "all";
   subscriptionId?: string | undefined;
+  groupId?: string | undefined;
   signal?: AbortSignal | undefined;
 }
 
@@ -190,6 +193,7 @@ export async function listVaultAccessRequests(options: ListVaultAccessRequestsOp
   const params = new URLSearchParams();
   if (options.status && options.status !== "all") params.set("status", options.status);
   if (options.subscriptionId) params.set("subscriptionId", options.subscriptionId);
+  if (options.groupId) params.set("groupId", options.groupId);
   const query = params.toString();
   const data = await apiFetch(
     `/api/app/vault/access-requests${query ? `?${query}` : ""}`,
@@ -248,6 +252,7 @@ export interface ListVaultAccessLogsOptions {
   action?: string | undefined;
   credentialId?: string | undefined;
   subscriptionId?: string | undefined;
+  groupId?: string | undefined;
   limit?: number | undefined;
   nextTime?: string | undefined;
   nextId?: string | undefined;
@@ -262,6 +267,7 @@ export async function listVaultAccessLogs(options: ListVaultAccessLogsOptions = 
   if (options.action && options.action !== "all") params.set("action", options.action);
   if (options.credentialId) params.set("credentialId", options.credentialId);
   if (options.subscriptionId) params.set("subscriptionId", options.subscriptionId);
+  if (options.groupId) params.set("groupId", options.groupId);
   if (typeof options.limit === "number") params.set("limit", String(options.limit));
   if (options.nextTime) params.set("nextTime", options.nextTime);
   if (options.nextId) params.set("nextId", options.nextId);

@@ -13,6 +13,8 @@ export interface SubscriptionFormFieldsProps {
   setFormData: Dispatch<SetStateAction<SubscriptionFormState>>;
   /** 由表单宿主统一生成，字段组件不能重建货币列表，否则会绕开设置页货币管理顺序。 */
   currencyOptions: SearchableSelectOption[];
+  /** 订阅组下拉选项；空数组时隐藏组选择器。 */
+  groupOptions?: SubscriptionGroupOption[] | undefined;
   availableTags?: readonly string[] | undefined;
   showLogoField?: boolean | undefined;
   onLogoUploadStatusChange: (status: LogoUploadStatus) => void;
@@ -22,6 +24,12 @@ export interface SubscriptionFormFieldsProps {
   notificationReminderDays: number;
   costSharingCurrencyConvert?: ((amount: number | string, fromCurrency: string, toCurrency: string) => number) | undefined;
   onNestedDialogOpenChange?: ((open: boolean) => void) | undefined;
+}
+
+/** 订阅组下拉选项；value 是组 ID，label 是组名。 */
+export interface SubscriptionGroupOption {
+  value: string;
+  label: string;
 }
 
 export type { SubscriptionFormErrors };

@@ -129,6 +129,11 @@ msgid "vault.codes.linkedSubscription"
 msgstr "关联订阅：{name}"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:82
+msgid "vault.codes.linkedToGroup"
+msgstr "关联组：{name}"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:64
 msgid "vault.detail.linkedAccounts"
 msgstr "关联账号"
@@ -237,6 +242,16 @@ msgstr "处理访问申请"
 #: src/i18n/descriptors/vault.ts:38
 msgid "vault.form.notesLabel"
 msgstr "备注"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:39
+msgid "vault.redeem.linkedSubscription"
+msgstr "关联订阅"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:40
+msgid "vault.redeem.linkedGroup"
+msgstr "关联组"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:99

@@ -64,6 +64,16 @@ msgid "publicStatus.vault.fieldNotes"
 msgstr "备注"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:50
+msgid "publicStatus.vault.fieldSubscription"
+msgstr "关联订阅"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:51
+msgid "publicStatus.vault.fieldGroup"
+msgstr "关联组"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:52
 msgid "publicStatus.vault.copy"
 msgstr "复制"

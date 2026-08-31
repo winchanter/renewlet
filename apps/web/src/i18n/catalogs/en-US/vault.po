@@ -129,6 +129,11 @@ msgid "vault.codes.linkedSubscription"
 msgstr "Linked subscription: {name}"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:82
+msgid "vault.codes.linkedToGroup"
+msgstr "Linked group: {name}"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:64
 msgid "vault.detail.linkedAccounts"
 msgstr "Linked accounts"
@@ -237,6 +242,16 @@ msgstr "Process access request"
 #: src/i18n/descriptors/vault.ts:38
 msgid "vault.form.notesLabel"
 msgstr "Notes"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:39
+msgid "vault.redeem.linkedSubscription"
+msgstr "Linked subscription"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:40
+msgid "vault.redeem.linkedGroup"
+msgstr "Linked group"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:99

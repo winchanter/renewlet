@@ -47,6 +47,8 @@ export const messages = [
   msg({ id: "publicStatus.vault.fieldPassword", message: "密码" }),
   msg({ id: "publicStatus.vault.fieldUrl", message: "网址" }),
   msg({ id: "publicStatus.vault.fieldNotes", message: "备注" }),
+  msg({ id: "publicStatus.vault.fieldSubscription", message: "关联订阅" }),
+  msg({ id: "publicStatus.vault.fieldGroup", message: "关联组" }),
   msg({ id: "publicStatus.vault.revealPassword", message: "显示密码" }),
   msg({ id: "publicStatus.vault.hidePassword", message: "隐藏密码" }),
   msg({ id: "publicStatus.vault.copy", message: "复制" }),

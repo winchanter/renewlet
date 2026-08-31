@@ -634,9 +634,31 @@ function PublicVaultRedeemResult({ result }: { result: VaultPublicRedeemPayload 
   const { t } = useI18n();
   return (
     <div className="grid gap-4 rounded-lg border border-border bg-background/60 p-4">
-      <div className="flex items-center gap-2">
-        <Check className="h-4 w-4 text-primary" />
-        <p className="text-sm font-medium text-foreground">{t("publicStatus.vault.resultTitle")}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
+          <Check className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium text-foreground">{t("publicStatus.vault.resultTitle")}</p>
+        </div>
+        {result.subscriptionName || result.groupName ? (
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            {result.subscriptionName ? (
+              <Badge variant="secondary" className="max-w-[12rem] gap-1 rounded-full px-2.5 font-normal">
+                <span className="shrink-0 text-muted-foreground">{t("publicStatus.vault.fieldSubscription")}</span>
+                <span className="truncate font-medium text-foreground" title={result.subscriptionName}>
+                  {result.subscriptionName}
+                </span>
+              </Badge>
+            ) : null}
+            {result.groupName ? (
+              <Badge variant="secondary" className="max-w-[12rem] gap-1 rounded-full px-2.5 font-normal">
+                <span className="shrink-0 text-muted-foreground">{t("publicStatus.vault.fieldGroup")}</span>
+                <span className="truncate font-medium text-foreground" title={result.groupName}>
+                  {result.groupName}
+                </span>
+              </Badge>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <PublicVaultFieldRow label={t("publicStatus.vault.fieldTitle")} value={result.title} />
       {result.username ? (

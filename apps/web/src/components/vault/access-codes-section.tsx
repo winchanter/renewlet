@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { useCreateVaultAccessCode, useRedeemVaultAccessCode, useRevealVaultAccessCodePlain, useRevokeVaultAccessCode, useVaultAccessCodes } from "@/hooks/use-vault-p2";
 import { useVaultCredentials } from "@/hooks/use-vault";
+import { useSubscriptionGroups } from "@/hooks/use-subscription-groups";
 import { PlainCodeRevealDialog } from "@/components/vault/plain-code-reveal-dialog";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { MessageKey, MessageParams } from "@/i18n/messages";
@@ -79,15 +80,19 @@ export function AccessCodesSection({ subscriptions }: AccessCodesSectionProps) {
     }
   };
   const credentialsQuery = useVaultCredentials();
+  const groupsQuery = useSubscriptionGroups();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [revealedPlainCode, setRevealedPlainCode] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<VaultAccessCode | null>(null);
   const [redeemOpen, setRedeemOpen] = useState(false);
-  const [redeemResult, setRedeemResult] = useState<{ title: string; username: string; password: string; url: string; notes: string } | null>(null);
+  const [redeemResult, setRedeemResult] = useState<{ title: string; subscriptionName: string; groupName: string; username: string; password: string; url: string; notes: string } | null>(null);
 
   const codes = codesQuery.data ?? [];
   const credentials = credentialsQuery.data ?? [];
+  // 按 credentialId 解析所属组：授权码只绑定 credential，组信息需经 credential.groupId 间接取得。
+  const groupNameById = new Map(groupsQuery.groups.map((group) => [group.id, group.name]));
+  const credentialById = new Map(credentials.map((c) => [c.id, c]));
 
   const handleCreateSuccess = useCallback((plain: string) => {
     setRevealedPlainCode(plain);
@@ -119,16 +124,21 @@ export function AccessCodesSection({ subscriptions }: AccessCodesSectionProps) {
             ? <EmptyList />
             : (
               <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {codes.map((code) => (
-                <AccessCodeCard
-                  key={code.id}
-                  code={code}
-                  subscriptions={subscriptions}
-                  formatDateTime={formatDateTime}
-                  onView={() => void handleViewCode(code.id)}
-                  onRevoke={() => setRevoking(code)}
-                />
-              ))}
+                {codes.map((code) => {
+                  const credential = credentialById.get(code.credentialId);
+                  const groupName = credential?.groupId ? (groupNameById.get(credential.groupId) ?? null) : null;
+                  return (
+                    <AccessCodeCard
+                      key={code.id}
+                      code={code}
+                      subscriptions={subscriptions}
+                      groupName={groupName}
+                      formatDateTime={formatDateTime}
+                      onView={() => void handleViewCode(code.id)}
+                      onRevoke={() => setRevoking(code)}
+                    />
+                  );
+                })}
               </div>
             )}
 
@@ -189,6 +199,8 @@ export function AccessCodesSection({ subscriptions }: AccessCodesSectionProps) {
           const result = await redeemMutation.mutateAsync(body);
           setRedeemResult({
             title: result.title,
+            subscriptionName: result.subscriptionName,
+            groupName: result.groupName,
             username: result.username,
             password: result.password,
             url: result.url,
@@ -251,16 +263,20 @@ function StatusBadge({ status }: { status: VaultAccessCode["status"] }) {
 interface AccessCodeCardProps {
   code: VaultAccessCode;
   subscriptions: Array<Pick<SubscriptionIndexItem, "id" | "name">>;
+  /** 关联组名；账号绑定到组时非空，优先于 subscriptionId 展示。 */
+  groupName: string | null;
   formatDateTime: (date: Date | string | number, options?: Intl.DateTimeFormatOptions) => string;
   onView: () => void;
   onRevoke: () => void;
 }
 
-function AccessCodeCard({ code, subscriptions, formatDateTime, onView, onRevoke }: AccessCodeCardProps) {
+function AccessCodeCard({ code, subscriptions, groupName, formatDateTime, onView, onRevoke }: AccessCodeCardProps) {
   const { t } = useI18n();
-  const linked = code.subscriptionId
-    ? t("vault.codes.linkedSubscription", { name: subscriptionNameByID(subscriptions, code.subscriptionId, t) })
-    : t("vault.codes.standaloneCredential");
+  const linked = groupName
+    ? t("vault.codes.linkedToGroup", { name: groupName })
+    : code.subscriptionId
+      ? t("vault.codes.linkedSubscription", { name: subscriptionNameByID(subscriptions, code.subscriptionId, t) })
+      : t("vault.codes.standaloneCredential");
   return (
     <Card className="flex flex-col">
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 p-4 pb-2">
@@ -500,7 +516,7 @@ interface RedeemCodeDialogProps {
   redeeming: boolean;
   onSubmit: (body: { code: string }) => Promise<void>;
   onError: (err: unknown) => void;
-  result: { title: string; username: string; password: string; url: string; notes: string } | null;
+  result: { title: string; subscriptionName: string; groupName: string; username: string; password: string; url: string; notes: string } | null;
   onResetResult: () => void;
 }
 
@@ -584,7 +600,7 @@ function RedeemResultView({
   result,
   onClose,
 }: {
-  result: { title: string; username: string; password: string; url: string; notes: string };
+  result: { title: string; subscriptionName: string; groupName: string; username: string; password: string; url: string; notes: string };
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -595,6 +611,18 @@ function RedeemResultView({
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
         <div className="text-sm font-medium">{result.title}</div>
+        {result.subscriptionName ? (
+          <div className="rounded-md border border-border bg-card px-3 py-2">
+            <div className="text-xs text-muted-foreground">{t("vault.redeem.linkedSubscription")}</div>
+            <div className="text-sm break-all">{result.subscriptionName}</div>
+          </div>
+        ) : null}
+        {result.groupName ? (
+          <div className="rounded-md border border-border bg-card px-3 py-2">
+            <div className="text-xs text-muted-foreground">{t("vault.redeem.linkedGroup")}</div>
+            <div className="text-sm break-all">{result.groupName}</div>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2">
           <div>
             <div className="text-xs text-muted-foreground">{t("vault.form.usernameLabel")}</div>

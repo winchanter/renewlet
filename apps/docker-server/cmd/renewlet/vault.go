@@ -479,14 +479,16 @@ type vaultAccessCodeRedeemRequest struct {
 }
 
 type vaultAccessCodeRedeemResponse struct {
-	Password       string `json:"password"`
-	CredentialID   string `json:"credentialId"`
-	SubscriptionID string `json:"subscriptionId"`
-	GroupID        string `json:"groupId"`
-	Title          string `json:"title"`
-	URL            string `json:"url"`
-	Username       string `json:"username"`
-	Notes          string `json:"notes"`
+	Password         string `json:"password"`
+	CredentialID     string `json:"credentialId"`
+	SubscriptionID   string `json:"subscriptionId"`
+	GroupID          string `json:"groupId"`
+	SubscriptionName string `json:"subscriptionName"` // 冗余快照，可能为空（独立账号或订阅已删除）
+	GroupName        string `json:"groupName"`        // 冗余快照，可能为空（未绑定组或组已删除）
+	Title            string `json:"title"`
+	URL              string `json:"url"`
+	Username         string `json:"username"`
+	Notes            string `json:"notes"`
 }
 
 func generateVaultAccessCode() (string, string, string, error) {
@@ -783,15 +785,53 @@ func vaultAccessCodeRedeemCore(app core.App, e *core.RequestEvent, body vaultAcc
 	}
 	writeVaultAccessLog(app, codeOwner, resultAction, source, vaultLogResultSuccess,
 		subscriptionID, credential.Id, code.Id, ip, ua, map[string]any{"user": userID})
+	// 冗余名称快照：用于 redeem 结果回显关联订阅/组名，避免前端（尤其未登录的公开页访客）再查。
+	// 实体已删除时返回空串，前端不渲染对应行。
+	groupID := credential.GetString("group")
+	subscriptionName, groupName := "", ""
+	// 审批访问申请生成的码带 request 记录：名称以申请目标（订阅/组）优先——这才是码的用途，
+	// 因为审批所选账号可能是组共享账号，并不直接挂靠在被申请的订阅下。
+	// 无申请记录（手动创建的码）或申请/实体已删除时，回退到账号自身归属。
+	reqSubscriptionID, reqGroupID := "", ""
+	if reqID := code.GetString("request"); reqID != "" {
+		if req, reqErr := app.FindFirstRecordByFilter(
+			"vault_access_requests",
+			"id = {:id} && user = {:user}",
+			dbx.Params{"id": reqID, "user": codeOwner},
+		); reqErr == nil && req != nil {
+			reqSubscriptionID = req.GetString("subscription")
+			reqGroupID = req.GetString("group")
+		}
+	}
+	if reqSubscriptionID != "" {
+		if sub, subErr := app.FindFirstRecordByFilter("subscriptions", "id = {:id} && user = {:user}", dbx.Params{"id": reqSubscriptionID, "user": codeOwner}); subErr == nil && sub != nil {
+			subscriptionName = sub.GetString("name")
+		}
+	} else if subscriptionID != "" {
+		if sub, subErr := app.FindFirstRecordByFilter("subscriptions", "id = {:id} && user = {:user}", dbx.Params{"id": subscriptionID, "user": codeOwner}); subErr == nil && sub != nil {
+			subscriptionName = sub.GetString("name")
+		}
+	}
+	if reqGroupID != "" {
+		if grp, grpErr := app.FindFirstRecordByFilter("subscription_groups", "id = {:id} && user = {:user}", dbx.Params{"id": reqGroupID, "user": codeOwner}); grpErr == nil && grp != nil {
+			groupName = grp.GetString("name")
+		}
+	} else if groupID != "" {
+		if grp, grpErr := app.FindFirstRecordByFilter("subscription_groups", "id = {:id} && user = {:user}", dbx.Params{"id": groupID, "user": codeOwner}); grpErr == nil && grp != nil {
+			groupName = grp.GetString("name")
+		}
+	}
 	return apiSuccessJSON(e, http.StatusOK, vaultAccessCodeRedeemResponse{
-		Password:       password,
-		CredentialID:   credential.Id,
-		SubscriptionID: subscriptionID,
-		GroupID:        credential.GetString("group"),
-		Title:          credential.GetString("title"),
-		URL:            credential.GetString("url"),
-		Username:       credential.GetString("username"),
-		Notes:          notes,
+		Password:         password,
+		CredentialID:     credential.Id,
+		SubscriptionID:   subscriptionID,
+		GroupID:          groupID,
+		SubscriptionName: subscriptionName,
+		GroupName:        groupName,
+		Title:            credential.GetString("title"),
+		URL:              credential.GetString("url"),
+		Username:         credential.GetString("username"),
+		Notes:            notes,
 	})
 }
 

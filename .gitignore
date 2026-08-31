@@ -43,6 +43,7 @@ wrangler.generated.jsonc
 
 # Go 本地编译二进制产物
 **/cmd/renewlet/renewlet
+apps/docker-server/renewlet.exe
 
 # 账号库本地备份导出目录
 vault-backups/

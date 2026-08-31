@@ -141,6 +141,9 @@ export const vaultAccessCodeRedeemPayloadSchema = z.object({
   subscriptionId: z.string().max(128), // 冗余，独立账号可能为空
   // 组级共享账号时返回组 ID；空串表示未绑定组。
   groupId: z.string().max(128),
+  // 冗余名称快照，可能为空（独立账号/未绑定组，或对应实体已删除）；用于 redeem 结果回显，避免前端再查。
+  subscriptionName: z.string().max(200),
+  groupName: z.string().max(120),
   title: z.string().max(120),
   url: z.string().max(2048),
   username: z.string().max(200),

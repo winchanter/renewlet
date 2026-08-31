@@ -65,6 +65,7 @@ type publicStatusPageUpdateRequest struct {
 type publicStatusResponse struct {
 	Page          publicStatusPageView           `json:"page"`
 	Subscriptions []publicStatusSubscriptionView `json:"subscriptions"`
+	Groups        []publicStatusGroupView        `json:"groups"`
 	Vault         publicStatusVaultView          `json:"vault"`
 }
 
@@ -111,6 +112,16 @@ type publicStatusSubscriptionView struct {
 	UsageTotal       float64                  `json:"usageTotal,omitempty"`
 	UsageDailyRate   float64                  `json:"usageDailyRate,omitempty"`
 	UsageExpiresAt   *string                  `json:"usageExpiresAt,omitempty"`
+	// GroupIndex 是所属组在 Groups 数组中的下标；指针类型保证下标 0 正常输出，
+	// 未分组订阅为 nil 并被 omitempty 省略。前端按下标回查组信息，不暴露组 id。
+	GroupIndex *int `json:"groupIndex,omitempty"`
+}
+
+// publicStatusGroupView 是公开页订阅组投影；只暴露组名与 logo，不暴露组 id、描述与排序。
+// 只输出至少含一条公开可见订阅的组，避免空组名泄露服务结构。
+type publicStatusGroupView struct {
+	Name string `json:"name"`
+	Logo string `json:"logo,omitempty"`
 }
 
 // publicStatusCategoryView 只暴露展示标签和颜色，隐藏用户自定义配置的其它原始字段。
@@ -219,8 +230,14 @@ func handlePublicStatusAssetRead(app core.App, e *core.RequestEvent) error {
 	if ok, err := publicStatusAssetIsReferenced(app, page.GetString("user"), assetID); err != nil {
 		return e.InternalServerError(serverText(locale, "common.internalError"), err)
 	} else if !ok {
-		// 公开资产 URL 不能成为同用户资产枚举器；只有可见订阅实际引用的 Logo 才能被 token 读取。
-		return e.NotFoundError(serverText(locale, "common.notFound"), nil)
+		groupOK, err := publicStatusGroupAssetIsReferenced(app, page.GetString("user"), assetID)
+		if err != nil {
+			return e.InternalServerError(serverText(locale, "common.internalError"), err)
+		}
+		if !groupOK {
+			// 公开资产 URL 不能成为同用户资产枚举器；只有可见订阅或其所属组实际引用的 Logo 才能被 token 读取。
+			return e.NotFoundError(serverText(locale, "common.notFound"), nil)
+		}
 	}
 	return writeAssetRecord(app, e, asset, "no-store", true)
 }
@@ -301,7 +318,12 @@ func buildPublicStatusResponse(app core.App, request *http.Request, page *core.R
 	settings := publicStatusSettingsForUser(app, userID)
 	resolver := newPublicStatusCategoryResolver(app, userID, normalizeAppLocale(settings.Locale))
 	today := todayDateOnly(time.Now().UTC(), settings.Timezone)
-	items, truncated, err := listPublicStatusSubscriptions(app, request, page, resolver, today)
+	// 组投影在订阅之前构建：订阅按下标回查所属组，之后只保留被可见订阅引用的组。
+	groupIndexByID, groupViews, err := publicStatusGroupsForUser(app, request, page)
+	if err != nil {
+		return publicStatusResponse{}, err
+	}
+	items, truncated, err := listPublicStatusSubscriptions(app, request, page, resolver, today, groupIndexByID)
 	if err != nil {
 		return publicStatusResponse{}, err
 	}
@@ -343,11 +365,80 @@ func buildPublicStatusResponse(app core.App, request *http.Request, page *core.R
 	return publicStatusResponse{
 		Page:          view,
 		Subscriptions: items,
+		Groups:        referencedPublicStatusGroups(items, groupViews),
 		Vault:         vault,
 	}, nil
 }
 
-func listPublicStatusSubscriptions(app core.App, request *http.Request, page *core.Record, resolver publicStatusCategoryResolver, today string) ([]publicStatusSubscriptionView, bool, error) {
+// publicStatusGroupsForUser 拉取用户全部订阅组（sortOrder 升序，与组列表管理口径一致），
+// 返回组 id → 下标映射和公开组投影（logo 走公开资产代理）。
+func publicStatusGroupsForUser(app core.App, request *http.Request, page *core.Record) (map[string]int, []publicStatusGroupView, error) {
+	userID := page.GetString("user")
+	token := page.GetString("token")
+	lookup := map[string]int{}
+	groups := []publicStatusGroupView{}
+	rows, err := app.FindRecordsByFilter(
+		"subscription_groups",
+		"user = {:user}",
+		"sortOrder,created,id",
+		publicStatusSubscriptionLimit, 0,
+		dbx.Params{"user": userID},
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, row := range rows {
+		lookup[row.Id] = len(groups)
+		view := publicStatusGroupView{Name: row.GetString("name")}
+		if logo := publicStatusLogoURL(request, token, row.GetString("logo")); logo != "" {
+			view.Logo = logo
+		}
+		groups = append(groups, view)
+	}
+	return lookup, groups, nil
+}
+
+// referencedPublicStatusGroups 只保留被可见订阅引用的组，并把订阅投影中的组下标重映射到过滤后的位置。
+func referencedPublicStatusGroups(items []publicStatusSubscriptionView, groups []publicStatusGroupView) []publicStatusGroupView {
+	referenced := make([]bool, len(groups))
+	for _, item := range items {
+		if item.GroupIndex != nil && *item.GroupIndex >= 0 && *item.GroupIndex < len(groups) {
+			referenced[*item.GroupIndex] = true
+		}
+	}
+	remap := make([]int, len(groups))
+	filtered := []publicStatusGroupView{}
+	for index, keep := range referenced {
+		if !keep {
+			remap[index] = -1
+			continue
+		}
+		remap[index] = len(filtered)
+		filtered = append(filtered, groups[index])
+	}
+	if len(filtered) == len(groups) {
+		return filtered
+	}
+	// items 与调用方共享底层数组；截断或空组过滤后统一重映射下标，未分组（nil）保持不变。
+	for index := range items {
+		if items[index].GroupIndex == nil {
+			continue
+		}
+		current := *items[index].GroupIndex
+		if current < 0 || current >= len(remap) {
+			items[index].GroupIndex = nil
+			continue
+		}
+		if remapped := remap[current]; remapped >= 0 {
+			items[index].GroupIndex = &remapped
+		} else {
+			items[index].GroupIndex = nil
+		}
+	}
+	return filtered
+}
+
+func listPublicStatusSubscriptions(app core.App, request *http.Request, page *core.Record, resolver publicStatusCategoryResolver, today string, groupIndexByID map[string]int) ([]publicStatusSubscriptionView, bool, error) {
 	userID := page.GetString("user")
 	token := page.GetString("token")
 	items := []publicStatusSubscriptionView{}
@@ -365,7 +456,7 @@ func listPublicStatusSubscriptions(app core.App, request *http.Request, page *co
 			return nil, false, err
 		}
 		for _, row := range rows {
-			items = append(items, publicStatusSubscriptionFromRecord(request, token, row, resolver, page.GetBool("showPrices"), today))
+			items = append(items, publicStatusSubscriptionFromRecord(request, token, row, resolver, page.GetBool("showPrices"), today, groupIndexByID))
 			if len(items) > publicStatusSubscriptionLimit {
 				return items[:publicStatusSubscriptionLimit], true, nil
 			}
@@ -376,7 +467,7 @@ func listPublicStatusSubscriptions(app core.App, request *http.Request, page *co
 	}
 }
 
-func publicStatusSubscriptionFromRecord(request *http.Request, token string, row *core.Record, resolver publicStatusCategoryResolver, showPrices bool, today string) publicStatusSubscriptionView {
+func publicStatusSubscriptionFromRecord(request *http.Request, token string, row *core.Record, resolver publicStatusCategoryResolver, showPrices bool, today string, groupIndexByID map[string]int) publicStatusSubscriptionView {
 	item := publicStatusSubscriptionView{
 		Name:            row.GetString("name"),
 		Logo:            publicStatusLogoURL(request, token, row.GetString("logo")),
@@ -385,6 +476,12 @@ func publicStatusSubscriptionFromRecord(request *http.Request, token string, row
 		StartDate:       nullableStringPointer(row.GetString("startDate")),
 		NextBillingDate: row.GetString("nextBillingDate"),
 		UpdatedAt:       row.GetDateTime("updated").Time().UTC().Format(time.RFC3339),
+	}
+	if groupID := row.GetString("group"); groupID != "" {
+		if index, ok := groupIndexByID[groupID]; ok {
+			// 下标指向 groups 数组；组随后只保留被引用项，由 referencedPublicStatusGroups 重映射。
+			item.GroupIndex = &index
+		}
 	}
 	if showPrices {
 		price := moneyForRecord(row.Get("price"))
@@ -475,6 +572,38 @@ func publicStatusAssetIsReferenced(app core.App, userID string, assetID string) 
 		return false, err
 	}
 	return record != nil, nil
+}
+
+// publicStatusGroupAssetIsReferenced 校验组 logo 引用：资产被某组 logo 引用，且该组下至少有一条公开可见订阅。
+func publicStatusGroupAssetIsReferenced(app core.App, userID string, assetID string) (bool, error) {
+	logo := "/api/app/assets/" + assetID
+	groups, err := app.FindRecordsByFilter(
+		"subscription_groups",
+		"user = {:user} && logo = {:logo}",
+		"created,id",
+		publicStatusSubscriptionLimit, 0,
+		dbx.Params{"user": userID, "logo": logo},
+	)
+	if err != nil {
+		return false, err
+	}
+	for _, group := range groups {
+		subscription, err := app.FindFirstRecordByFilter(
+			"subscriptions",
+			"group = {:group} && user = {:user} && publicHidden = false",
+			dbx.Params{"group": group.Id, "user": userID},
+		)
+		if err != nil {
+			if errorsIsNoRows(err) {
+				continue
+			}
+			return false, err
+		}
+		if subscription != nil {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func publicStatusSettingsForUser(app core.App, userID string) appSettings {

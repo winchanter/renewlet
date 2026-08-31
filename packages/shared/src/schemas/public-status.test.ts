@@ -202,6 +202,61 @@ describe("public status schemas", () => {
     })).success).toBe(true);
   });
 
+  it("defaults groups to an empty list for worker responses", () => {
+    // Worker 面无组能力；缺省 groups 解析为空数组，订阅投影不带 groupIndex。
+    const parsed = publicStatusResponseSchema.parse(success({
+      page: publicPage({ showPrices: false }),
+      subscriptions: [{
+        name: "Netflix",
+        category: { value: "streaming", label: "Streaming" },
+        status: "active",
+        startDate: null,
+        nextBillingDate: "2026-07-01",
+        updatedAt: "2026-06-07T00:00:00.000Z",
+      }],
+      vault: disabledVault,
+    }));
+    expect(parsed.data.groups).toEqual([]);
+  });
+
+  it("projects groups only with visible subscription references", () => {
+    const groupedResponse = (overrides: {
+      groups?: unknown[];
+      subscriptions?: Array<Record<string, unknown>>;
+    }) => success({
+      page: publicPage({ showPrices: false }),
+      subscriptions: overrides.subscriptions ?? [{
+        name: "AWS Prod",
+        category: { value: "cloud", label: "Cloud" },
+        status: "active",
+        startDate: null,
+        nextBillingDate: "2026-07-01",
+        updatedAt: "2026-06-07T00:00:00.000Z",
+        groupIndex: 0,
+      }],
+      groups: overrides.groups ?? [{ name: "AWS" }],
+      vault: disabledVault,
+    });
+
+    // 合法投影：订阅引用存在的组下标，组被可见订阅引用。
+    expect(publicStatusResponseSchema.parse(groupedResponse({})).data.groups).toHaveLength(1);
+    // 订阅引用越界组下标必须拒绝。
+    expect(publicStatusResponseSchema.safeParse(groupedResponse({ groups: [] })).success).toBe(false);
+    // 没有任何可见订阅引用的组不得出站，避免空组名泄露服务结构。
+    expect(publicStatusResponseSchema.safeParse(groupedResponse({
+      groups: [{ name: "AWS" }, { name: "Ghost" }],
+      subscriptions: [{
+        name: "AWS Prod",
+        category: { value: "cloud", label: "Cloud" },
+        status: "active",
+        startDate: null,
+        nextBillingDate: "2026-07-01",
+        updatedAt: "2026-06-07T00:00:00.000Z",
+        groupIndex: 0,
+      }],
+    })).success).toBe(false);
+  });
+
   it("accepts inherited or explicit public status currency settings", () => {
     expect(appSettingsSchema.pick({ publicStatusCurrency: true }).parse({ publicStatusCurrency: "inherit" }).publicStatusCurrency).toBe("inherit");
     expect(appSettingsSchema.pick({ publicStatusCurrency: true }).parse({ publicStatusCurrency: "USD" }).publicStatusCurrency).toBe("USD");

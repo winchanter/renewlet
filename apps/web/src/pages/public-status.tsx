@@ -1,9 +1,10 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   Activity,
   AlertCircle,
   CalendarClock,
   Check,
+  ChevronDown,
   Clock3,
   Copy,
   CreditCard,
@@ -11,6 +12,7 @@ import {
   EyeOff,
   Gauge,
   KeyRound,
+  Layers,
   Link2,
   Monitor,
   Moon,
@@ -32,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,11 +43,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { TruncatedTooltipText } from "@/components/ui/truncated-tooltip-text";
 import { ApiError } from "@/lib/api-client";
 import { colorWithAlpha } from "@/lib/color";
-import { formatCompactCurrencyAmount } from "@/lib/currency";
+import { formatCompactCurrencyAmount, formatCurrency } from "@/lib/currency";
 import { getDisplayErrorMessage } from "@/lib/display-error";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-provider";
-import { daysBetweenDateOnly, todayDateOnlyInTimeZone } from "@/lib/time/date-only";
+import { daysBetweenDateOnly, formatDateOnlyMonthDay, todayDateOnlyInTimeZone } from "@/lib/time/date-only";
 import { usePublicStatus } from "@/hooks/use-public-status-page";
 import { useExchangeRates } from "@/hooks/use-exchange-rates";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -185,7 +188,17 @@ function PublicStatusThemeMenu() {
   );
 }
 
-function PublicStatusHeader({ data }: { data: PublicStatusResponse }) {
+function PublicStatusHeader({
+  data,
+  showGroupToggle,
+  grouped,
+  onToggleGrouped,
+}: {
+  data: PublicStatusResponse;
+  showGroupToggle: boolean;
+  grouped: boolean;
+  onToggleGrouped: () => void;
+}) {
   const { t, formatDateTime } = useI18n();
 
   return (
@@ -196,7 +209,25 @@ function PublicStatusHeader({ data }: { data: PublicStatusResponse }) {
           {t("publicStatus.headerMeta", { time: formatDateTime(data.page.generatedAt) })}
         </p>
       </div>
-      <PublicStatusThemeMenu />
+      <div className="flex shrink-0 items-center gap-2">
+        {showGroupToggle ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("subscriptions.groupedView")}
+            aria-pressed={grouped}
+            onClick={onToggleGrouped}
+            className={cn(
+              "h-10 w-10 shrink-0 border border-border bg-card/80 text-muted-foreground hover:bg-card-hover hover:text-foreground focus-visible:ring-ring sm:h-9 sm:w-9",
+              grouped && "bg-primary/10 text-primary",
+            )}
+          >
+            <Layers className="h-4 w-4" />
+          </Button>
+        ) : null}
+        <PublicStatusThemeMenu />
+      </div>
     </header>
   );
 }
@@ -237,13 +268,12 @@ function publicStatusStats(data: PublicStatusResponse) {
   );
 }
 
-function publicStatusMonthlyTotal(
-  data: PublicStatusResponse,
+function publicStatusMonthlyTotalOf(
+  subscriptions: readonly PublicStatusSubscription[],
+  currency: string,
   convert: (amount: number | string, from: string, to: string) => number,
 ) {
-  const targetCurrency = data.page.currency;
-  if (!data.page.showPrices || !targetCurrency) return 0;
-  return data.subscriptions.reduce((sum, subscription) => {
+  return subscriptions.reduce((sum, subscription) => {
     if (subscription.status !== "active" && subscription.status !== "trial") return sum;
     if (
       subscription.price === undefined
@@ -252,7 +282,7 @@ function publicStatusMonthlyTotal(
     ) {
       return sum;
     }
-    const amount = convert(subscription.price, subscription.currency, targetCurrency);
+    const amount = convert(subscription.price, subscription.currency, currency);
     const monthly = toMonthlyAmount(
       amount,
       subscription.billingCycle,
@@ -265,6 +295,15 @@ function publicStatusMonthlyTotal(
     );
     return Number.isFinite(monthly) ? sum + monthly : sum;
   }, 0);
+}
+
+function publicStatusMonthlyTotal(
+  data: PublicStatusResponse,
+  convert: (amount: number | string, from: string, to: string) => number,
+) {
+  const targetCurrency = data.page.currency;
+  if (!data.page.showPrices || !targetCurrency) return 0;
+  return publicStatusMonthlyTotalOf(data.subscriptions, targetCurrency, convert);
 }
 
 function publicStatusConverterFromBasis(basis: PublicStatusExchangeRateBasis | undefined) {
@@ -545,7 +584,7 @@ function PublicSubscriptionCard({
         </div>
       </div>
       {onRequestAccess ? (
-        <div className="mt-4 flex justify-end border-t border-border pt-3">
+        <div className="-mb-2.5 mt-3 flex justify-end">
           <Button type="button" variant="outline" size="sm" onClick={onRequestAccess}>
             <KeyRound className="h-3.5 w-3.5" />
             {t("publicStatus.vault.tabRequest")}
@@ -553,6 +592,279 @@ function PublicSubscriptionCard({
         </div>
       ) : null}
     </article>
+  );
+}
+
+// ================== P2：公开页即将到期独立分组 ==================
+
+type PublicStatusUpcomingKind = "renewal" | "expiry";
+
+interface PublicStatusUpcomingItem {
+  subscription: PublicStatusSubscription;
+  kind: PublicStatusUpcomingKind;
+  daysUntil: number;
+}
+
+/**
+ * 构建公开页「即将到期」列表条目。
+ *
+ * 视觉规则参考仪表盘 UpcomingRenewals：仅展示提醒窗口内（默认 0–7 天）的 active/trial
+ * 订阅，跳过买断无服务期项（无 nextBillingDate 续费意义）。窗口长度复用 publicStatusStats
+ * 中已有的 7 天口径，避免公开页与统计卡片计数口径不一致。
+ */
+function buildPublicStatusUpcomingItems(data: PublicStatusResponse): PublicStatusUpcomingItem[] {
+  const today = todayDateOnlyInTimeZone(new Date(data.page.generatedAt), "UTC");
+  const items: PublicStatusUpcomingItem[] = [];
+  for (const subscription of data.subscriptions) {
+    const isActiveLike = subscription.status === "active" || subscription.status === "trial";
+    if (!isActiveLike) continue;
+    if (subscription.billingCycle === "one-time" && !subscription.oneTimeTermCount) continue;
+    const daysUntil = daysBetweenDateOnly(today, subscription.nextBillingDate);
+    if (daysUntil < 0 || daysUntil > 7) continue;
+    items.push({
+      subscription,
+      kind: subscription.billingCycle === "one-time" ? "expiry" : "renewal",
+      daysUntil,
+    });
+  }
+  return items.sort((a, b) => {
+    if (a.daysUntil !== b.daysUntil) return a.daysUntil - b.daysUntil;
+    return a.subscription.name.localeCompare(b.subscription.name);
+  });
+}
+
+/**
+ * 公开页「即将到期」独立分组：在订阅列表上方以紧凑行卡片展示未来 7 天的续费/到期项。
+ *
+ * 视觉规则参考仪表盘 UpcomingRenewals 组件：
+ * - 最多 5 条，移动端单列，sm 起两列，xl 起三列
+ * - 倒数 3 天内的项以 warning 高亮提示紧迫度
+ * - 价格展示受 page.showPrices 控制，与 PublicSubscriptionCard 口径一致
+ * - 公开页为只读访问，整行不做点击交互（不触发详情或续订弹窗）
+ */
+function PublicStatusUpcomingSection({ data }: { data: PublicStatusResponse }) {
+  const { t, locale, formatCurrency } = useI18n();
+  const items = buildPublicStatusUpcomingItems(data).slice(0, 5);
+  if (items.length === 0) return null;
+  const showPrices = data.page.showPrices;
+
+  return (
+    <section
+      aria-label={t("publicStatus.upcomingCount")}
+      className="rounded-xl border border-border bg-card p-5 shadow-card sm:p-6"
+    >
+      <div className="mb-4 flex items-center gap-2">
+        <CalendarClock className="h-5 w-5 text-primary" />
+        <h3 className="text-base font-semibold text-foreground sm:text-lg">{t("publicStatus.upcomingCount")}</h3>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {items.map((item) => {
+          const subscription = item.subscription;
+          const isUrgent = item.daysUntil <= 3;
+          const hasPrice = showPrices && subscription.price !== undefined && subscription.currency !== undefined;
+          return (
+            <div
+              key={`${subscription.name}-${subscription.nextBillingDate}-${item.kind}`}
+              className={cn(
+                "flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/50 p-4",
+                isUrgent && "border-warning/30 bg-warning/5",
+              )}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold",
+                    isUrgent ? "bg-warning/20 text-warning" : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {item.daysUntil === 0
+                    ? t("upcoming.todayShort")
+                    : t("upcoming.daysShort", { days: item.daysUntil })}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground" title={subscription.name}>
+                    {subscription.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.kind === "expiry"
+                      ? t("upcoming.expiresOn", { date: formatDateOnlyMonthDay(subscription.nextBillingDate, locale) })
+                      : t("upcoming.renewsOn", { date: formatDateOnlyMonthDay(subscription.nextBillingDate, locale) })}
+                  </p>
+                </div>
+              </div>
+              {hasPrice ? (
+                <p className="shrink-0 font-semibold text-foreground">
+                  {formatCurrency(subscription.price!, subscription.currency!)}
+                </p>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+// ================== P4：公开页订阅分组视图 ==================
+
+type PublicStatusGroupedConverter = PublicStatusCurrencyConverter | null;
+
+interface PublicStatusGroupedViewProps {
+  data: PublicStatusResponse;
+  /** locked/live 汇率换算器；null 表示金额关闭或汇率加载中，组头不显示月均。 */
+  convert: PublicStatusGroupedConverter;
+  requestableNames: Set<string>;
+  onRequestAccess: (name: string) => void;
+}
+
+/**
+ * 公开页分组视图入口：locked basis 直接用快照换算；live 汇率走 hook（hook 不能条件调用，
+ * 拆成独立子组件保证分支内 hook 顺序稳定）。
+ */
+function PublicStatusGroupedViewSection(props: Omit<PublicStatusGroupedViewProps, "convert">) {
+  const { data } = props;
+  const lockedConvert = publicStatusConverterFromBasis(data.page.exchangeRateBasis);
+  if (lockedConvert || !data.page.showPrices || !data.page.currency) {
+    return <PublicStatusGroupedView {...props} convert={lockedConvert} />;
+  }
+  return <PublicStatusGroupedViewLive {...props} />;
+}
+
+function PublicStatusGroupedViewLive(props: Omit<PublicStatusGroupedViewProps, "convert">) {
+  const { convert, loading } = useExchangeRates();
+  return <PublicStatusGroupedView {...props} convert={loading ? null : convert} />;
+}
+
+/**
+ * 公开页订阅分组视图：按订阅组折叠展示，视觉规则参考管理后台 SubscriptionGroupedView。
+ *
+ * 隐私口径：组名/logo 由服务端按「组内存在公开可见订阅」过滤后输出，前端按下标分桶；
+ * 未分组订阅复用「未分组」折叠区。组月均仅在 showPrices 开启且汇率就绪时显示，
+ * 换算口径与统计卡一致（locked 快照或 live 汇率），不复算第二套金额。
+ */
+function PublicStatusGroupedView({ data, convert, requestableNames, onRequestAccess }: PublicStatusGroupedViewProps) {
+  const { t, locale } = useI18n();
+  const currency = data.page.showPrices ? data.page.currency : undefined;
+
+  const { groupedBuckets, ungroupedItems } = useMemo(() => {
+    const buckets = new Map<number, PublicStatusSubscription[]>();
+    const ungrouped: PublicStatusSubscription[] = [];
+    for (const subscription of data.subscriptions) {
+      // schema 已约束 groupIndex 指向存在的组；越界防御性归入未分组，避免渲染崩溃。
+      if (subscription.groupIndex === undefined || subscription.groupIndex >= data.groups.length) {
+        ungrouped.push(subscription);
+        continue;
+      }
+      const bucket = buckets.get(subscription.groupIndex);
+      if (bucket) bucket.push(subscription);
+      else buckets.set(subscription.groupIndex, [subscription]);
+    }
+    const bucketsList = data.groups
+      .map((group, index) => ({ group, items: buckets.get(index) ?? [] }))
+      .filter((bucket) => bucket.items.length > 0);
+    return { groupedBuckets: bucketsList, ungroupedItems: ungrouped };
+  }, [data]);
+
+  // 默认展开所有组；公开页为匿名访问，折叠状态不持久化。
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
+  const toggleGroup = (index: number) => {
+    setCollapsedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const groupMonthlyTotal = (items: PublicStatusSubscription[]) => {
+    if (!currency || !convert) return null;
+    return publicStatusMonthlyTotalOf(items, currency, convert);
+  };
+
+  const renderCards = (items: PublicStatusSubscription[]) => (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {items.map((subscription, index) => (
+        <div
+          key={`${subscription.name}-${subscription.startDate ?? "unknown"}-${subscription.nextBillingDate}-${index}`}
+          className="h-full animate-fade-in"
+          style={{ animationDelay: `${index * 40}ms` }}
+        >
+          <PublicSubscriptionCard
+            subscription={subscription}
+            onRequestAccess={requestableNames.has(subscription.name)
+              ? () => onRequestAccess(subscription.name)
+              : undefined}
+          />
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderGroupHeader = (
+    name: string,
+    logo: string | null | undefined,
+    count: number,
+    monthly: number | null,
+    isCollapsed: boolean,
+  ) => (
+    <div className="flex items-center gap-3">
+      <ChevronDown
+        className={cn(
+          "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+          isCollapsed && "-rotate-90",
+        )}
+      />
+      {logo ? <SubscriptionLogo name={name} logo={logo} size="sm" /> : null}
+      <h3 className="min-w-0 truncate text-base font-semibold text-foreground">{name}</h3>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {t("subscriptions.grouped.subscriptionCount", { count })}
+      </span>
+      {monthly !== null && monthly > 0 && currency ? (
+        <span className="ml-auto shrink-0 text-sm font-medium text-muted-foreground">
+          {t("subscriptions.grouped.totalMonthlyCost", { amount: formatCurrency(monthly, currency, locale) })}
+        </span>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div className="grid gap-4" data-testid="public-status-grouped-view">
+      {groupedBuckets.map(({ group, items }, groupIndex) => {
+        const isCollapsed = collapsedGroups.has(groupIndex);
+        const monthly = groupMonthlyTotal(items);
+        return (
+          <Collapsible
+            key={`${group.name}-${groupIndex}`}
+            open={!isCollapsed}
+            onOpenChange={() => toggleGroup(groupIndex)}
+            className="rounded-xl border border-border bg-card/50"
+          >
+            <CollapsibleTrigger className="w-full px-4 py-3 text-left transition-colors hover:bg-card-hover/50">
+              {renderGroupHeader(group.name, group.logo, items.length, monthly, isCollapsed)}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-4 pb-4">
+              {renderCards(items)}
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      })}
+      {ungroupedItems.length > 0 ? (
+        <Collapsible defaultOpen className="rounded-xl border border-border bg-card/50">
+          <CollapsibleTrigger className="w-full px-4 py-3 text-left transition-colors hover:bg-card-hover/50">
+            {renderGroupHeader(
+              t("subscriptions.grouped.ungrouped"),
+              undefined,
+              ungroupedItems.length,
+              groupMonthlyTotal(ungroupedItems),
+              false,
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="px-4 pb-4">
+            {renderCards(ungroupedItems)}
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
+    </div>
   );
 }
 
@@ -931,6 +1243,7 @@ export default function PublicStatusPage() {
   const query = usePublicStatus(token);
   const { t } = useI18n();
   const [requestTargetName, setRequestTargetName] = useState<string | null>(null);
+  const [groupedView, setGroupedView] = useState(false);
 
   if (query.isPending) {
     return <PublicStatusLoading />;
@@ -945,10 +1258,17 @@ export default function PublicStatusPage() {
   const normalizedToken = token?.trim() ?? "";
   const vaultEnabled = data.vault.enabled;
   const requestableNames = new Set(data.vault.subscriptions.map((subscription) => subscription.name));
+  const showGroupToggle = data.groups.length > 0 && data.subscriptions.length > 0;
+  const showGroupedView = groupedView && data.groups.length > 0;
 
   return (
     <PublicStatusFrame>
-      <PublicStatusHeader data={data} />
+      <PublicStatusHeader
+        data={data}
+        showGroupToggle={showGroupToggle}
+        grouped={groupedView}
+        onToggleGrouped={() => setGroupedView((previous) => !previous)}
+      />
 
       <div className="grid gap-8">
         <PublicStatusSummary data={data} />
@@ -961,6 +1281,8 @@ export default function PublicStatusPage() {
           </div>
         ) : null}
 
+        {data.subscriptions.length > 0 ? <PublicStatusUpcomingSection data={data} /> : null}
+
         {data.subscriptions.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 py-16 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
@@ -968,6 +1290,12 @@ export default function PublicStatusPage() {
             </div>
             <h2 className="mb-2 text-lg font-medium text-foreground">{t("publicStatus.emptyTitle")}</h2>
           </div>
+        ) : showGroupedView ? (
+          <PublicStatusGroupedViewSection
+            data={data}
+            requestableNames={requestableNames}
+            onRequestAccess={setRequestTargetName}
+          />
         ) : (
           <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))]" aria-label={t("publicStatus.listLabel")}>
             {data.subscriptions.map((subscription, index) => (

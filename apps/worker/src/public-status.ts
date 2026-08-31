@@ -99,6 +99,8 @@ export async function readPublicStatus(request: Request, env: Env, token: string
       truncated,
     },
     subscriptions: rows.map((row) => publicStatusSubscription(row, request, page, resolver, today)),
+    // 订阅组仅 Go/Docker 面实现；Worker 公开页恒为空数组，前端自动回退平铺视图。
+    groups: [],
     vault: { enabled: false, subscriptions: [] },
   });
   return successJson(response, { headers: publicStatusHeaders() });

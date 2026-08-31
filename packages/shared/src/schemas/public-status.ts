@@ -89,6 +89,8 @@ const publicStatusSubscriptionSchema = z.object({
   usageDailyRate: z.number().finite().positive().max(1_000_000_000).optional(),
   // 失效日影响月均摊销天数（min 口径），必须随总量/日均一起进入公开投影；空值=未设置。
   usageExpiresAt: z.string().refine(isValidDateOnly).nullable().optional(),
+  // 订阅所属组在 payload.groups 数组中的下标；不直接暴露组 id。未分组订阅省略。
+  groupIndex: z.number().int().min(0).max(499).optional(),
 }).strict().refine((value) => (value.price === undefined) === (value.currency === undefined), {
   path: ["price"],
   message: "Price and currency must be included together",
@@ -153,6 +155,17 @@ export const publicStatusVaultSchema = z.object({
 }).strict();
 export type PublicStatusVault = z.infer<typeof publicStatusVaultSchema>;
 
+/**
+ * 公开页订阅组投影：仅组名与 logo（走公开资产代理），不暴露组 id、描述与排序字段。
+ *
+ * 隐私口径：只输出至少含一条公开可见订阅的组；组 logo 引用的私有资产代理同样校验引用关系。
+ */
+export const publicStatusGroupSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  logo: publicStatusLogoSchema.nullable().optional(),
+}).strict();
+export type PublicStatusGroup = z.infer<typeof publicStatusGroupSchema>;
+
 export const publicStatusPayloadSchema = z.object({
   page: z.object({
     title: z.literal("Renewo"),
@@ -164,6 +177,8 @@ export const publicStatusPayloadSchema = z.object({
     truncated: z.boolean(),
   }).strict(),
   subscriptions: z.array(publicStatusSubscriptionSchema).max(500),
+  // 订阅组投影；Worker 面无组能力恒为空数组。default([]) 兼容旧端缓存的响应。
+  groups: z.array(publicStatusGroupSchema).max(500).default([]),
   vault: publicStatusVaultSchema,
 }).strict().superRefine((value, context) => {
   // 账号访问关闭时不允许携带订阅摘要，避免访客从关闭页面枚举订阅 id。
@@ -174,6 +189,29 @@ export const publicStatusPayloadSchema = z.object({
       message: "Vault subscriptions must be hidden when vault access is disabled",
     });
   }
+  // 订阅引用的组下标必须存在；每个输出的组也必须至少被一条可见订阅引用，避免空组名泄露。
+  const referencedGroupIndexes = new Set<number>();
+  value.subscriptions.forEach((subscription, index) => {
+    if (subscription.groupIndex === undefined) return;
+    if (subscription.groupIndex >= value.groups.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["subscriptions", index, "groupIndex"],
+        message: "Subscription group index is out of range",
+      });
+      return;
+    }
+    referencedGroupIndexes.add(subscription.groupIndex);
+  });
+  value.groups.forEach((_, index) => {
+    if (!referencedGroupIndexes.has(index)) {
+      context.addIssue({
+        code: "custom",
+        path: ["groups", index],
+        message: "Group must be referenced by at least one visible subscription",
+      });
+    }
+  });
   // showPrices 是公开页隐私开关，金额相关字段必须整组出现或整组隐藏，避免半公开响应被前端误展示。
   if (value.page.showPrices && !value.page.currency) {
     context.addIssue({

@@ -25,6 +25,7 @@ interface UseSubscriptionDialogSessionParams {
   initialSubscription?: Subscription | null | undefined;
   defaultCreateCurrency: string;
   enabledCurrencyValues: readonly string[];
+  defaultCreateCategory: string;
 }
 
 interface SubscriptionDialogSession {
@@ -47,6 +48,7 @@ export function useSubscriptionDialogSession({
   initialSubscription,
   defaultCreateCurrency,
   enabledCurrencyValues,
+  defaultCreateCategory,
 }: UseSubscriptionDialogSessionParams): SubscriptionDialogSession {
   const pendingCreateSessionResetRef = useRef(false);
   const [logoUploadStatus, setLogoUploadStatus] = useState<LogoUploadStatus>("idle");
@@ -55,7 +57,7 @@ export function useSubscriptionDialogSession({
   const [createCurrencyManuallySelected, setCreateCurrencyManuallySelected] = useState(false);
   const [formData, setFormData] = useState<SubscriptionFormState>(() =>
     mode === "create"
-      ? createCreateFormState(defaultCreateCurrency, initialSubscription)
+      ? createCreateFormState(defaultCreateCurrency, defaultCreateCategory, initialSubscription)
       : editSubscription
         ? subscriptionToFormState(editSubscription)
         : createSubscriptionFormState(),
@@ -68,10 +70,10 @@ export function useSubscriptionDialogSession({
   }, []);
 
   const resetCreateSession = useCallback(() => {
-    setFormData(createCreateFormState(defaultCreateCurrency, initialSubscription));
+    setFormData(createCreateFormState(defaultCreateCurrency, defaultCreateCategory, initialSubscription));
     setCreateCurrencyManuallySelected(false);
     resetTransientState();
-  }, [defaultCreateCurrency, initialSubscription, resetTransientState]);
+  }, [defaultCreateCategory, defaultCreateCurrency, initialSubscription, resetTransientState]);
 
   const resetClosedSession = useCallback(() => {
     pendingCreateSessionResetRef.current = false;
@@ -106,7 +108,7 @@ export function useSubscriptionDialogSession({
     if (!open) return;
     if (initialSubscription) return;
 
-    const isPristine = isCreateFormPristine(formData);
+    const isPristine = isCreateFormPristine(formData, defaultCreateCategory);
     const currencyDisabled = !enabledCurrencyValues.includes(formData.currency);
     const shouldSync = (!createCurrencyManuallySelected && isPristine) || currencyDisabled;
 
@@ -116,6 +118,7 @@ export function useSubscriptionDialogSession({
     }
   }, [
     createCurrencyManuallySelected,
+    defaultCreateCategory,
     defaultCreateCurrency,
     enabledCurrencyValues,
     formData,
@@ -176,14 +179,14 @@ export function useSubscriptionDialogSession({
   };
 }
 
-function createCreateFormState(defaultCreateCurrency: string, initialSubscription?: Subscription | null): SubscriptionFormState {
+function createCreateFormState(defaultCreateCurrency: string, defaultCreateCategory: string, initialSubscription?: Subscription | null): SubscriptionFormState {
   return initialSubscription
     ? subscriptionToFormState(initialSubscription)
-    : createSubscriptionFormState({ currency: defaultCreateCurrency });
+    : createSubscriptionFormState({ currency: defaultCreateCurrency, category: defaultCreateCategory });
 }
 
-function isCreateFormPristine(formData: SubscriptionFormState): boolean {
-  const baseline = createSubscriptionFormState({ currency: formData.currency });
+function isCreateFormPristine(formData: SubscriptionFormState, defaultCreateCategory: string): boolean {
+  const baseline = createSubscriptionFormState({ currency: formData.currency, category: defaultCreateCategory });
   return (
     formData.name === baseline.name &&
     formData.logo === baseline.logo &&

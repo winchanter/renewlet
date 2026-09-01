@@ -90,6 +90,11 @@ export function SubscriptionDialogContent(props: SubscriptionDialogContentProps)
     if (enabledCurrencyValues.includes(statisticCurrency)) return statisticCurrency;
     return enabledCurrencyValues[0] ?? statisticCurrency;
   }, [enabledCurrencyValues, statisticCurrency]);
+  const defaultCreateCategory = useMemo(() => {
+    const categoryValues = config.categories.map((c) => c.value);
+    if (categoryValues.includes("productivity")) return "productivity";
+    return categoryValues[0] ?? "other";
+  }, [config.categories]);
   const editSubscription = props.mode === "edit" ? props.subscription : null;
   const billingReferenceDate = useMemo(
     () => todayDateOnlyInTimeZone(new Date(), settings?.timezone ?? getSystemTimeZone("UTC")),
@@ -113,6 +118,7 @@ export function SubscriptionDialogContent(props: SubscriptionDialogContentProps)
     initialSubscription: initialCreateSubscription,
     defaultCreateCurrency,
     enabledCurrencyValues,
+    defaultCreateCategory,
   });
   const resolveInitialFocus = useCallback(
     () => formRef.current?.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled])') ?? null,

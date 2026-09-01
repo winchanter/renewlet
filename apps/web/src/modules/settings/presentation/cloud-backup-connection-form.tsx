@@ -184,7 +184,7 @@ export function CloudBackupConnectionForm({
                   value={form.s3Prefix}
                   disabled={disabled}
                   onChange={(event) => onTextChange("s3Prefix", event.target.value)}
-                  placeholder="renewlet"
+                  placeholder="Renewo"
                   className="h-9 border-border bg-background"
                   aria-describedby={describedBy}
                 />

@@ -91,7 +91,7 @@ func (settings *cloudBackupWebDAVSettings) NormalizeAndValidate() error {
 	if strings.Contains(strings.TrimSpace(settings.Path), "..") {
 		return errors.New("CLOUD_BACKUP_WEBDAV_PATH_INVALID")
 	}
-	settings.Path = normalizeCloudBackupPrefix(settings.Path, "renewlet")
+	settings.Path = normalizeCloudBackupPrefix(settings.Path, "Renewo")
 	parsed, err := url.Parse(settings.URL)
 	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
 		return errors.New("CLOUD_BACKUP_WEBDAV_URL_INVALID")

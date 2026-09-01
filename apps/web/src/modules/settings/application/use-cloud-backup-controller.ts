@@ -133,7 +133,7 @@ const DEFAULT_WEBDAV_DRAFT: CloudBackupWebDavDraft = {
   webdavUrl: "",
   webdavUsername: "",
   webdavPassword: "",
-  webdavPath: "renewlet",
+  webdavPath: "Renewo",
 };
 
 const DEFAULT_S3_DRAFT: CloudBackupS3Draft = {
@@ -141,7 +141,7 @@ const DEFAULT_S3_DRAFT: CloudBackupS3Draft = {
   s3Endpoint: "",
   s3Region: "",
   s3Bucket: "",
-  s3Prefix: "renewlet",
+  s3Prefix: "Renewo",
   s3AccessKeyId: "",
   s3SecretAccessKey: "",
 };
@@ -426,7 +426,7 @@ function s3DraftFromConfig(config: CloudBackupConfig): CloudBackupS3Draft {
     s3Endpoint: config.s3?.endpoint ?? "",
     s3Region: config.s3?.region ?? "",
     s3Bucket: config.s3?.bucket ?? "",
-    s3Prefix: config.s3?.prefix ?? "renewlet",
+    s3Prefix: config.s3?.prefix ?? "Renewo",
     s3AccessKeyId: config.s3?.accessKeyId ?? "",
     s3SecretAccessKey: "",
   };

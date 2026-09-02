@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
       # 经 Dockerfile ldflags 注入 Go 二进制，页面版本徽章读取 GET /api/app/system/version 的 currentVersion。
       args:
-        VERSION: 0.2.1
+        VERSION: 0.2.2
     environment:
       # PB_ENCRYPTION_KEY 必须由部署者提供 32 字符值；空值只适合首次本地试跑，不适合生产升级。
       GOMEMLIMIT: ${GOMEMLIMIT:-128MiB}

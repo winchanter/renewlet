@@ -12,7 +12,7 @@
  * - 页面保留视图模式和布局，不承载业务规则。
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/header';
 import { BackToTopFloatButton } from '@/components/back-to-top-float-button';
 import { SubscriptionGrid } from '@/components/subscription-grid';
@@ -75,6 +75,13 @@ import { useSubscriptionBillingRecordsDialog } from '@/hooks/use-subscription-bi
 import { useManagedCurrencyOptions } from '@/hooks/use-managed-currency-options';
 import { todayDateOnlyInTimeZone } from '@/lib/time/date-only';
 import {
+  readSubscriptionGroupedView,
+  readSubscriptionViewMode,
+  writeSubscriptionGroupedView,
+  writeSubscriptionViewMode,
+  type SubscriptionViewMode,
+} from '@/lib/view-preference-storage';
+import {
   SubscriptionTagFilterDrawer,
   SubscriptionTagFilterPopover,
 } from '@/components/subscription-tag-filter-drawer';
@@ -135,8 +142,15 @@ const Subscriptions = () => {
   });
   const { convert, loading: ratesLoading, sourceDate: ratesSourceDate } = useExchangeRates(exchangeRateProvider);
   const currencyRatesReady = Boolean(ratesSourceDate) && !ratesLoading;
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [groupedView, setGroupedView] = useState(false);
+  const [viewMode, setViewMode] = useState<SubscriptionViewMode>(() => readSubscriptionViewMode() ?? 'grid');
+  const [groupedView, setGroupedView] = useState(() => readSubscriptionGroupedView() ?? true);
+  // 视图偏好持久化到 localStorage：下次进入页面恢复上次选择（网格/列表、分组视图）。
+  useEffect(() => {
+    writeSubscriptionViewMode(viewMode);
+  }, [viewMode]);
+  useEffect(() => {
+    writeSubscriptionGroupedView(groupedView);
+  }, [groupedView]);
   const [groupManageOpen, setGroupManageOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [aiRecognitionDialogOpen, setAIRecognitionDialogOpen] = useState(false);

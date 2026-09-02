@@ -47,6 +47,10 @@ import { formatCompactCurrencyAmount, formatCurrency } from "@/lib/currency";
 import { getDisplayErrorMessage } from "@/lib/display-error";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-provider";
+import {
+  readPublicStatusGroupedView,
+  writePublicStatusGroupedView,
+} from "@/lib/view-preference-storage";
 import { daysBetweenDateOnly, formatDateOnlyMonthDay, todayDateOnlyInTimeZone } from "@/lib/time/date-only";
 import { usePublicStatus } from "@/hooks/use-public-status-page";
 import { useExchangeRates } from "@/hooks/use-exchange-rates";
@@ -1243,7 +1247,11 @@ export default function PublicStatusPage() {
   const query = usePublicStatus(token);
   const { t } = useI18n();
   const [requestTargetName, setRequestTargetName] = useState<string | null>(null);
-  const [groupedView, setGroupedView] = useState(false);
+  const [groupedView, setGroupedView] = useState(() => readPublicStatusGroupedView() ?? true);
+  // 视图偏好持久化到 localStorage：下次进入公开页恢复上次的分组视图选择。
+  useEffect(() => {
+    writePublicStatusGroupedView(groupedView);
+  }, [groupedView]);
 
   if (query.isPending) {
     return <PublicStatusLoading />;

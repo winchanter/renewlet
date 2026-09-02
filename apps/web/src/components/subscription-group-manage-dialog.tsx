@@ -135,12 +135,12 @@ export function SubscriptionGroupManageDialog({ open, onOpenChange }: Subscripti
   const handleMove = async (index: number, direction: "up" | "down") => {
     const swapIndex = direction === "up" ? index - 1 : index + 1;
     if (swapIndex < 0 || swapIndex >= groups.length || movingId !== null) return;
+    const current = groups[index];
+    const swap = groups[swapIndex];
+    if (!current || !swap) return;
     // 重新分配连续 sortOrder：把目标组移到新位置后按新顺序编号 0..n-1，仅 PATCH 变化的组。
     // 不能简单交换相邻两组的 sortOrder——历史数据可能全部为 0，交换 0 与 0 不会改变列表顺序。
-    const reordered = [...groups];
-    const moved = reordered[index];
-    reordered[index] = reordered[swapIndex];
-    reordered[swapIndex] = moved;
+    const reordered = groups.map((group, i) => (i === index ? swap : i === swapIndex ? current : group));
     const pending = reordered
       .map((group, i) => ({ id: group.id, sortOrder: i }))
       .filter((entry) => {
@@ -148,7 +148,7 @@ export function SubscriptionGroupManageDialog({ open, onOpenChange }: Subscripti
         return original?.sortOrder !== entry.sortOrder;
       });
     if (pending.length === 0) return;
-    setMovingId(moved.id);
+    setMovingId(current.id);
     try {
       for (const entry of pending) {
         await updateSubscriptionGroup(entry.id, { sortOrder: entry.sortOrder });

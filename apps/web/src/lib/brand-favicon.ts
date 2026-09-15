@@ -6,8 +6,8 @@
  *
  * 注意： 该模块依赖 DOM/CSSOM；服务端或测试环境调用时必须走 fallback。
  */
-const FALLBACK_PRIMARY = "160 84% 39%";
-const FALLBACK_GLOW = "160 84% 45%";
+const FALLBACK_PRIMARY = "25 95% 53%";
+const FALLBACK_GLOW = "35 90% 55%";
 
 function readCssHsl(name: string, fallback: string): string {
   if (typeof window === "undefined") return fallback;
@@ -36,25 +36,34 @@ function ensureFaviconLink(): HTMLLinkElement {
 }
 
 export function buildBrandFaviconSvg(primary: string, glow: string, isDark: boolean): string {
-  const shell = isDark ? "#0B1119" : "#111720";
-  const inner = "#171C24";
-  const rim = isDark ? "#26313D" : "#2C3642";
+  const shell = isDark ? "#0C0A09" : "#1C1917";
+  const shellMid = "#141210";
+  const rim = "#3F3730";
+  const ring = "#FAFAF9";
 
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">',
     "<defs>",
-    '<radialGradient id="glow" cx="50" cy="16" r="42" gradientUnits="userSpaceOnUse">',
-    '<stop offset="0" stop-color="hsl(' + glow + ')" stop-opacity="0.24"/>',
-    '<stop offset="0.52" stop-color="hsl(' + primary + ')" stop-opacity="0.08"/>',
-    '<stop offset="1" stop-color="hsl(' + primary + ')" stop-opacity="0"/>',
+    '<linearGradient id="bg" x1="8" y1="6" x2="58" y2="58" gradientUnits="userSpaceOnUse">',
+    '<stop offset="0" stop-color="' + shell + '"/>',
+    '<stop offset="0.58" stop-color="' + shellMid + '"/>',
+    '<stop offset="1" stop-color="#0C0A09"/>',
+    "</linearGradient>",
+    '<radialGradient id="glow" cx="46" cy="14" r="44" gradientUnits="userSpaceOnUse">',
+    '<stop offset="0" stop-color="hsl(' + glow + ')" stop-opacity="0.22"/>',
+    '<stop offset="0.55" stop-color="hsl(' + glow + ')" stop-opacity="0.07"/>',
+    '<stop offset="1" stop-color="hsl(' + glow + ')" stop-opacity="0"/>',
     "</radialGradient>",
+    '<linearGradient id="ring-accent" x1="20" y1="46" x2="46" y2="18" gradientUnits="userSpaceOnUse">',
+    '<stop offset="0" stop-color="hsl(' + glow + ')"/>',
+    '<stop offset="1" stop-color="hsl(' + primary + ')"/>',
+    "</linearGradient>",
     "</defs>",
-    '<rect x="4" y="4" width="56" height="56" rx="18" fill="' + shell + '"/>',
-    '<rect x="5.5" y="5.5" width="53" height="53" rx="16.5" fill="' + inner + '" stroke="' + rim + '" stroke-width="1.5"/>',
-    '<rect x="5.5" y="5.5" width="53" height="53" rx="16.5" fill="url(#glow)"/>',
-    '<rect x="13" y="21" width="29" height="8" rx="4" fill="#F8FAFC"/>',
-    '<circle cx="49" cy="25" r="4" fill="hsl(' + primary + ')"/>',
-    '<rect x="17" y="40" width="31" height="5" rx="2.5" fill="hsl(' + primary + ')" opacity="0.76"/>',
+    '<rect x="4" y="4" width="56" height="56" rx="18" fill="url(#bg)"/>',
+    '<rect x="5.5" y="5.5" width="53" height="53" rx="16.5" fill="url(#glow)" stroke="' + rim + '" stroke-width="1.5"/>',
+    '<path d="M 45.83 34.19 A 14 14 0 1 1 31.07 18.03" fill="none" stroke="' + ring + '" stroke-width="3.8" stroke-linecap="round"/>',
+    '<path d="M 36.10 18.61 A 14 14 0 0 1 44.47 25.64" fill="none" stroke="url(#ring-accent)" stroke-width="3.8" stroke-linecap="round"/>',
+    '<polygon points="44.36,25.43 48.52,23.86 47.70,31.98 40.66,27.87" fill="url(#ring-accent)"/>',
     "</svg>",
   ].join("");
 }

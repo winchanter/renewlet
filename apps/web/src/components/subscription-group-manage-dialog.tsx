@@ -6,7 +6,8 @@
  * 删除组不会级联删除组内订阅，仅解除 groupId 绑定。
  */
 import { useEffect, useState } from "react";
-import { FolderCog, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, FolderCog, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -30,11 +31,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
+  subscriptionGroupQueryKeys,
   useCreateSubscriptionGroup,
   useDeleteSubscriptionGroup,
   useSubscriptionGroups,
   useUpdateSubscriptionGroup,
 } from "@/hooks/use-subscription-groups";
+import { updateSubscriptionGroup } from "@/services/subscription-group-service";
 import { toast } from "@/components/ui/sonner";
 import { getDisplayErrorMessage } from "@/lib/display-error";
 import type { SubscriptionGroup } from "@renewlet/shared/schemas/subscription-groups";
@@ -53,6 +56,7 @@ const EMPTY_DRAFT: GroupDraft = { name: "", description: "" };
 
 export function SubscriptionGroupManageDialog({ open, onOpenChange }: SubscriptionGroupManageDialogProps) {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const groupsQuery = useSubscriptionGroups(open);
   const createMutation = useCreateSubscriptionGroup();
   const updateMutation = useUpdateSubscriptionGroup();
@@ -62,6 +66,7 @@ export function SubscriptionGroupManageDialog({ open, onOpenChange }: Subscripti
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState<GroupDraft>(EMPTY_DRAFT);
   const [deletingGroup, setDeletingGroup] = useState<SubscriptionGroup | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
 
   // 关闭弹窗时重置所有编辑状态。
   useEffect(() => {
@@ -70,6 +75,7 @@ export function SubscriptionGroupManageDialog({ open, onOpenChange }: Subscripti
       setEditingId(null);
       setEditingDraft(EMPTY_DRAFT);
       setDeletingGroup(null);
+      setMovingId(null);
     }
   }, [open]);
 
@@ -124,6 +130,38 @@ export function SubscriptionGroupManageDialog({ open, onOpenChange }: Subscripti
       },
       onError: (error) => toast.error(t("subscriptions.grouped.deleteFailed"), { description: getDisplayErrorMessage(error, t("error.generic")) }),
     });
+  };
+
+  const handleMove = async (index: number, direction: "up" | "down") => {
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= groups.length || movingId !== null) return;
+    // 重新分配连续 sortOrder：把目标组移到新位置后按新顺序编号 0..n-1，仅 PATCH 变化的组。
+    // 不能简单交换相邻两组的 sortOrder——历史数据可能全部为 0，交换 0 与 0 不会改变列表顺序。
+    const reordered = [...groups];
+    const moved = reordered[index];
+    reordered[index] = reordered[swapIndex];
+    reordered[swapIndex] = moved;
+    const pending = reordered
+      .map((group, i) => ({ id: group.id, sortOrder: i }))
+      .filter((entry) => {
+        const original = groups.find((g) => g.id === entry.id);
+        return original?.sortOrder !== entry.sortOrder;
+      });
+    if (pending.length === 0) return;
+    setMovingId(moved.id);
+    try {
+      for (const entry of pending) {
+        await updateSubscriptionGroup(entry.id, { sortOrder: entry.sortOrder });
+      }
+      await queryClient.invalidateQueries({ queryKey: subscriptionGroupQueryKeys.all });
+    } catch (error) {
+      toast.error(t("subscriptions.grouped.moveFailed"), {
+        description: getDisplayErrorMessage(error, t("error.generic")),
+      });
+      await queryClient.invalidateQueries({ queryKey: subscriptionGroupQueryKeys.all });
+    } finally {
+      setMovingId(null);
+    }
   };
 
   const createBusy = createMutation.isPending;
@@ -187,7 +225,7 @@ export function SubscriptionGroupManageDialog({ open, onOpenChange }: Subscripti
             <p className="py-8 text-center text-sm text-muted-foreground">{t("subscriptions.grouped.empty")}</p>
           ) : (
             <div className="grid gap-2">
-              {groups.map((group) => (
+              {groups.map((group, index) => (
                 <div
                   key={group.id}
                   className="rounded-lg border border-border bg-secondary/40 p-3"
@@ -234,6 +272,28 @@ export function SubscriptionGroupManageDialog({ open, onOpenChange }: Subscripti
                         ) : null}
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                          onClick={() => handleMove(index, "up")}
+                          disabled={movingId !== null || index === 0}
+                          aria-label={t("subscriptions.grouped.moveUp")}
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                          onClick={() => handleMove(index, "down")}
+                          disabled={movingId !== null || index === groups.length - 1}
+                          aria-label={t("subscriptions.grouped.moveDown")}
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
                         <Button
                           type="button"
                           size="icon"

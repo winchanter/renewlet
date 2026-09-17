@@ -135,6 +135,7 @@ export function AIRecognizeSubscriptionDialogContent({
     conflictMode,
     previewFilter,
     skippedIndexes,
+    forceReplaceIndexes,
     error,
     applying,
     assetProgress,
@@ -145,7 +146,7 @@ export function AIRecognizeSubscriptionDialogContent({
     previewPrepared,
     handleConflictModeChange,
     handleLogoChange,
-    handleSkipChange,
+    handleToggleRow,
     handleApply,
   } = useImportPreviewApply({ onApplied: onRequestClose });
   const {
@@ -631,13 +632,14 @@ export function AIRecognizeSubscriptionDialogContent({
           conflictMode={conflictMode}
           previewFilter={previewFilter}
           skippedIndexes={skippedIndexes}
+          forceReplaceIndexes={forceReplaceIndexes}
           assetProgress={assetProgress}
           applyProgress={applyProgress}
           showImportOptions={false}
           onConflictModeChange={handleConflictModeChange}
           onPreviewFilterChange={setPreviewFilter}
           onLogoChange={handleLogoChange}
-          onSkipChange={handleSkipChange}
+          onToggleRow={handleToggleRow}
         />
       ) : null}
     </div>

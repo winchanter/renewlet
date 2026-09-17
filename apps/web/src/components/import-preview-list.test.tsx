@@ -1,5 +1,5 @@
 // 导入预览列表测试保护冲突预览里的真实订阅 Logo 展示，避免它和卡片/日历入口再次分叉。
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ImportPreviewList } from "./import-preview-list";
 import type { ImportPayload, ImportPreviewResponse } from "@/lib/api/schemas/import-export";
@@ -80,6 +80,10 @@ const preview = {
   includesCustomConfig: false,
   includesExchangeRateSnapshots: false,
   exchangeRateSnapshotsCount: 0,
+  includesGroups: false,
+  groupsCount: 0,
+  includesBillingRecords: false,
+  billingRecordsCount: 0,
 } satisfies ImportPreviewResponse;
 
 describe("ImportPreviewList", () => {
@@ -89,10 +93,12 @@ describe("ImportPreviewList", () => {
         prepared={prepared}
         preview={preview}
         filter="all"
+        conflictMode="skip"
         skippedIndexes={new Set<number>()}
+        forceReplaceIndexes={new Set<number>()}
         onFilterChange={vi.fn()}
         onLogoChange={vi.fn()}
-        onSkipChange={vi.fn()}
+        onToggleRow={vi.fn()}
       />,
     );
 
@@ -120,13 +126,60 @@ describe("ImportPreviewList", () => {
         prepared={preparedWithWebsite}
         preview={preview}
         filter="all"
+        conflictMode="skip"
         skippedIndexes={new Set<number>()}
+        forceReplaceIndexes={new Set<number>()}
         onFilterChange={vi.fn()}
         onLogoChange={vi.fn()}
-        onSkipChange={vi.fn()}
+        onToggleRow={vi.fn()}
       />,
     );
 
     expect(screen.getByRole("button", { name: "修改 ngrok Logo" })).toHaveAttribute("data-website", "https://ngrok.com/");
+  });
+
+  // 单按钮状态机：skip 模式下 existing 行默认即"跳过"，按钮必须直接提供"恢复导入"，
+  // 点击走 onToggleRow，由 hook 转成 forceReplaceIndexes，而不是落入"取消手动跳过但仍跳过"的死循环。
+  it("offers restore on a mode-skipped existing row and toggles through one button", () => {
+    const existingPreview: ImportPreviewResponse = {
+      ...preview,
+      summary: { total: 1, creates: 0, replaces: 0, skips: 1, errors: 0, warnings: 0 },
+      items: [{ ...preview.items[0]!, existingId: "rec_1", action: "skip" }],
+    };
+    const onToggleRow = vi.fn();
+
+    const { rerender } = render(
+      <ImportPreviewList
+        prepared={prepared}
+        preview={existingPreview}
+        filter="all"
+        conflictMode="skip"
+        skippedIndexes={new Set<number>()}
+        forceReplaceIndexes={new Set<number>()}
+        onFilterChange={vi.fn()}
+        onLogoChange={vi.fn()}
+        onToggleRow={onToggleRow}
+      />,
+    );
+
+    const restoreButton = screen.getByRole("button", { name: /恢复导入/ });
+    fireEvent.click(restoreButton);
+    expect(onToggleRow).toHaveBeenCalledWith(0);
+
+    // hook 处理后该行进入强制替换：按钮回到"跳过此条"用于撤销。
+    rerender(
+      <ImportPreviewList
+        prepared={prepared}
+        preview={{ ...existingPreview, summary: { total: 1, creates: 0, replaces: 1, skips: 0, errors: 0, warnings: 0 }, items: [{ ...existingPreview.items[0]!, action: "replace" }] }}
+        filter="all"
+        conflictMode="skip"
+        skippedIndexes={new Set<number>()}
+        forceReplaceIndexes={new Set([0])}
+        onFilterChange={vi.fn()}
+        onLogoChange={vi.fn()}
+        onToggleRow={onToggleRow}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /跳过此条/ })).toBeInTheDocument();
   });
 });

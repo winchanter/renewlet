@@ -2,11 +2,14 @@ import {
   renewletExportManifestV1Schema,
   renewletExportV1Schema,
   type RenewletExportAsset,
+  type RenewletExportGroup,
   type RenewletExportMissingAsset,
   type RenewletExportMissingAssetReason,
   type RenewletExportMissingAssetReference,
 } from "@/lib/api/schemas/import-export";
+import type { ApiBillingRecord } from "@/lib/api/schemas/billing-records";
 import type { ExchangeRateSnapshotV1 } from "@/lib/api/schemas/exchange-rates";
+import type { SubscriptionGroup } from "@renewlet/shared/schemas/subscription-groups";
 import { MAX_IMAGE_BYTES } from "@/lib/upload-constraints";
 import { runWorkerJob } from "@/lib/workers/run-worker-job";
 import type { WorkerJobProgress } from "@/lib/workers/job-protocol";
@@ -36,6 +39,10 @@ export async function exportRenewletBackup(options: {
   customConfig: CustomConfig;
   includeSecrets: boolean;
   exchangeRateSnapshots?: readonly ExchangeRateSnapshotV1[];
+  // 分组只存在于 Docker 运行面；Worker/旧调用方不传时按空分组导出（旧备份兼容）。
+  groups?: readonly SubscriptionGroup[];
+  // 续订流水按订阅全量分页拉好后传入；与后端导出上限保持一致由采集方截断。
+  billingRecords?: readonly ApiBillingRecord[];
 }, execution: {
   signal?: AbortSignal;
   onProgress?: (progress: WorkerJobProgress) => void;
@@ -101,6 +108,50 @@ export async function exportRenewletBackup(options: {
     })),
   };
 
+  const groups: RenewletExportGroup[] = [];
+  for (const group of options.groups ?? []) {
+    const row: RenewletExportGroup = {
+      id: group.id,
+      name: group.name,
+      logo: group.logo,
+      ...(group.description !== null ? { description: group.description } : {}),
+      sortOrder: group.sortOrder,
+    };
+    const logo = group.logo ?? undefined;
+    const assetId = privateAssetIdFromLogo(logo);
+    if (assetId && logo) {
+      const path = await resolveAsset({
+        assetId,
+        path: logo,
+        reference: "group.logo",
+        referenceId: group.id,
+      });
+      // 组 logo 是展示增强：读取失败落 null 并由 manifest 记录缺失，不阻断整份备份。
+      row.logo = path;
+    }
+    groups.push(row);
+  }
+
+  const billingRecords: ApiBillingRecord[] = [];
+  for (const sourceRecord of options.billingRecords ?? []) {
+    const record: ApiBillingRecord = { ...sourceRecord };
+    if (record.receiptAssetIds.length > 0) {
+      const kept: string[] = [];
+      for (const assetId of record.receiptAssetIds) {
+        // 凭证以资产 ID 引用：resolve 只负责把文件收进 ZIP，data.json 保留原 ID，恢复上传后由导入侧重写。
+        const path = await resolveAsset({
+          assetId,
+          path: `/api/app/assets/${assetId}`,
+          reference: "billingRecord.receiptAssetIds",
+          referenceId: record.id,
+        });
+        if (path) kept.push(assetId);
+      }
+      record.receiptAssetIds = kept;
+    }
+    billingRecords.push(record);
+  }
+
   const exportedAt = new Date().toISOString();
   const data = renewletExportV1Schema.parse({
     kind: "renewlet-export",
@@ -111,6 +162,8 @@ export async function exportRenewletBackup(options: {
       settings: sanitizeSettingsForExport(options.settings, options.includeSecrets),
       customConfig,
       exchangeRateSnapshots: [...(options.exchangeRateSnapshots ?? [])],
+      ...(groups.length > 0 ? { groups } : {}),
+      ...(billingRecords.length > 0 ? { billingRecords } : {}),
       assets,
     },
   });
@@ -119,6 +172,8 @@ export async function exportRenewletBackup(options: {
     schemaVersion: data.schemaVersion,
     exportedAt: data.exportedAt,
     subscriptions: data.data.subscriptions.length,
+    groups: groups.length,
+    billingRecords: billingRecords.length,
     assets: assets.length,
     // missingAssets 是导出审计，不参与导入写库；失败资产已从 data.json 的 logo/icon 字段移除。
     missingAssets,

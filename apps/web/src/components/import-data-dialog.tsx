@@ -58,6 +58,7 @@ export function ImportDataDialogContent({ open, onOpenChange, settings, config, 
     conflictMode,
     previewFilter,
     skippedIndexes,
+    forceReplaceIndexes,
     error,
     applying,
     assetProgress,
@@ -68,7 +69,7 @@ export function ImportDataDialogContent({ open, onOpenChange, settings, config, 
     previewPrepared,
     handleConflictModeChange,
     handleLogoChange,
-    handleSkipChange,
+    handleToggleRow,
     handleApply,
   } = importPreview;
   useDeferredDialogInitialFocus(open, true, "import", resolveInitialFocus);
@@ -298,6 +299,7 @@ export function ImportDataDialogContent({ open, onOpenChange, settings, config, 
               conflictMode={conflictMode}
               previewFilter={previewFilter}
               skippedIndexes={skippedIndexes}
+              forceReplaceIndexes={forceReplaceIndexes}
               wallosUsers={wallosUsers}
               selectedWallosUser={selectedWallosUser}
               assetProgress={assetProgress}
@@ -306,7 +308,7 @@ export function ImportDataDialogContent({ open, onOpenChange, settings, config, 
               onWallosUserChange={(value) => void handleWallosUserChange(value)}
               onPreviewFilterChange={setPreviewFilter}
               onLogoChange={handleLogoChange}
-              onSkipChange={handleSkipChange}
+              onToggleRow={handleToggleRow}
             />
           ) : null
         )}

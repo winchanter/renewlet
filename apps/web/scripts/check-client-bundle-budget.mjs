@@ -32,8 +32,10 @@ const budgets = {
   // route gzip/brotli 再上调 5 KB/3 KB：订阅组功能（分组视图 + 管理组弹窗 + Radix Collapsible 原语）。
   // route brotli 再上调 1 KB：公开页新增订阅分组视图（共享 collapsible/schema chunk 微涨，实际超 310 B）。
   // route gzip 再上调 1 KB：订阅页分组排序（上移/下移按钮）+ 视图偏好本地缓存（实际超 627 B）。
+  // route gzip/brotli 再上调 2 KB：Renewo 备份补齐分组与续订流水，导出 hook 静态接线 groups/流水拉取
+  // （净增 gzip ≈ 1.7 KB / brotli ≈ 1.4 KB；ZIP 序列化与恢复弹窗仍走懒加载，不进路由闭包）。
   startup: { gzip: 400000, brotli: 344000 },
-  route: { gzip: 406000, brotli: 355000 },
+  route: { gzip: 408000, brotli: 357000 },
 };
 const forbiddenStartupModules = [
   ["Recharts", (id) => id.includes("node_modules/recharts/")],

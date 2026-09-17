@@ -19,11 +19,15 @@ import { isValidDateOnly } from "@renewlet/shared/runtime";
 export const MAX_IMPORT_FILE_BYTES = IMPORT_PREVIEW_MAX_BYTES;
 export const MAX_IMPORT_PREVIEW_SUBSCRIPTIONS = IMPORT_PREVIEW_SUBSCRIPTION_LIMIT;
 
-export type ImportAssetKind = "logo" | "icon";
+export type ImportAssetKind = "logo" | "icon" | "receipt";
 
 export type ImportAssetTarget =
   | { type: "subscriptionLogo"; subscriptionIndex: number }
-  | { type: "paymentMethodIcon"; paymentMethodIndex: number };
+  | { type: "paymentMethodIcon"; paymentMethodIndex: number }
+  // 分组 logo 与组数组下标绑定；组不参与单条 skip，恢复时整批重建。
+  | { type: "groupLogo"; groupIndex: number }
+  // 续订凭证按“流水下标 + 备份内源资产 ID”定位；上传成功后用新资产 ID 重写 receiptAssetIds。
+  | { type: "billingReceipt"; billingRecordIndex: number; assetId: string };
 
 /**
  * ImportAssetRef 描述导入流程中尚未上传到 Renewo 的私有资产。
@@ -169,6 +173,7 @@ export function subscriptionToImportSubscription(subscription: Subscription, sou
     usageUnit: subscription.billingCycle === "usage-based" ? subscription.usageUnit ?? null : null,
     usageTotal: subscription.billingCycle === "usage-based" ? subscription.usageTotal ?? null : null,
     usageDailyRate: subscription.billingCycle === "usage-based" ? subscription.usageDailyRate ?? null : null,
+    usageExpiresAt: subscription.billingCycle === "usage-based" ? subscription.usageExpiresAt ?? null : null,
     category: subscription.category,
     status: subscription.status,
     pinned: subscription.pinned,
@@ -225,6 +230,8 @@ export function subscriptionToExportRow(subscription: Subscription): RenewletExp
     repeatReminderInterval: subscription.repeatReminderInterval,
     repeatReminderWindow: subscription.repeatReminderWindow,
     ...(subscription.costSharing ? { costSharing: subscription.costSharing } : {}),
+    // 备份必须携带归组事实；恢复端先重建分组再把该源组 ID 重映射到新实例。
+    ...(subscription.groupId ? { groupId: subscription.groupId } : {}),
     extra: subscription.extra,
   };
 
@@ -256,6 +263,8 @@ export function subscriptionToExportRow(subscription: Subscription): RenewletExp
       usageUnit: subscription.usageUnit,
       usageTotal: subscription.usageTotal,
       usageDailyRate: subscription.usageDailyRate,
+      // 量包失效日是恢复摊销/耗尽边界的事实；空值不进包，导入侧按 null 落库。
+      ...(subscription.usageExpiresAt ? { usageExpiresAt: subscription.usageExpiresAt } : {}),
     };
   }
 

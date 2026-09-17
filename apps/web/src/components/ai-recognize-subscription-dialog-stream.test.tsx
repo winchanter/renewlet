@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   setError: vi.fn(),
   handleConflictModeChange: vi.fn(),
   handleLogoChange: vi.fn(),
-  handleSkipChange: vi.fn(),
+  handleToggleRow: vi.fn(),
   handleApply: vi.fn(),
   importPreviewPanel: vi.fn(),
   previewState: {
@@ -43,6 +43,7 @@ vi.mock("@/modules/import-export/application/use-import-preview-apply", () => ({
     conflictMode: "skip",
     previewFilter: "all",
     skippedIndexes: new Set<number>(),
+    forceReplaceIndexes: new Set<number>(),
     error: mocks.previewState.error,
     applying: false,
     assetProgress: null,
@@ -53,7 +54,7 @@ vi.mock("@/modules/import-export/application/use-import-preview-apply", () => ({
     previewPrepared: mocks.previewPrepared,
     handleConflictModeChange: mocks.handleConflictModeChange,
     handleLogoChange: mocks.handleLogoChange,
-    handleSkipChange: mocks.handleSkipChange,
+    handleToggleRow: mocks.handleToggleRow,
     handleApply: mocks.handleApply,
   }),
 }));

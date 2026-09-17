@@ -210,16 +210,38 @@ function collectRenewletAssetEntries(
       referencedPaths.add(subscription.logo);
     }
   }
+  for (const group of data.data.groups ?? []) {
+    if (typeof group.logo === "string" && group.logo.startsWith("assets/")) {
+      referencedPaths.add(group.logo);
+    }
+  }
   for (const paymentMethod of data.data.customConfig?.paymentMethods ?? []) {
     if (typeof paymentMethod.icon === "string" && paymentMethod.icon.startsWith("assets/")) {
       referencedPaths.add(paymentMethod.icon);
     }
   }
+  // 凭证在 data.json 中只存资产 ID（ZIP 内条目为 assets/{id}{ext}）；
+  // 收集所有被任一流水引用的 ID，再用 stem 精确匹配 ZIP 条目，避免前缀碰撞。
+  const receiptAssetIds = new Set<string>();
+  for (const record of data.data.billingRecords ?? []) {
+    for (const assetId of record.receiptAssetIds) {
+      receiptAssetIds.add(assetId);
+    }
+  }
   const result = new Map<string, ZipCentralDirectoryEntry>();
   for (const entry of entries) {
-    if (!referencedPaths.has(entry.name)) continue;
-    assertImportZipEntrySize(entry, MAX_IMAGE_BYTES);
-    result.set(entry.name, entry);
+    if (referencedPaths.has(entry.name)) {
+      assertImportZipEntrySize(entry, MAX_IMAGE_BYTES);
+      result.set(entry.name, entry);
+      continue;
+    }
+    if (receiptAssetIds.size > 0 && entry.name.startsWith("assets/")) {
+      const stem = entry.name.slice("assets/".length).replace(/\.[^.]+$/, "");
+      if (receiptAssetIds.has(stem)) {
+        assertImportZipEntrySize(entry, MAX_IMAGE_BYTES);
+        result.set(entry.name, entry);
+      }
+    }
   }
   return result;
 }

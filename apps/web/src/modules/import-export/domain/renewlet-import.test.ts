@@ -164,4 +164,153 @@ describe("renewlet import", () => {
     expect(prepared.payload.customConfig?.paymentMethods[0]).not.toHaveProperty("icon");
     expect(prepared.payload.customConfig?.paymentMethods[1]).not.toHaveProperty("icon");
   });
+
+  it("stages group logos and billing receipts, remaps group ids, and drops receipts missing from ZIP", () => {
+    const parsed = renewletExportV1Schema.parse({
+      kind: "renewlet-export",
+      schemaVersion: 1,
+      exportedAt: "2026-05-26T00:00:00.000Z",
+      data: {
+        subscriptions: [{ ...currentExportSubscription, groupId: "grp_1" }],
+        groups: [
+          { id: "grp_1", name: "Work", logo: "assets/asset_grp.svg", sortOrder: 0 },
+          { id: "grp_2", name: "Home", logo: null, sortOrder: 1 },
+        ],
+        billingRecords: [
+          {
+            id: "bill_1",
+            subscriptionId: "current-1",
+            name: "Current Backup",
+            billingDate: "2026-05-01",
+            periodEndDate: "2026-06-01",
+            amount: "42.00",
+            currency: "USD",
+            mode: "initial",
+            receiptAssetIds: ["asset_rcpt", "asset_missing"],
+            billingCycle: "monthly",
+            usageRemainingBefore: null,
+            usageExpiresAt: null,
+          },
+          // "asset_rc" 不能因前缀碰撞命中 ZIP 里的 asset_rcpt.png：stem 必须精确相等。
+          {
+            id: "bill_2",
+            subscriptionId: "current-1",
+            name: "Current Backup",
+            billingDate: "2026-04-01",
+            periodEndDate: "2026-05-01",
+            amount: "42.00",
+            currency: "USD",
+            mode: "auto",
+            receiptAssetIds: ["asset_rc"],
+            billingCycle: "monthly",
+            usageRemainingBefore: null,
+            usageExpiresAt: null,
+          },
+        ],
+        assets: [
+          { id: "asset_grp", path: "assets/asset_grp.svg", mimeType: "image/svg+xml", sizeBytes: 7 },
+          { id: "asset_rcpt", path: "assets/asset_rcpt.png", mimeType: "image/png", sizeBytes: 9 },
+        ],
+      },
+    });
+    const grpBuffer = new TextEncoder().encode("<svg />").buffer;
+    const rcptBuffer = new TextEncoder().encode("PNG-BYTES").buffer;
+    const prepared = buildFromRenewletExport(parsed, context, new Map([
+      ["assets/asset_grp.svg", { buffer: grpBuffer, mimeType: "image/svg+xml" }],
+      ["assets/asset_rcpt.png", { buffer: rcptBuffer, mimeType: "image/png" }],
+    ]));
+
+    // 订阅透传源分组 ID，服务端建组后重映射。
+    expect(prepared.payload.subscriptions[0]?.groupId).toBe("grp_1");
+    expect(prepared.payload.groups).toEqual([
+      { id: "grp_1", name: "Work", logo: null, sortOrder: 0 },
+      { id: "grp_2", name: "Home", logo: null, sortOrder: 1 },
+    ]);
+    expect(prepared.payload.billingRecords?.[0]?.receiptAssetIds).toEqual(["asset_rcpt"]);
+    expect(prepared.payload.billingRecords?.[1]?.receiptAssetIds).toEqual([]);
+    expect(prepared.assets).toEqual([
+      { target: { type: "groupLogo", groupIndex: 0 }, kind: "logo", filename: "asset_grp.svg", buffer: grpBuffer, mimeType: "image/svg+xml" },
+      { target: { type: "billingReceipt", billingRecordIndex: 0, assetId: "asset_rcpt" }, kind: "receipt", filename: "asset_rcpt.png", buffer: rcptBuffer, mimeType: "image/png" },
+    ]);
+  });
+
+  it("preserves cycle-specific fields for custom, one-time fixed-term and usage-based subscriptions", () => {
+    const base = {
+      name: "Cycle",
+      logo: undefined,
+      price: "10",
+      currency: "USD",
+      category: "developer_tools",
+      status: "active",
+      pinned: false,
+      publicHidden: false,
+      paymentMethod: undefined,
+      startDate: assertDateOnly("2026-05-01"),
+      nextBillingDate: assertDateOnly("2026-06-01"),
+      autoCalculateNextBillingDate: true,
+      trialEndDate: undefined,
+      website: undefined,
+      notes: undefined,
+      tags: [],
+      reminderDays: 3,
+      repeatReminderEnabled: false,
+      repeatReminderInterval: "1h",
+      repeatReminderWindow: "72h",
+      extra: {},
+    } as const;
+    const parsed = renewletExportV1Schema.parse({
+      kind: "renewlet-export",
+      schemaVersion: 1,
+      exportedAt: "2026-05-26T00:00:00.000Z",
+      data: {
+        subscriptions: [
+          { ...base, id: "sub_custom", billingCycle: "custom", customDays: 30, customCycleUnit: "day", autoRenew: true },
+          {
+            ...base,
+            id: "sub_fixed",
+            billingCycle: "one-time",
+            oneTimeTermCount: 12,
+            oneTimeTermUnit: "month",
+            autoRenew: false,
+            autoCalculateNextBillingDate: false,
+          },
+          {
+            ...base,
+            id: "sub_usage",
+            billingCycle: "usage-based",
+            usageUnit: "GB",
+            usageTotal: 500,
+            usageDailyRate: 10,
+            usageExpiresAt: "2026-08-31",
+            autoRenew: false,
+          },
+        ],
+        assets: [],
+      },
+    });
+
+    // buildFromRenewletExport 内部执行 importPayloadSchema.parse：
+    // 修复前 usage-based 行因三个 usage 字段被映射丢弃而在这里抛 refine 错误。
+    const prepared = buildFromRenewletExport(parsed, context);
+
+    expect(prepared.payload.subscriptions).toEqual([
+      expect.objectContaining({ billingCycle: "custom", customDays: 30, customCycleUnit: "day" }),
+      expect.objectContaining({
+        billingCycle: "one-time",
+        oneTimeTermCount: 12,
+        oneTimeTermUnit: "month",
+        usageUnit: null,
+        usageTotal: null,
+      }),
+      expect.objectContaining({
+        billingCycle: "usage-based",
+        usageUnit: "GB",
+        usageTotal: 500,
+        usageDailyRate: 10,
+        usageExpiresAt: "2026-08-31",
+        customDays: null,
+        customCycleUnit: null,
+      }),
+    ]);
+  });
 });

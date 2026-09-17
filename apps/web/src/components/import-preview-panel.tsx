@@ -17,6 +17,7 @@ interface ImportPreviewPanelProps {
   conflictMode: ImportConflictMode;
   previewFilter: PreviewFilter;
   skippedIndexes: ReadonlySet<number>;
+  forceReplaceIndexes: ReadonlySet<number>;
   wallosUsers?: WallosImportUser[];
   selectedWallosUser?: string;
   assetProgress?: { done: number; total: number } | null;
@@ -26,7 +27,7 @@ interface ImportPreviewPanelProps {
   onWallosUserChange?: (value: string) => void;
   onPreviewFilterChange: (value: PreviewFilter) => void;
   onLogoChange: (index: number, value: string | null, asset?: DeferredLogoAsset) => void;
-  onSkipChange: (index: number, skipped: boolean) => void;
+  onToggleRow: (index: number) => void;
 }
 
 export function ImportPreviewPanel({
@@ -35,6 +36,7 @@ export function ImportPreviewPanel({
   conflictMode,
   previewFilter,
   skippedIndexes,
+  forceReplaceIndexes,
   wallosUsers = [],
   selectedWallosUser,
   assetProgress,
@@ -44,7 +46,7 @@ export function ImportPreviewPanel({
   onWallosUserChange,
   onPreviewFilterChange,
   onLogoChange,
-  onSkipChange,
+  onToggleRow,
 }: ImportPreviewPanelProps) {
   const { t } = useI18n();
   const wallosUserSelection = wallosUsers.length > 1
@@ -81,6 +83,16 @@ export function ImportPreviewPanel({
         <SummaryBadge label={t("import.summaryWarning")} value={preview.summary.warnings} />
         <SummaryBadge label={t("import.summaryError")} value={preview.summary.errors} danger={preview.summary.errors > 0} />
       </div>
+      {preview.includesGroups || preview.includesBillingRecords ? (
+        <p className="text-xs text-muted-foreground">
+          {t("import.extraDataHint", {
+            extras: [
+              preview.includesGroups ? t("import.extraGroups", { count: preview.groupsCount }) : "",
+              preview.includesBillingRecords ? t("import.extraBillingRecords", { count: preview.billingRecordsCount }) : "",
+            ].filter(Boolean).join("、"),
+          })}
+        </p>
+      ) : null}
       {showImportOptions ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/20 p-3 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
@@ -144,10 +156,12 @@ export function ImportPreviewPanel({
         prepared={prepared}
         preview={preview}
         filter={previewFilter}
+        conflictMode={conflictMode}
         skippedIndexes={skippedIndexes}
+        forceReplaceIndexes={forceReplaceIndexes}
         onFilterChange={onPreviewFilterChange}
         onLogoChange={onLogoChange}
-        onSkipChange={onSkipChange}
+        onToggleRow={onToggleRow} 
       />
       {prepared.warnings.length ? (
         <div className="rounded-lg border border-border bg-secondary/30 p-3 text-xs leading-5 text-muted-foreground">

@@ -756,10 +756,9 @@ func generateAutoRenewalBillingRecords(app core.App, snapshot billingRecordUpser
 	return nil
 }
 
-// upsertBillingRecord 按 (user_id, subscription_id, billing_date, mode) 幂等写入扣费记录：
-// 已有行只更新快照字段（不改 id/created_at），否则创建。必须在订阅写入的同一事务内调用，
-// 让“订阅状态变化”与“历史记录快照”原子落库。
-func upsertBillingRecord(app core.App, input billingRecordUpsert) error {
+// validateBillingRecordUpsert 是扣费记录的纯事实校验（不触碰数据库），
+// 同时服务续订写路径与备份恢复预览，保证两条入口的拒绝口径一致。
+func validateBillingRecordUpsert(input billingRecordUpsert) error {
 	if input.UserID == "" || input.SubscriptionID == "" || strings.TrimSpace(input.Name) == "" {
 		return errors.New("BILLING_RECORD_IDENTITY_REQUIRED")
 	}
@@ -787,8 +786,7 @@ func upsertBillingRecord(app core.App, input billingRecordUpsert) error {
 			return errors.New("BILLING_RECORD_USAGE_EXPIRES_BEFORE_BILLING_DATE")
 		}
 	}
-	amount, err := canonicalMoneyString(input.Amount)
-	if err != nil {
+	if _, err := canonicalMoneyString(input.Amount); err != nil {
 		return errors.New("BILLING_RECORD_AMOUNT_INVALID")
 	}
 	if !currencyCodeRe.MatchString(input.Currency) {
@@ -796,6 +794,21 @@ func upsertBillingRecord(app core.App, input billingRecordUpsert) error {
 	}
 	if !billingRecordCycleIsConsistent(input) {
 		return errors.New("BILLING_RECORD_CYCLE_FIELDS_INCONSISTENT")
+	}
+	return nil
+}
+
+// upsertBillingRecord 按 (user_id, subscription_id, billing_date, mode) 幂等写入扣费记录：
+// 已有行只更新快照字段（不改 id/created_at），否则创建。必须在订阅写入的同一事务内调用，
+// 让“订阅状态变化”与“历史记录快照”原子落库。
+func upsertBillingRecord(app core.App, input billingRecordUpsert) error {
+	if err := validateBillingRecordUpsert(input); err != nil {
+		return err
+	}
+	// 校验已保证金额合法；落库前再走一次 canonical，保证旧脏输入也按规范金额存储。
+	amount, err := canonicalMoneyString(input.Amount)
+	if err != nil {
+		return errors.New("BILLING_RECORD_AMOUNT_INVALID")
 	}
 	record, err := app.FindFirstRecordByFilter(
 		billingRecordsCollectionName,

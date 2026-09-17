@@ -30,6 +30,11 @@ export function invalidateSubscriptionBillingRecords(queryClient: QueryClient, s
   return queryClient.invalidateQueries({ queryKey: subscriptionQueryKeys.billingRecords(subscriptionId) });
 }
 
+/** 备份恢复会跨订阅重放流水：调用方没有单订阅粒度，统一失效全部扣费记录查询。 */
+export function invalidateAllSubscriptionBillingRecords(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({ queryKey: ["subscriptions", "billingRecords"] });
+}
+
 export function removeSubscriptionDetails(queryClient: QueryClient): void {
   queryClient.removeQueries({ queryKey: subscriptionQueryKeys.details });
 }

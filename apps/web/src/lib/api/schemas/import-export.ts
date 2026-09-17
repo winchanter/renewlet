@@ -25,6 +25,8 @@ export {
   renewletExportMissingAssetReasonSchema,
   renewletExportMissingAssetReferenceSchema,
   renewletExportMissingAssetSchema,
+  IMPORT_GROUPS_LIMIT,
+  IMPORT_BILLING_RECORDS_LIMIT,
 } from "@renewlet/shared/schemas/import-export";
 
 export type {
@@ -42,8 +44,11 @@ export type {
   ImportSummary,
   RenewletExportManifestV1,
   RenewletExportAsset,
+  RenewletExportGroup,
   RenewletExportMissingAsset,
   RenewletExportMissingAssetReason,
   RenewletExportMissingAssetReference,
   RenewletExportV1,
+  ImportGroup,
+  ImportBillingRecord,
 } from "@renewlet/shared/schemas/import-export";

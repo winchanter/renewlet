@@ -22,26 +22,28 @@ export const importExportService = {
     conflictMode: ImportConflictMode,
     signal: AbortSignal,
     skipIndexes: readonly number[] = [],
+    forceReplaceIndexes: readonly number[] = [],
   ): Promise<ImportPreviewResponse> {
     return await apiFetch("/api/app/import/preview", importPreviewResponseSchema, {
       method: "POST",
-      body: JSON.stringify({ payload, conflictMode, skipIndexes }),
+      body: JSON.stringify({ payload, conflictMode, skipIndexes, forceReplaceIndexes }),
       signal,
     });
   },
 
-  async apply(payload: ImportPayload, conflictMode: ImportConflictMode, skipIndexes: readonly number[] = []): Promise<ImportApplyResponse> {
-    return await applyImportPayload(payload, conflictMode, skipIndexes);
+  async apply(payload: ImportPayload, conflictMode: ImportConflictMode, skipIndexes: readonly number[] = [], forceReplaceIndexes: readonly number[] = []): Promise<ImportApplyResponse> {
+    return await applyImportPayload(payload, conflictMode, skipIndexes, forceReplaceIndexes);
   },
 
   async applyChunked(
     payload: ImportPayload,
     conflictMode: ImportConflictMode,
     skipIndexes: readonly number[] = [],
+    forceReplaceIndexes: readonly number[] = [],
     onProgress?: (done: number, total: number) => void,
   ): Promise<ImportApplyResponse> {
     if (payload.subscriptions.length <= IMPORT_APPLY_SUBSCRIPTION_LIMIT) {
-      const result = await applyImportPayload(payload, conflictMode, skipIndexes);
+      const result = await applyImportPayload(payload, conflictMode, skipIndexes, forceReplaceIndexes);
       onProgress?.(payload.subscriptions.length, payload.subscriptions.length);
       return result;
     }
@@ -49,7 +51,7 @@ export const importExportService = {
     // Docker 与 Cloudflare 共享 200 条 apply 上限；顺序切包靠 extra.import 幂等键支持失败后重试收敛。
     const chunks = chunkSubscriptions(payload.subscriptions, IMPORT_APPLY_SUBSCRIPTION_LIMIT);
     if (chunks.length === 0) {
-      return await applyImportPayload(payload, conflictMode);
+      return await applyImportPayload(payload, conflictMode, [], []);
     }
     const items: ImportPreviewItem[] = [];
     const summary = { total: 0, creates: 0, replaces: 0, skips: 0, errors: 0, warnings: 0 };
@@ -62,14 +64,21 @@ export const importExportService = {
       const chunkPayload: ImportPayload = {
         source: payload.source,
         subscriptions: chunk,
+        // 分组必须先于任何订阅落库（订阅保存时即重绑组），所以只放第一块。
+        ...(index === 0 && payload.groups ? { groups: payload.groups } : {}),
         ...(index === chunks.length - 1 && payload.settings ? { settings: payload.settings } : {}),
         ...(index === chunks.length - 1 && payload.customConfig ? { customConfig: payload.customConfig } : {}),
         ...(index === chunks.length - 1 && payload.exchangeRateSnapshots ? { exchangeRateSnapshots: payload.exchangeRateSnapshots } : {}),
+        // 流水依赖全部订阅就绪：此时前序分块的订阅已按 renewlet:源ID 成为库内精确匹配，宿主映射完整。
+        ...(index === chunks.length - 1 && payload.billingRecords ? { billingRecords: payload.billingRecords } : {}),
       };
       const chunkSkipIndexes = skipIndexes
         .filter((itemIndex) => itemIndex >= offset && itemIndex < offset + chunk.length)
         .map((itemIndex) => itemIndex - offset);
-      const result = await applyImportPayload(chunkPayload, conflictMode, chunkSkipIndexes);
+      const chunkForceReplaceIndexes = forceReplaceIndexes
+        .filter((itemIndex) => itemIndex >= offset && itemIndex < offset + chunk.length)
+        .map((itemIndex) => itemIndex - offset);
+      const result = await applyImportPayload(chunkPayload, conflictMode, chunkSkipIndexes, chunkForceReplaceIndexes);
       summary.total += result.summary.total;
       summary.creates += result.summary.creates;
       summary.replaces += result.summary.replaces;
@@ -88,15 +97,19 @@ export const importExportService = {
       includesCustomConfig: Boolean(payload.customConfig),
       includesExchangeRateSnapshots: Boolean(payload.exchangeRateSnapshots?.length),
       exchangeRateSnapshotsCount: payload.exchangeRateSnapshots?.length ?? 0,
+      includesGroups: Boolean(payload.groups?.length),
+      groupsCount: payload.groups?.length ?? 0,
+      includesBillingRecords: Boolean(payload.billingRecords?.length),
+      billingRecordsCount: payload.billingRecords?.length ?? 0,
     });
   },
 };
 
-async function applyImportPayload(payload: ImportPayload, conflictMode: ImportConflictMode, skipIndexes: readonly number[] = []): Promise<ImportApplyResponse> {
+async function applyImportPayload(payload: ImportPayload, conflictMode: ImportConflictMode, skipIndexes: readonly number[] = [], forceReplaceIndexes: readonly number[] = []): Promise<ImportApplyResponse> {
   // apply 可能写入订阅、设置和自定义配置，超时放宽到导入事务可完成的范围。
   return await apiFetch("/api/app/import/apply", importApplyResponseSchema, {
     method: "POST",
-    body: JSON.stringify({ payload, conflictMode, skipIndexes }),
+    body: JSON.stringify({ payload, conflictMode, skipIndexes, forceReplaceIndexes }),
     timeoutMs: 60_000,
   });
 }

@@ -37,17 +37,32 @@ const PREVIEW_FILTER_LABEL_KEYS: Record<PreviewFilter, MessageKey> = {
 interface ImportPreviewListProps {
   /** 解析后的导入载荷与暂存资产；Logo 编辑只更新这份前端暂存态，真正持久化发生在 apply 阶段。 */
   prepared: PreparedImport;
-  /** 服务端预览结果是冲突/错误的事实来源，前端只允许叠加筛选和手动跳过。 */
+  /** 服务端预览结果是冲突/错误的事实来源，前端只允许叠加筛选和手动覆盖。 */
   preview: ImportPreviewResponse;
   filter: PreviewFilter;
+  /** 当前冲突策略，决定 existing 行的默认动作，也参与单按钮状态机。 */
+  conflictMode: ImportConflictMode;
   /** 手动跳过以原始导入 index 标识，避免虚拟列表筛选后行号变化误作用到其他订阅。 */
   skippedIndexes: ReadonlySet<number>;
+  /** skip 模式下逐条强制替换；与 skippedIndexes 互斥，UI 层保证。 */
+  forceReplaceIndexes: ReadonlySet<number>;
   onFilterChange: (filter: PreviewFilter) => void;
   onLogoChange: (index: number, value: string | null, asset?: DeferredLogoAsset) => void;
-  onSkipChange: (index: number, skipped: boolean) => void;
+  /** 单按钮在 跳过/恢复/强制替换 之间切换该行的生效动作。 */
+  onToggleRow: (index: number) => void;
 }
 
-export function ImportPreviewList({ prepared, preview, filter, skippedIndexes, onFilterChange, onLogoChange, onSkipChange }: ImportPreviewListProps) {
+export function ImportPreviewList({
+  prepared,
+  preview,
+  filter,
+  conflictMode,
+  skippedIndexes,
+  forceReplaceIndexes,
+  onFilterChange,
+  onLogoChange,
+  onToggleRow,
+}: ImportPreviewListProps) {
   const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const filteredItems = useMemo(() => filterPreviewItems(preview.items, filter), [filter, preview.items]);
@@ -63,13 +78,15 @@ export function ImportPreviewList({ prepared, preview, filter, skippedIndexes, o
       <PreviewRow
         item={item}
         prepared={prepared}
+        conflictMode={conflictMode}
         manualSkipped={skippedIndexes.has(item.index)}
+        forcedReplace={forceReplaceIndexes.has(item.index)}
         actionLabel={t(IMPORT_ACTION_LABEL_KEYS[item.action])}
         onLogoChange={onLogoChange}
-        onSkipChange={onSkipChange}
+        onToggleRow={onToggleRow}
       />
     );
-  }, [filteredItems, onLogoChange, onSkipChange, prepared, skippedIndexes, t]);
+  }, [conflictMode, filteredItems, forceReplaceIndexes, onLogoChange, onToggleRow, prepared, skippedIndexes, t]);
 
   return (
     <>
@@ -113,12 +130,16 @@ export function recomputePreviewForConflictMode(
   preview: ImportPreviewResponse,
   conflictMode: ImportConflictMode,
   skippedIndexes: ReadonlySet<number> = new Set<number>(),
+  forceReplaceIndexes: ReadonlySet<number> = new Set<number>(),
 ): ImportPreviewResponse {
-  // 切换冲突策略只重算可恢复项；错误项和用户手动跳过必须保持优先级，避免前端覆盖服务端校验结论。
+  // 覆盖优先级：手动 skip（用户显式操作，最高）→ force replace（skip 模式覆盖冲突）→ error → conflictMode → create。
   const items = preview.items.map((item) => {
     if (skippedIndexes.has(item.index)) return { ...item, action: "skip" as const };
     if (item.errors.length > 0 || item.action === "error") return { ...item, action: "error" as const };
-    if (item.existingId) return { ...item, action: conflictMode === "replace" ? "replace" as const : "skip" as const };
+    if (item.existingId) {
+      if (forceReplaceIndexes.has(item.index)) return { ...item, action: "replace" as const };
+      return { ...item, action: conflictMode === "replace" ? "replace" as const : "skip" as const };
+    }
     return { ...item, action: "create" as const };
   });
   return { ...preview, items, summary: summarizePreviewItems(items) };
@@ -127,17 +148,21 @@ export function recomputePreviewForConflictMode(
 function PreviewRow({
   item,
   prepared,
+  conflictMode,
   manualSkipped,
+  forcedReplace,
   actionLabel,
   onLogoChange,
-  onSkipChange,
+  onToggleRow,
 }: {
   item: ImportPreviewItem;
   prepared: PreparedImport;
+  conflictMode: ImportConflictMode;
   manualSkipped: boolean;
+  forcedReplace: boolean;
   actionLabel: string;
   onLogoChange: (index: number, value: string | null, asset?: DeferredLogoAsset) => void;
-  onSkipChange: (index: number, skipped: boolean) => void;
+  onToggleRow: (index: number) => void;
 }) {
   const { t, locale } = useI18n();
   const subscription = prepared.payload.subscriptions[item.index];
@@ -151,8 +176,13 @@ function PreviewRow({
         customCycleUnit: subscription.customCycleUnit ?? undefined,
       }
     : null;
+  // 单按钮语义：当前生效动作是"跳过"（手动跳过，或 skip 模式下无错误 existing 行的默认跳过）时显示"恢复导入"，
+  // 点击恢复（skip 模式 existing 行转为强制替换）；错误行只能手动跳过，其余情况显示"跳过此条"。
+  const showRestore = manualSkipped
+    || (Boolean(item.existingId) && conflictMode === "skip" && !forcedReplace && item.errors.length === 0);
+  const rowOverridden = manualSkipped || forcedReplace;
   return (
-    <div className={cn("border-b border-border p-3 last:border-b-0", manualSkipped && "bg-secondary/20")}>
+    <div className={cn("border-b border-border p-3 last:border-b-0", rowOverridden && "bg-secondary/20")}>
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="flex min-w-0 items-start gap-3">
           <ImportPreviewLogo prepared={prepared} index={item.index} name={item.name} />
@@ -198,13 +228,13 @@ function PreviewRow({
         <div className="flex flex-wrap items-center justify-end gap-2 sm:flex-col sm:items-end">
           <Button
             type="button"
-            variant={manualSkipped ? "secondary" : "outline"}
+            variant={rowOverridden ? "secondary" : "outline"}
             size="sm"
             className="h-9"
-            onClick={() => onSkipChange(item.index, !manualSkipped)}
+            onClick={() => onToggleRow(item.index)}
           >
-            {manualSkipped ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-            {manualSkipped ? t("import.restoreItem") : t("import.skipItem")}
+            {showRestore ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+            {showRestore ? t("import.restoreItem") : t("import.skipItem")}
           </Button>
           {subscription ? (
             <ImportLogoEditor

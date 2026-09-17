@@ -26,19 +26,25 @@ import (
 const maxImportJSONBodyBytes int64 = 8 << 20
 const maxImportPreviewSubscriptions = 1000
 const maxImportApplySubscriptions = 200
+
+// 与 shared IMPORT_GROUPS_LIMIT/IMPORT_BILLING_RECORDS_LIMIT 对齐。
+const maxImportGroups = 100
+const maxImportBillingRecords = 2000
 const importWarningLowConfidenceKey = "IMPORT_WARNING_LOW_CONFIDENCE_KEY"
 const importWarningLowConfidenceNameMatched = "IMPORT_WARNING_LOW_CONFIDENCE_NAME_MATCHED"
 
 type importPreviewRequest struct {
-	Payload      importPayload `json:"payload"`
-	ConflictMode string        `json:"conflictMode"`
-	SkipIndexes  []int         `json:"skipIndexes,omitempty"`
+	Payload             importPayload `json:"payload"`
+	ConflictMode        string        `json:"conflictMode"`
+	SkipIndexes         []int         `json:"skipIndexes,omitempty"`
+	ForceReplaceIndexes []int         `json:"forceReplaceIndexes,omitempty"`
 }
 
 type importApplyRequest struct {
-	Payload      importPayload `json:"payload"`
-	ConflictMode string        `json:"conflictMode"`
-	SkipIndexes  []int         `json:"skipIndexes,omitempty"`
+	Payload             importPayload `json:"payload"`
+	ConflictMode        string        `json:"conflictMode"`
+	SkipIndexes         []int         `json:"skipIndexes,omitempty"`
+	ForceReplaceIndexes []int         `json:"forceReplaceIndexes,omitempty"`
 }
 
 type importPayload struct {
@@ -47,6 +53,17 @@ type importPayload struct {
 	Settings              json.RawMessage           `json:"settings,omitempty"`
 	CustomConfig          *customConfigPayload      `json:"customConfig,omitempty"`
 	ExchangeRateSnapshots []exchangeRateSnapshotDTO `json:"exchangeRateSnapshots,omitempty"`
+	Groups                []importGroup             `json:"groups,omitempty"`
+	BillingRecords        []billingRecordItem       `json:"billingRecords,omitempty"`
+}
+
+// importGroup 是恢复包内的分组形状；ID 为源实例分组 ID，apply 时重建为新 ID 并映射订阅归属。
+type importGroup struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Logo        *string `json:"logo,omitempty"`
+	Description *string `json:"description,omitempty"`
+	SortOrder   int     `json:"sortOrder"`
 }
 
 type importSubscription struct {
@@ -81,7 +98,9 @@ type importSubscription struct {
 	RepeatReminderInterval       string                 `json:"repeatReminderInterval"`
 	RepeatReminderWindow         string                 `json:"repeatReminderWindow"`
 	CostSharing                  map[string]interface{} `json:"costSharing,omitempty"`
-	Extra                        map[string]interface{} `json:"extra"`
+	// GroupID 引用恢复包内的源分组 ID；apply 时先重建分组再映射到新实例 ID，nil/缺失表示未分组。
+	GroupID *string                `json:"groupId,omitempty"`
+	Extra   map[string]interface{} `json:"extra"`
 }
 
 type importPreviewResponse struct {
@@ -91,6 +110,10 @@ type importPreviewResponse struct {
 	IncludesCustomConfig          bool                `json:"includesCustomConfig"`
 	IncludesExchangeRateSnapshots bool                `json:"includesExchangeRateSnapshots"`
 	ExchangeRateSnapshotsCount    int                 `json:"exchangeRateSnapshotsCount"`
+	IncludesGroups                bool                `json:"includesGroups"`
+	GroupsCount                   int                 `json:"groupsCount"`
+	IncludesBillingRecords        bool                `json:"includesBillingRecords"`
+	BillingRecordsCount           int                 `json:"billingRecordsCount"`
 }
 
 type importApplyResponse struct {
@@ -130,11 +153,11 @@ type importExistingMatches struct {
 }
 
 func (r *importPreviewRequest) Validate(locale appLocale) error {
-	return validateImportPayload(r.Payload, r.ConflictMode, r.SkipIndexes, maxImportPreviewSubscriptions, locale)
+	return validateImportPayload(r.Payload, r.ConflictMode, r.SkipIndexes, r.ForceReplaceIndexes, maxImportPreviewSubscriptions, locale)
 }
 
 func (r *importApplyRequest) Validate(locale appLocale) error {
-	return validateImportPayload(r.Payload, r.ConflictMode, r.SkipIndexes, maxImportApplySubscriptions, locale)
+	return validateImportPayload(r.Payload, r.ConflictMode, r.SkipIndexes, r.ForceReplaceIndexes, maxImportApplySubscriptions, locale)
 }
 
 func handleImportPreview(app core.App, e *core.RequestEvent) error {
@@ -163,7 +186,7 @@ func handleImportPreview(app core.App, e *core.RequestEvent) error {
 		return e.BadRequestError(validationErrorMessage(locale, "common.invalidPayload", err), err)
 	}
 	itemCount = len(body.Payload.Subscriptions)
-	response, err := previewImportPayload(app, e.Auth, body.Payload, body.ConflictMode, body.SkipIndexes)
+	response, err := previewImportPayload(app, e.Auth, body.Payload, body.ConflictMode, body.SkipIndexes, body.ForceReplaceIndexes)
 	if err != nil {
 		return e.BadRequestError(serverText(locale, "import.invalid"), err)
 	}
@@ -196,14 +219,14 @@ func handleImportApply(app core.App, e *core.RequestEvent) error {
 		return e.BadRequestError(validationErrorMessage(locale, "common.invalidPayload", err), err)
 	}
 	itemCount = len(body.Payload.Subscriptions)
-	preview, err := previewImportPayload(app, e.Auth, body.Payload, body.ConflictMode, body.SkipIndexes)
+	preview, err := previewImportPayload(app, e.Auth, body.Payload, body.ConflictMode, body.SkipIndexes, body.ForceReplaceIndexes)
 	if err != nil {
 		return e.BadRequestError(serverText(locale, "import.invalid"), err)
 	}
 	if preview.Summary.Errors > 0 {
 		return e.BadRequestError(serverText(locale, "import.payloadContainsErrors"), preview)
 	}
-	if err := applyImportPayload(app, e.Auth, body.Payload, body.ConflictMode, body.SkipIndexes); err != nil {
+	if err := applyImportPayload(app, e.Auth, body.Payload, body.ConflictMode, body.SkipIndexes, body.ForceReplaceIndexes); err != nil {
 		return e.BadRequestError(serverText(locale, "import.applyFailed"), err)
 	}
 	return apiSuccessJSON(e, http.StatusOK, importApplyResponse{importPreviewResponse: preview})
@@ -214,7 +237,7 @@ func isImportTooLargeError(err error) bool {
 	return strings.Contains(message, "body too large") || strings.Contains(message, "IMPORT_TOO_MANY_SUBSCRIPTIONS")
 }
 
-func validateImportPayload(payload importPayload, conflictMode string, skipIndexes []int, maxSubscriptions int, _ appLocale) error {
+func validateImportPayload(payload importPayload, conflictMode string, skipIndexes []int, forceReplaceIndexes []int, maxSubscriptions int, _ appLocale) error {
 	if conflictMode != "replace" && conflictMode != "skip" {
 		return errors.New("IMPORT_CONFLICT_MODE_INVALID")
 	}
@@ -229,6 +252,66 @@ func validateImportPayload(payload importPayload, conflictMode string, skipIndex
 	}
 	if len(payload.ExchangeRateSnapshots) > 0 && payload.Source != "renewlet" {
 		return errors.New("IMPORT_EXCHANGE_RATE_SNAPSHOTS_SOURCE_INVALID")
+	}
+	if len(payload.Groups) > maxImportGroups {
+		return errors.New("IMPORT_TOO_MANY_GROUPS")
+	}
+	if len(payload.BillingRecords) > maxImportBillingRecords {
+		return errors.New("IMPORT_TOO_MANY_BILLING_RECORDS")
+	}
+	// 分组与续订流水是 Renewo 自导出独有的用户事实；Wallos/AI 导入永远不会带这两段，
+	// 放行会让外部 payload 借恢复入口写入不可变流水。
+	if (len(payload.Groups) > 0 || len(payload.BillingRecords) > 0) && payload.Source != "renewlet" {
+		return errors.New("IMPORT_GROUPS_BILLING_RECORDS_SOURCE_INVALID")
+	}
+	// skipIndexes 边界校验 + forceReplaceIndexes 边界 + 互斥校验。
+	subCount := len(payload.Subscriptions)
+	for _, idx := range skipIndexes {
+		if idx < 0 || idx >= subCount {
+			return errors.New("IMPORT_SKIP_INDEX_INVALID")
+		}
+	}
+	skipSet := make(map[int]bool, len(skipIndexes))
+	for _, idx := range skipIndexes {
+		skipSet[idx] = true
+	}
+	for _, idx := range forceReplaceIndexes {
+		if idx < 0 || idx >= subCount {
+			return errors.New("IMPORT_FORCE_REPLACE_INDEX_INVALID")
+		}
+		if skipSet[idx] {
+			return errors.New("IMPORT_INDEX_IN_BOTH_SKIP_AND_FORCE_REPLACE")
+		}
+	}
+	seenGroupIDs := map[string]bool{}
+	for index, group := range payload.Groups {
+		groupID := strings.TrimSpace(group.ID)
+		if groupID == "" {
+			return fmt.Errorf("groups %d: IMPORT_GROUP_ID_INVALID", index+1)
+		}
+		if seenGroupIDs[groupID] {
+			return fmt.Errorf("groups %d: IMPORT_GROUP_ID_DUPLICATE", index+1)
+		}
+		seenGroupIDs[groupID] = true
+		if strings.TrimSpace(group.Name) == "" {
+			return fmt.Errorf("groups %d: IMPORT_GROUP_NAME_REQUIRED", index+1)
+		}
+	}
+	for index, record := range payload.BillingRecords {
+		// 凭证数量与空值边界与续订写入契约（api_contracts.go）保持一致，恢复入口不能放宽。
+		if len(record.ReceiptAssetIds) > 6 {
+			return fmt.Errorf("billingRecords %d: BILLING_RECORD_RECEIPT_ASSET_IDS_INVALID", index+1)
+		}
+		for _, assetID := range record.ReceiptAssetIds {
+			if strings.TrimSpace(assetID) == "" {
+				return fmt.Errorf("billingRecords %d: BILLING_RECORD_RECEIPT_ASSET_IDS_INVALID", index+1)
+			}
+		}
+		// 目标订阅 ID 在 apply 阶段才能按映射确定；预览阶段用占位值只做事实字段校验。
+		input := billingRecordUpsertFromImport("_", strings.TrimSpace(record.SubscriptionID), record)
+		if err := validateBillingRecordUpsert(input); err != nil {
+			return fmt.Errorf("billingRecords %d: %w", index+1, err)
+		}
 	}
 	if _, err := importSkippedIndexSet(skipIndexes, len(payload.Subscriptions)); err != nil {
 		return err
@@ -258,12 +341,16 @@ func validateImportPayload(payload importPayload, conflictMode string, skipIndex
 	return nil
 }
 
-func previewImportPayload(app core.App, user *core.Record, payload importPayload, conflictMode string, skipIndexes []int) (importPreviewResponse, error) {
+func previewImportPayload(app core.App, user *core.Record, payload importPayload, conflictMode string, skipIndexes []int, forceReplaceIndexes []int) (importPreviewResponse, error) {
 	rows, err := listOwnedSubscriptionRecords(app, user.Id)
 	if err != nil {
 		return importPreviewResponse{}, err
 	}
 	skippedIndexes, err := importSkippedIndexSet(skipIndexes, len(payload.Subscriptions))
+	if err != nil {
+		return importPreviewResponse{}, err
+	}
+	forceReplaceSet, err := importSkippedIndexSet(forceReplaceIndexes, len(payload.Subscriptions))
 	if err != nil {
 		return importPreviewResponse{}, err
 	}
@@ -316,7 +403,7 @@ func previewImportPayload(app core.App, user *core.Record, payload importPayload
 				// Wallos display:* 只能按名称低置信桥接，给 warning 让用户确认，不把它伪装成精确命中。
 				item.Warnings = append(item.Warnings, importWarningLowConfidenceNameMatched)
 			}
-			if conflictMode == "replace" {
+			if conflictMode == "replace" || forceReplaceSet[index] {
 				item.Action = "replace"
 			} else {
 				item.Action = "skip"
@@ -333,10 +420,14 @@ func previewImportPayload(app core.App, user *core.Record, payload importPayload
 		IncludesCustomConfig:          payload.CustomConfig != nil,
 		IncludesExchangeRateSnapshots: len(payload.ExchangeRateSnapshots) > 0,
 		ExchangeRateSnapshotsCount:    len(payload.ExchangeRateSnapshots),
+		IncludesGroups:                len(payload.Groups) > 0,
+		GroupsCount:                   len(payload.Groups),
+		IncludesBillingRecords:        len(payload.BillingRecords) > 0,
+		BillingRecordsCount:           len(payload.BillingRecords),
 	}, nil
 }
 
-func applyImportPayload(app core.App, user *core.Record, payload importPayload, conflictMode string, skipIndexes []int) error {
+func applyImportPayload(app core.App, user *core.Record, payload importPayload, conflictMode string, skipIndexes []int, forceReplaceIndexes []int) error {
 	// 导入写入包在 PocketBase 事务内完成；任意订阅、settings 或 custom config 失败都不能留下半套迁移数据。
 	return app.RunInTransaction(func(txApp core.App) error {
 		rows, err := listOwnedSubscriptionRecords(txApp, user.Id)
@@ -351,7 +442,24 @@ func applyImportPayload(app core.App, user *core.Record, payload importPayload, 
 		if err != nil {
 			return err
 		}
+		forceReplaceSet, err := importSkippedIndexSet(forceReplaceIndexes, len(payload.Subscriptions))
+		if err != nil {
+			return err
+		}
+		// 分组必须先于订阅落库：订阅保存时直接写入映射后的目标分组 ID，避免订阅先挂空组再二次回写。
+		groupIDMap, err := applyImportedGroups(txApp, user, payload.Groups)
+		if err != nil {
+			return err
+		}
 		existingMatches := existingSubscriptionMatches(rows)
+		// 记录流水宿主的 源订阅ID → 目标订阅ID 映射：
+		// 库内同 ID 订阅（前序分块已恢复，或同实例自恢复）先全部预填，
+		// 本次 create/replace 的结果再覆盖写入（跨实例时把源 ID 映射到新记录 ID）。
+		// 冲突 skip/用户排除的订阅只要已在库中仍可补齐历史流水；完全无宿主的流水丢弃。
+		restoredSubscriptionIDs := map[string]string{}
+		for _, row := range rows {
+			restoredSubscriptionIDs[row.Id] = row.Id
+		}
 		for index, subscription := range payload.Subscriptions {
 			if skippedIndexes[index] {
 				continue
@@ -361,7 +469,7 @@ func applyImportPayload(app core.App, user *core.Record, payload importPayload, 
 				return err
 			}
 			existing, _ := existingMatches.Resolve(key, subscription)
-			if existing != nil && conflictMode == "skip" {
+			if existing != nil && conflictMode == "skip" && !forceReplaceSet[index] {
 				continue
 			}
 			record := existing
@@ -369,9 +477,11 @@ func applyImportPayload(app core.App, user *core.Record, payload importPayload, 
 				record = core.NewRecord(collection)
 			}
 			setImportSubscriptionRecord(record, user.Id, subscription)
+			record.Set("group", mappedImportGroupID(groupIDMap, subscription.GroupID))
 			if err := txApp.Save(record); err != nil {
 				return err
 			}
+			restoredSubscriptionIDs[key.SourceID] = record.Id
 		}
 		scheduleChanged, err := applyImportedSettings(txApp, user, payload.Settings)
 		if err != nil {
@@ -389,8 +499,21 @@ func applyImportPayload(app core.App, user *core.Record, payload importPayload, 
 		if err := applyImportedExchangeRateSnapshots(txApp, user, payload.ExchangeRateSnapshots); err != nil {
 			return err
 		}
+		// 流水是最后一步：订阅/分组全部就绪后，按目标订阅 ID 幂等 upsert。
+		if err := applyImportedBillingRecords(txApp, user, payload.BillingRecords, restoredSubscriptionIDs); err != nil {
+			return err
+		}
 		return nil
 	})
+}
+
+// mappedImportGroupID 把恢复包内的源分组 ID 翻译成目标实例分组 ID；
+// 源分组不在包内（被删/未导出）时返回空串，订阅落到“未分组”而不是写入悬挂 relation。
+func mappedImportGroupID(groupIDMap map[string]string, sourceGroupID *string) string {
+	if sourceGroupID == nil {
+		return ""
+	}
+	return groupIDMap[strings.TrimSpace(*sourceGroupID)]
 }
 
 func validateImportSubscription(app core.App, user *core.Record, subscription importSubscription) error {
@@ -541,6 +664,90 @@ func applyImportedCustomConfig(app core.App, user *core.Record, config *customCo
 	}
 	record.Set("config", config)
 	return app.Save(record)
+}
+
+// applyImportedGroups 在目标用户下按源分组顺序重建分组：同用户同名分组直接复用，
+// 保证重复恢复不产生重复组。返回 源分组ID → 目标分组ID 映射供订阅重绑。
+// 组 logo 路径已在浏览器侧按新上传资产重写；这里只按字段原样落库。
+func applyImportedGroups(app core.App, user *core.Record, groups []importGroup) (map[string]string, error) {
+	groupIDMap := map[string]string{}
+	if len(groups) == 0 {
+		return groupIDMap, nil
+	}
+	collection, err := app.FindCollectionByNameOrId("subscription_groups")
+	if err != nil {
+		return nil, err
+	}
+	for _, group := range groups {
+		sourceID := strings.TrimSpace(group.ID)
+		name := strings.TrimSpace(group.Name)
+		record, err := app.FindFirstRecordByFilter(
+			"subscription_groups",
+			"user = {:user} && name = {:name}",
+			dbx.Params{"user": user.Id, "name": name},
+		)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+		if record == nil {
+			record = core.NewRecord(collection)
+		}
+		record.Set("user", user.Id)
+		record.Set("name", name)
+		record.Set("logo", optionalString(group.Logo))
+		record.Set("description", optionalString(group.Description))
+		record.Set("sortOrder", group.SortOrder)
+		if err := app.Save(record); err != nil {
+			return nil, err
+		}
+		groupIDMap[sourceID] = record.Id
+	}
+	return groupIDMap, nil
+}
+
+// applyImportedBillingRecords 把恢复包内的流水按目标订阅 ID 幂等 upsert；
+// 宿主订阅不在 restoredSubscriptionIDs（被 skip 或本包缺失）时跳过该条，避免悬挂到无关订阅。
+func applyImportedBillingRecords(app core.App, user *core.Record, records []billingRecordItem, restoredSubscriptionIDs map[string]string) error {
+	for index, record := range records {
+		targetSubscriptionID := restoredSubscriptionIDs[strings.TrimSpace(record.SubscriptionID)]
+		if targetSubscriptionID == "" {
+			continue
+		}
+		input := billingRecordUpsertFromImport(user.Id, targetSubscriptionID, record)
+		if err := upsertBillingRecord(app, input); err != nil {
+			return fmt.Errorf("billingRecords %d: %w", index+1, err)
+		}
+	}
+	return nil
+}
+
+// billingRecordUpsertFromImport 把恢复包 DTO 转成 upsert 入参；
+// 不保留源记录 id（流水按 user+subscription+billingDate+mode 幂等），receiptAssetIds 已是新实例资产 ID。
+func billingRecordUpsertFromImport(userID string, targetSubscriptionID string, record billingRecordItem) billingRecordUpsert {
+	input := billingRecordUpsert{
+		UserID:           userID,
+		SubscriptionID:   targetSubscriptionID,
+		Name:             strings.TrimSpace(record.Name),
+		BillingDate:      record.BillingDate,
+		PeriodEndDate:    optionalString(record.PeriodEndDate),
+		Amount:           record.Amount,
+		Currency:         record.Currency,
+		Mode:             record.Mode,
+		BillingCycle:     record.BillingCycle,
+		CustomDays:       record.CustomDays,
+		CustomCycleUnit:  record.CustomCycleUnit,
+		OneTimeTermCount: record.OneTimeTermCount,
+		OneTimeTermUnit:  record.OneTimeTermUnit,
+		UsageUnit:        record.UsageUnit,
+		UsageTotal:       record.UsageTotal,
+		UsageDailyRate:   record.UsageDailyRate,
+		UsageExpiresAt:   optionalString(record.UsageExpiresAt),
+		ReceiptAssetIds:  record.ReceiptAssetIds,
+	}
+	if record.UsageRemainingBefore != nil {
+		input.UsageRemainingBefore = *record.UsageRemainingBefore
+	}
+	return input
 }
 
 func existingSubscriptionMatches(rows []*core.Record) importExistingMatches {

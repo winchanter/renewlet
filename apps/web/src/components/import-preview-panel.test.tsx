@@ -77,6 +77,10 @@ const preview = {
   includesCustomConfig: false,
   includesExchangeRateSnapshots: false,
   exchangeRateSnapshotsCount: 0,
+  includesGroups: false,
+  groupsCount: 0,
+  includesBillingRecords: false,
+  billingRecordsCount: 0,
 } satisfies ImportPreviewResponse;
 
 function renderPanel(showImportOptions?: boolean) {
@@ -87,11 +91,12 @@ function renderPanel(showImportOptions?: boolean) {
       conflictMode="skip"
       previewFilter="all"
       skippedIndexes={new Set<number>()}
+      forceReplaceIndexes={new Set<number>()}
       {...(showImportOptions === undefined ? {} : { showImportOptions })}
       onConflictModeChange={vi.fn()}
       onPreviewFilterChange={vi.fn()}
       onLogoChange={vi.fn()}
-      onSkipChange={vi.fn()}
+      onToggleRow={vi.fn()}
     />,
   );
 }
@@ -114,6 +119,7 @@ describe("ImportPreviewPanel", () => {
         conflictMode="skip"
         previewFilter="all"
         skippedIndexes={new Set<number>()}
+      forceReplaceIndexes={new Set<number>()}
         wallosUsers={[
           { id: "user-1", label: "Alice" },
           { id: "user-2", label: "Bob" },
@@ -123,7 +129,7 @@ describe("ImportPreviewPanel", () => {
         onWallosUserChange={vi.fn()}
         onPreviewFilterChange={vi.fn()}
         onLogoChange={vi.fn()}
-        onSkipChange={vi.fn()}
+        onToggleRow={vi.fn()}
       />,
     );
 
@@ -142,6 +148,7 @@ describe("ImportPreviewPanel", () => {
         conflictMode="skip"
         previewFilter="all"
         skippedIndexes={new Set<number>()}
+      forceReplaceIndexes={new Set<number>()}
         wallosUsers={[
           { id: "user-1", label: "Alice" },
           { id: "user-2", label: "Bob" },
@@ -151,7 +158,7 @@ describe("ImportPreviewPanel", () => {
         onWallosUserChange={vi.fn()}
         onPreviewFilterChange={vi.fn()}
         onLogoChange={vi.fn()}
-        onSkipChange={vi.fn()}
+        onToggleRow={vi.fn()}
       />,
     );
 

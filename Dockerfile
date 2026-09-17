@@ -21,7 +21,10 @@ FROM client-deps AS client-builder
 # Web 自有的产物守卫随 workspace 整体复制，避免 package build 与 Docker builder 的输入清单再次漂移。
 COPY apps/web apps/web
 COPY packages/shared packages/shared
-RUN pnpm --filter @renewlet/client build
+# 显式清空 dist：BuildKit 命中旧 RUN 缓存/emptyOutDir 异常时，旧 hash 产物会残留并被 go:embed 全量嵌入，
+# 导致线上 index.html 指向过期入口。先删再建，保证每次构建的 public 只包含本次产物。
+RUN rm -rf apps/web/dist \
+  && pnpm --filter @renewlet/client build
 # 预压缩只属于 Go 嵌入式运行面；Cloudflare 构建继续交给平台自动协商，避免上传无用 sidecar。
 RUN pnpm --filter @renewlet/client build:docker-sidecars
 

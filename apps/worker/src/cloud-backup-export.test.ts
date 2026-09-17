@@ -2,7 +2,7 @@ import { createDefaultAppSettings } from "@renewlet/shared/settings-defaults";
 import { apiSubscriptionSchema, type ApiSubscription } from "@renewlet/shared/schemas/subscriptions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildCloudBackupExportZip } from "./cloud-backup-export";
-import type { AssetRow, Env } from "./types";
+import type { AssetRow, BillingRecordRow, Env } from "./types";
 
 const dbMocks = vi.hoisted(() => ({
   getAsset: vi.fn(),
@@ -13,6 +13,9 @@ const dbMocks = vi.hoisted(() => ({
 }));
 const snapshotMocks = vi.hoisted(() => ({
   listExchangeRateSnapshots: vi.fn(),
+}));
+const billingMocks = vi.hoisted(() => ({
+  listBillingRecordsForUser: vi.fn(),
 }));
 
 vi.mock("./db", () => ({
@@ -27,6 +30,12 @@ vi.mock("./exchange-rate-snapshots", () => ({
   listExchangeRateSnapshots: snapshotMocks.listExchangeRateSnapshots,
 }));
 
+// toApiBillingRecord 保持真实实现：本套件要验证行→API 形状与凭证 ID 保留行为。
+vi.mock("./billing-records", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./billing-records")>(),
+  listBillingRecordsForUser: billingMocks.listBillingRecordsForUser,
+}));
+
 describe("Cloudflare cloud backup export ZIP", () => {
   beforeEach(() => {
     dbMocks.getAsset.mockReset().mockResolvedValue(null);
@@ -35,6 +44,7 @@ describe("Cloudflare cloud backup export ZIP", () => {
     dbMocks.listSubscriptions.mockReset().mockResolvedValue([]);
     dbMocks.toApiSubscription.mockReset().mockImplementation((row: ApiSubscription) => row);
     snapshotMocks.listExchangeRateSnapshots.mockReset().mockResolvedValue([]);
+    billingMocks.listBillingRecordsForUser.mockReset().mockResolvedValue([]);
   });
 
   it("removes subscription logos when D1 metadata exists but the R2 object is missing", async () => {
@@ -147,6 +157,60 @@ describe("Cloudflare cloud backup export ZIP", () => {
     expect(reads).toEqual(["asset_one.svg", "asset_two.svg"]);
     expect(maxActiveReads).toBe(1);
   });
+
+  it("exports billing records, keeps only readable receipt assets, and audits missing ones", async () => {
+    billingMocks.listBillingRecordsForUser.mockResolvedValue([
+      billingRecordRowFixture({
+        id: "bill_1",
+        subscription_id: "sub_1",
+        receipt_asset_ids: JSON.stringify(["asset_receipt_ok", "asset_receipt_missing"]),
+      }),
+    ]);
+    dbMocks.getAsset.mockImplementation(async (_env: Env, _userId: string, assetId: string) => {
+      if (assetId === "asset_receipt_ok") {
+        return assetRow({
+          id: assetId,
+          kind: "receipt",
+          r2_key: "receipts/ok.png",
+          size_bytes: null,
+          mime_type: "image/png",
+          original_name: "ok.png",
+        });
+      }
+      if (assetId === "asset_receipt_missing") {
+        return assetRow({
+          id: assetId,
+          kind: "receipt",
+          r2_key: "receipts/missing.png",
+          size_bytes: null,
+          mime_type: "image/png",
+        });
+      }
+      return null;
+    });
+
+    const { content } = await buildCloudBackupExportZip(envWithR2({ "receipts/ok.png": "PNG-BYTES" }), "usr_cloud");
+    const data = readStoredZipJson(content, "data.json");
+    const manifest = readStoredZipJson(content, "manifest.json");
+
+    expect(data.data.billingRecords).toHaveLength(1);
+    expect(data.data.billingRecords[0].id).toBe("bill_1");
+    expect(data.data.billingRecords[0].subscriptionId).toBe("sub_1");
+    // Worker 没有分组表：groups 段恒缺席，manifest 计数为 0。
+    expect(data.data).not.toHaveProperty("groups");
+    expect(data.data.billingRecords[0].receiptAssetIds).toEqual(["asset_receipt_ok"]);
+    expect(readStoredZipText(content, "assets/asset_receipt_ok.png")).toBe("PNG-BYTES");
+    expect(manifest.groups).toBe(0);
+    expect(manifest.billingRecords).toBe(1);
+    expect(manifest.assets).toBe(1);
+    expect(manifest.missingAssets).toEqual([{
+      assetId: "asset_receipt_missing",
+      path: "/api/app/assets/asset_receipt_missing",
+      reference: "billingRecord.receiptAssetIds",
+      referenceId: "bill_1",
+      reason: "file_missing",
+    }]);
+  });
 });
 
 function envWithR2(objects: Record<string, string>, beforeGet?: (key: string) => Promise<void>): Env {
@@ -186,6 +250,34 @@ function assetRow(overrides: Partial<AssetRow> = {}): AssetRow {
     size_bytes: 7,
     created_at: "2026-06-09T00:00:00.000Z",
     updated_at: "2026-06-09T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function billingRecordRowFixture(overrides: Partial<BillingRecordRow> = {}): BillingRecordRow {
+  return {
+    id: "bill_record",
+    user_id: "usr_cloud",
+    subscription_id: "sub_record",
+    name: "Record Plan",
+    billing_date: "2026-01-31",
+    period_end_date: "2026-02-28",
+    amount: "12",
+    currency: "USD",
+    billing_cycle: "monthly",
+    custom_days: null,
+    custom_cycle_unit: null,
+    one_time_term_count: null,
+    one_time_term_unit: null,
+    usage_unit: null,
+    usage_total: null,
+    usage_daily_rate: null,
+    usage_remaining_before: 0,
+    usage_expires_at: "",
+    receipt_asset_ids: "[]",
+    mode: "initial",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
 }

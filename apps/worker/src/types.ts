@@ -309,7 +309,7 @@ export interface SubscriptionUserStatsRow {
 export interface AssetRow {
   id: string;
   user_id: string;
-  kind: "logo" | "icon";
+  kind: "logo" | "icon" | "receipt";
   r2_key: string;
   original_name: string | null;
   mime_type: string | null;

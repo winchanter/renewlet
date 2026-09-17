@@ -164,6 +164,10 @@ export function makePreview(): ImportPreviewResponse {
     includesCustomConfig: false,
     includesExchangeRateSnapshots: false,
     exchangeRateSnapshotsCount: 0,
+    includesGroups: false,
+    groupsCount: 0,
+    includesBillingRecords: false,
+    billingRecordsCount: 0,
   };
 }
 

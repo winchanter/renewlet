@@ -202,6 +202,10 @@ describe("ImportDataDialog", () => {
       includesCustomConfig: Boolean(payload.customConfig),
       includesExchangeRateSnapshots: Boolean(payload.exchangeRateSnapshots?.length),
       exchangeRateSnapshotsCount: payload.exchangeRateSnapshots?.length ?? 0,
+      includesGroups: Boolean(payload.groups?.length),
+      groupsCount: payload.groups?.length ?? 0,
+      includesBillingRecords: Boolean(payload.billingRecords?.length),
+      billingRecordsCount: payload.billingRecords?.length ?? 0,
     }));
     mocks.createAsset.mockResolvedValue({ url: "/api/app/assets/import_logo" });
     mocks.applyChunked.mockImplementation(async (payload) => ({
@@ -226,6 +230,10 @@ describe("ImportDataDialog", () => {
       includesCustomConfig: Boolean(payload.customConfig),
       includesExchangeRateSnapshots: Boolean(payload.exchangeRateSnapshots?.length),
       exchangeRateSnapshotsCount: payload.exchangeRateSnapshots?.length ?? 0,
+      includesGroups: Boolean(payload.groups?.length),
+      groupsCount: payload.groups?.length ?? 0,
+      includesBillingRecords: Boolean(payload.billingRecords?.length),
+      billingRecordsCount: payload.billingRecords?.length ?? 0,
     }));
   });
 

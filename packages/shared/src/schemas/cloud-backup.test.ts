@@ -12,7 +12,13 @@ import {
   cloudBackupScheduleWeekdaySchema,
   cloudBackupSnapshotManifestSchema,
 } from "./cloud-backup";
-import { importPayloadSchema, renewletExportManifestV1Schema, renewletExportV1Schema } from "./import-export";
+import {
+  IMPORT_BILLING_RECORDS_LIMIT,
+  IMPORT_GROUPS_LIMIT,
+  importPayloadSchema,
+  renewletExportManifestV1Schema,
+  renewletExportV1Schema,
+} from "./import-export";
 
 const success = <T>(data: T) => ({ ok: true, data });
 
@@ -337,6 +343,8 @@ describe("renewlet export schema", () => {
       schemaVersion: 1,
       exportedAt: "2026-06-09T00:00:00.000Z",
       subscriptions: 2,
+      groups: 0,
+      billingRecords: 0,
       assets: 1,
       missingAssets: [{
         assetId: "asset_missing",
@@ -348,6 +356,15 @@ describe("renewlet export schema", () => {
     };
 
     expect(renewletExportManifestV1Schema.parse(manifest).missingAssets[0]?.reason).toBe("file_missing");
+    // 组 logo 与流水凭证审计引用是本次备份扩容新增的合法 reference。
+    expect(renewletExportManifestV1Schema.safeParse({
+      ...manifest,
+      missingAssets: [{ ...manifest.missingAssets[0], reference: "group.logo", referenceId: "grp_1" }],
+    }).success).toBe(true);
+    expect(renewletExportManifestV1Schema.safeParse({
+      ...manifest,
+      missingAssets: [{ ...manifest.missingAssets[0], reference: "billingRecord.receiptAssetIds", referenceId: "bill_1" }],
+    }).success).toBe(true);
     expect(renewletExportManifestV1Schema.safeParse({
       ...manifest,
       missingAssets: [{ ...manifest.missingAssets[0], reason: "permission_denied" }],
@@ -459,6 +476,77 @@ describe("renewlet export schema", () => {
         subscriptions: [],
         exchangeRateSnapshots: [{ ...snapshot, provider: "builtin" }],
       },
+    }).success).toBe(false);
+  });
+
+  it("accepts groups and billing records in import/export payloads with caps", () => {
+    const group = { id: "grp_1", name: "Work", sortOrder: 0 };
+    const billingRecord = {
+      id: "bill_1",
+      subscriptionId: "sub_1",
+      name: "Renewlet",
+      billingDate: "2026-01-01",
+      periodEndDate: "2026-02-01",
+      amount: "9.00",
+      currency: "USD",
+      mode: "auto",
+      receiptAssetIds: [],
+      billingCycle: "monthly",
+      usageRemainingBefore: null,
+      usageExpiresAt: null,
+    };
+
+    // 新备份两段可选（旧备份不含时必须继续解析通过）。
+    expect(importPayloadSchema.safeParse({ source: "renewlet", subscriptions: [] }).success).toBe(true);
+    expect(importPayloadSchema.safeParse({
+      source: "renewlet",
+      subscriptions: [],
+      groups: [group],
+      billingRecords: [billingRecord],
+    }).success).toBe(true);
+    expect(renewletExportV1Schema.safeParse({
+      kind: "renewlet-export",
+      schemaVersion: 1,
+      exportedAt: "2026-08-06T00:00:00.000Z",
+      data: {
+        subscriptions: [],
+        groups: [{ ...group, logo: "assets/group-logo.svg" }],
+        billingRecords: [billingRecord],
+      },
+    }).success).toBe(true);
+
+    // strict：组实体不接受未知字段。
+    expect(importPayloadSchema.safeParse({
+      source: "renewlet",
+      subscriptions: [],
+      groups: [{ ...group, unexpected: true }],
+    }).success).toBe(false);
+    // 组 id/name 必填。
+    expect(importPayloadSchema.safeParse({
+      source: "renewlet",
+      subscriptions: [],
+      groups: [{ id: "grp_1", sortOrder: 0 }],
+    }).success).toBe(false);
+
+    const tooManyGroups = Array.from({ length: IMPORT_GROUPS_LIMIT + 1 }, (_, index) => ({
+      id: `grp_${index}`,
+      name: `Group ${index}`,
+      sortOrder: index,
+    }));
+    expect(importPayloadSchema.safeParse({
+      source: "renewlet",
+      subscriptions: [],
+      groups: tooManyGroups,
+    }).success).toBe(false);
+
+    const tooManyRecords = Array.from({ length: IMPORT_BILLING_RECORDS_LIMIT + 1 }, (_, index) => ({
+      ...billingRecord,
+      id: `bill_${index}`,
+    }));
+    expect(importPayloadSchema.safeParse({
+      source: "renewlet",
+      subscriptions: [],
+      billingRecords: tooManyRecords,
     }).success).toBe(false);
   });
 });

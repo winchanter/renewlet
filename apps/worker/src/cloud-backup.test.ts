@@ -88,6 +88,8 @@ function fakeEnvForRows(rows: CloudBackupTargetRow[], onQuery?: (query: FakeD1Qu
       return d1All(rows.filter((row) => row.user_id === String(params[0])).sort((left, right) => right.updated_at.localeCompare(left.updated_at)));
     }
     if (method === "all" && sql.includes("FROM exchange_rate_snapshots")) return d1All([]);
+    // 云备份导出现在会拉全量续订流水；这些用例只验证备份调度，返回空集即可。
+    if (method === "all" && sql.includes("FROM subscription_billing_records")) return d1All([]);
     if (method === "first" && sql.includes("FROM cloud_backup_targets")) {
       return rows.find((row) => row.user_id === String(params[0]) && row.provider === params[1]) ?? null;
     }

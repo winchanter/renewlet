@@ -5,6 +5,7 @@ import {
   type CloudBackupSnapshotManifest,
 } from "@renewlet/shared/schemas/cloud-backup";
 import {
+  IMPORT_BILLING_RECORDS_LIMIT,
   renewletExportManifestV1Schema,
   renewletExportV1Schema,
   type RenewletExportAsset,
@@ -16,6 +17,7 @@ import { getAsset, getCustomConfig, getSettings, listSubscriptions, toApiSubscri
 import { sanitizeSettingsForCloudBackup } from "./cloud-backup-sanitize";
 import { sha256Hex, snapshotId } from "./cloud-backup-remote";
 import { extensionFromMime, privateAssetIdFromLogo } from "./cloud-backup-utils";
+import { listBillingRecordsForUser, toApiBillingRecord } from "./billing-records";
 import { listExchangeRateSnapshots } from "./exchange-rate-snapshots";
 import { createStoredZipFromSources, type StoredZipSource } from "./zip-store";
 import type { Env } from "./types";
@@ -94,6 +96,7 @@ export async function buildCloudBackupExportZip(env: Env, userId: string): Promi
     exportSubscriptions.push(subscription);
   }
   const customConfig = await buildExportCustomConfig(env, userId, collector);
+  const billingRecords = await buildExportBillingRecords(env, userId, collector);
   // 云备份使用业务恢复 allowlist 组包；sessions/MFA/passkey/tickets 和 R2 系统密钥对象都不进入 ZIP。
   const payload = renewletExportV1Schema.parse({
     kind: "renewlet-export",
@@ -104,6 +107,8 @@ export async function buildCloudBackupExportZip(env: Env, userId: string): Promi
       settings: sanitizeSettingsForCloudBackup(await getSettings(env, userId)),
       customConfig,
       exchangeRateSnapshots: await listExchangeRateSnapshots(env, userId),
+      // Worker 侧没有 subscription_groups 表：groups 段恒缺席（manifest 计数为 0），恢复端对 groups 安全忽略。
+      ...(billingRecords.length > 0 ? { billingRecords } : {}),
       ...(collector.assets.length > 0
         ? { assets: collector.assets.map(({ r2Key: _r2Key, ...asset }) => asset) }
         : {}),
@@ -114,6 +119,8 @@ export async function buildCloudBackupExportZip(env: Env, userId: string): Promi
     schemaVersion: payload.schemaVersion,
     exportedAt: payload.exportedAt,
     subscriptions: payload.data.subscriptions.length,
+    groups: 0,
+    billingRecords: billingRecords.length,
     assets: collector.assets.length,
     // 缺失详情只保留业务引用和原因枚举，不能把 D1/R2 key、raw error 或对象存储路径写进备份包。
     missingAssets: collector.missingAssets,
@@ -169,6 +176,34 @@ async function buildExportCustomConfig(env: Env, userId: string, collector: Expo
       return rest;
     })),
   };
+}
+
+/**
+ * 导出全量扣费记录并收集凭证资产：receiptAssetIds 保留原资产 ID（恢复时由浏览器上传后重写），
+ * 读不到的凭证 ID 从快照移除，缺失事实进 manifest 审计但不阻断备份。
+ */
+async function buildExportBillingRecords(env: Env, userId: string, collector: ExportAssetCollector) {
+  const rows = await listBillingRecordsForUser(env, userId, IMPORT_BILLING_RECORDS_LIMIT);
+  const records = [];
+  for (const row of rows) {
+    const record = toApiBillingRecord(row);
+    if (record.receiptAssetIds.length > 0) {
+      const kept: string[] = [];
+      for (const assetId of record.receiptAssetIds) {
+        const assetPath = await resolveExportAsset(env, userId, collector, {
+          assetId,
+          // 凭证以 ID 引用（不是 logo 那样的路径字段）；审计 path 用规范的私有资产 URL 形状。
+          path: `/api/app/assets/${assetId}`,
+          reference: "billingRecord.receiptAssetIds",
+          referenceId: record.id,
+        });
+        if (assetPath) kept.push(assetId);
+      }
+      record.receiptAssetIds = kept;
+    }
+    records.push(record);
+  }
+  return records;
 }
 
 async function resolveExportAsset(env: Env, userId: string, collector: ExportAssetCollector, reference: ExportAssetReference): Promise<string | null> {

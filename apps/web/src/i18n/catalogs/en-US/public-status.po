@@ -34,12 +34,22 @@ msgid "publicStatus.notFoundTitle"
 msgstr "Public page unavailable"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:51
+msgid "publicStatus.vault.fieldGroup"
+msgstr "Linked group"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:50
+msgid "publicStatus.vault.fieldSubscription"
+msgstr "Linked subscription"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:15
 msgid "publicStatus.visibleMoneySubtitle"
 msgstr "{count} included in totals"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:67
+#: src/i18n/descriptors/public-status.ts:69
 msgid "publicStatus.vault.requestAgain"
 msgstr "Request another"
 
@@ -64,22 +74,12 @@ msgid "publicStatus.vault.fieldNotes"
 msgstr "Notes"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:50
-msgid "publicStatus.vault.fieldSubscription"
-msgstr "Linked subscription"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:51
-msgid "publicStatus.vault.fieldGroup"
-msgstr "Linked group"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:52
+#: src/i18n/descriptors/public-status.ts:54
 msgid "publicStatus.vault.copy"
 msgstr "Copy"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:54
+#: src/i18n/descriptors/public-status.ts:56
 msgid "publicStatus.vault.copyFailed"
 msgstr "Copy failed"
 
@@ -94,7 +94,7 @@ msgid "publicStatus.visibleCount"
 msgstr "Visible subscriptions"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:53
+#: src/i18n/descriptors/public-status.ts:55
 msgid "publicStatus.vault.copied"
 msgstr "Copied"
 
@@ -134,22 +134,22 @@ msgid "publicStatus.vault.codeLabel"
 msgstr "Access code"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:62
+#: src/i18n/descriptors/public-status.ts:64
 msgid "publicStatus.vault.requestSubmitting"
 msgstr "Submitting…"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:64
+#: src/i18n/descriptors/public-status.ts:66
 msgid "publicStatus.vault.requestFailed"
 msgstr "Failed to submit"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:61
+#: src/i18n/descriptors/public-status.ts:63
 msgid "publicStatus.vault.requestSubmit"
 msgstr "Submit request"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:57
+#: src/i18n/descriptors/public-status.ts:59
 msgid "publicStatus.vault.subscriptionSearch"
 msgstr "Search subscriptions"
 
@@ -169,7 +169,7 @@ msgid "publicStatus.monthlyTotalSubtitle"
 msgstr "Daily {amount} · {basis}"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:50
+#: src/i18n/descriptors/public-status.ts:52
 msgid "publicStatus.vault.revealPassword"
 msgstr "Show password"
 
@@ -199,7 +199,7 @@ msgid "publicStatus.ratesLoading"
 msgstr "Updating rates"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:58
+#: src/i18n/descriptors/public-status.ts:60
 msgid "publicStatus.vault.subscriptionEmpty"
 msgstr "No subscriptions available"
 
@@ -219,7 +219,7 @@ msgid "publicStatus.vault.fieldUsername"
 msgstr "Username"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:65
+#: src/i18n/descriptors/public-status.ts:67
 msgid "publicStatus.vault.requestSuccessTitle"
 msgstr "Request submitted"
 
@@ -229,12 +229,12 @@ msgid "publicStatus.vault.tabRequest"
 msgstr "Request access"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:59
+#: src/i18n/descriptors/public-status.ts:61
 msgid "publicStatus.vault.noteLabel"
 msgstr "Note (optional)"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:66
+#: src/i18n/descriptors/public-status.ts:68
 msgid "publicStatus.vault.requestSuccessDescription"
 msgstr "Once approved, the owner will generate a new access code; get it from them through the original channel."
 
@@ -284,12 +284,12 @@ msgid "publicStatus.updatedAt"
 msgstr "Record updated: {time}"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:63
+#: src/i18n/descriptors/public-status.ts:65
 msgid "publicStatus.vault.requestSuccessToast"
 msgstr "Access request submitted"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:60
+#: src/i18n/descriptors/public-status.ts:62
 msgid "publicStatus.vault.notePlaceholder"
 msgstr "Explain why you need access so the owner can review your request."
 
@@ -314,17 +314,17 @@ msgid "publicStatus.notFoundDescription"
 msgstr "This link does not exist, has been revoked, or has been regenerated."
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:56
+#: src/i18n/descriptors/public-status.ts:58
 msgid "publicStatus.vault.subscriptionPlaceholder"
 msgstr "Select the subscription to request"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:55
+#: src/i18n/descriptors/public-status.ts:57
 msgid "publicStatus.vault.subscriptionLabel"
 msgstr "Choose subscription"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:51
+#: src/i18n/descriptors/public-status.ts:53
 msgid "publicStatus.vault.hidePassword"
 msgstr "Hide password"
 

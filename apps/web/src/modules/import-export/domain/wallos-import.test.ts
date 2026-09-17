@@ -639,6 +639,68 @@ describe("wallos import", () => {
     expect(assetMocks.create).not.toHaveBeenCalled();
     expect(resolved).toEqual({ payload, uploadedLogoCount: 0, uploadedIconCount: 0 });
   });
+
+  it("uploads group logos and billing receipts, rewriting group logo paths and receipt asset ids", async () => {
+    const payload = importPayloadSchema.parse({
+      source: "renewlet",
+      subscriptions: [{
+        ...importSubscriptionFixture("Billing Host", "sub_src"),
+        extra: { import: { source: "renewlet", sourceId: "sub_src", confidence: "high" } },
+      }],
+      groups: [{ id: "grp_1", name: "Work", sortOrder: 0, logo: null }],
+      billingRecords: [billingRecordFixture("bill_1", "sub_src", ["asset_old"])],
+    });
+    assetMocks.create.mockImplementation(async (_blob: Blob, kind: string) => ({
+      url: kind === "receipt" ? "/api/app/assets/new_receipt" : "/api/app/assets/new_group_logo",
+    }));
+
+    const resolved = await resolveImportAssets({
+      payload,
+      assets: [
+        { target: { type: "groupLogo", groupIndex: 0 }, kind: "logo", filename: "group.png", blob: new Blob(["group"], { type: "image/png" }) },
+        { target: { type: "billingReceipt", billingRecordIndex: 0, assetId: "asset_old" }, kind: "receipt", filename: "receipt.png", blob: new Blob(["receipt"], { type: "image/png" }) },
+      ],
+      warnings: [],
+    }, [
+      { index: 0, name: "Billing Host", source: "renewlet", sourceId: "sub_src", action: "create", warnings: [], errors: [] },
+    ]);
+
+    expect(assetMocks.create).toHaveBeenCalledTimes(2);
+    expect(assetMocks.create).toHaveBeenCalledWith(expect.any(Blob), "logo", "group.png");
+    expect(assetMocks.create).toHaveBeenCalledWith(expect.any(Blob), "receipt", "receipt.png");
+    // 组 logo 重写为代理路径；凭证重写为从上传 URL 提取的新资产 ID（不是 URL）。
+    expect(resolved.payload.groups?.[0]?.logo).toBe("/api/app/assets/new_group_logo");
+    expect(resolved.payload.billingRecords?.[0]?.receiptAssetIds).toEqual(["new_receipt"]);
+    expect(resolved.uploadedLogoCount).toBe(1);
+  });
+
+  it("still uploads receipts when the host subscription action is skip (existing subscription)", async () => {
+    // 冲突策略为 skip 时订阅不替换，但库内既有订阅仍是流水宿主：凭证必须照常上传重写，
+    // 流水是否落库由服务端按宿主映射最终决定。
+    const payload = importPayloadSchema.parse({
+      source: "renewlet",
+      subscriptions: [{
+        ...importSubscriptionFixture("Existing Host", "sub_existing"),
+        extra: { import: { source: "renewlet", sourceId: "sub_existing", confidence: "high" } },
+      }],
+      billingRecords: [billingRecordFixture("bill_1", "sub_existing", ["asset_old"])],
+    });
+    assetMocks.create.mockResolvedValue({ url: "/api/app/assets/new_receipt" });
+
+    const resolved = await resolveImportAssets({
+      payload,
+      assets: [
+        { target: { type: "billingReceipt", billingRecordIndex: 0, assetId: "asset_old" }, kind: "receipt", filename: "receipt.png", blob: new Blob(["receipt"], { type: "image/png" }) },
+      ],
+      warnings: [],
+    }, [
+      { index: 0, name: "Existing Host", source: "renewlet", sourceId: "sub_existing", existingId: "sub_existing", action: "skip", warnings: [], errors: [] },
+    ]);
+
+    expect(assetMocks.create).toHaveBeenCalledTimes(1);
+    expect(assetMocks.create).toHaveBeenCalledWith(expect.any(Blob), "receipt", "receipt.png");
+    expect(resolved.payload.billingRecords?.[0]?.receiptAssetIds).toEqual(["new_receipt"]);
+  });
 });
 
 function importSubscriptionFixture(name: string, sourceId: string) {
@@ -667,5 +729,22 @@ function importSubscriptionFixture(name: string, sourceId: string) {
     repeatReminderInterval: "1h",
     repeatReminderWindow: "72h",
     extra: { import: { source: "wallos", sourceId, confidence: "high" } },
+  };
+}
+
+function billingRecordFixture(id: string, subscriptionId: string, receiptAssetIds: string[]) {
+  return {
+    id,
+    subscriptionId,
+    name: "Record Plan",
+    billingDate: "2026-05-21",
+    periodEndDate: "2026-06-21",
+    amount: "1.00",
+    currency: "USD",
+    mode: "initial",
+    receiptAssetIds,
+    billingCycle: "monthly",
+    usageRemainingBefore: null,
+    usageExpiresAt: null,
   };
 }

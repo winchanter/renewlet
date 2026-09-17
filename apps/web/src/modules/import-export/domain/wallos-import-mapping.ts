@@ -116,6 +116,13 @@ export function buildFromRenewletExport(
       billingCycle: subscription.billingCycle,
       customDays: subscription.billingCycle === "custom" ? subscription.customDays : null,
       customCycleUnit: subscription.billingCycle === "custom" ? subscription.customCycleUnit : null,
+      // 周期专属字段必须随分支成组透传，否则 usage-based/定期买断订阅会被写入契约的一致性 refine 拒绝。
+      oneTimeTermCount: subscription.billingCycle === "one-time" ? subscription.oneTimeTermCount ?? null : null,
+      oneTimeTermUnit: subscription.billingCycle === "one-time" ? subscription.oneTimeTermUnit ?? null : null,
+      usageUnit: subscription.billingCycle === "usage-based" ? subscription.usageUnit : null,
+      usageTotal: subscription.billingCycle === "usage-based" ? subscription.usageTotal : null,
+      usageDailyRate: subscription.billingCycle === "usage-based" ? subscription.usageDailyRate : null,
+      usageExpiresAt: subscription.billingCycle === "usage-based" ? subscription.usageExpiresAt ?? null : null,
       category: subscription.category,
       status: subscription.status,
       pinned: subscription.pinned,
@@ -135,16 +142,49 @@ export function buildFromRenewletExport(
       repeatReminderEnabled: subscription.repeatReminderEnabled,
       repeatReminderInterval: subscription.repeatReminderInterval,
       repeatReminderWindow: subscription.repeatReminderWindow,
+      // 分摊事实不能在恢复时静默丢失；两端服务端 apply 均已支持该字段落库。
+      costSharing: subscription.costSharing ?? null,
+      // 源分组 ID 原样保留：服务端先建组再按该 ID 重映射；空串/缺失落 null（未分组）。
+      groupId: subscription.groupId || null,
       extra: {
         ...subscription.extra,
         import: { source: "renewlet", sourceId: subscription.id, confidence: "high" },
       },
     };
   });
+  // 分组整批恢复：logo 与订阅 logo 同走“ZIP entry → 待上传资产”，无 entry 的 assets/ 路径置 null。
+  const groups = (data.data.groups ?? []).map((group, index) => {
+    const logo = typeof group.logo === "string" ? group.logo : undefined;
+    const asset = logo ? assetFiles.get(logo) : undefined;
+    if (logo && asset) {
+      assets.push(makeGroupLogoAssetRef(index, logo.split("/").pop() ?? "renewlet-group-logo", asset));
+    }
+    return {
+      id: group.id,
+      name: group.name,
+      logo: asset || isExportAssetPath(logo) ? null : logo ?? null,
+      ...(group.description !== undefined ? { description: group.description } : {}),
+      sortOrder: group.sortOrder,
+    };
+  });
+  // 流水透传源订阅 ID（服务端按订阅映射 upsert）；凭证 ID 只保留 ZIP 内确有 entry 的，
+  // 其余丢弃防止悬挂；上传成功后由 resolveImportAssets 把源 ID 重写为新实例资产 ID。
+  const billingRecords = (data.data.billingRecords ?? []).map((record, index) => {
+    if (record.receiptAssetIds.length === 0) return record;
+    const receiptAssetIds = record.receiptAssetIds.filter((assetId) => {
+      const hit = findAssetSourceById(assetFiles, assetId);
+      if (!hit) return false;
+      assets.push(makeBillingReceiptAssetRef(index, assetId, hit.path.split("/").pop() ?? "renewlet-receipt", hit.source));
+      return true;
+    });
+    return { ...record, receiptAssetIds };
+  });
   return {
     payload: importPayloadSchema.parse({
       source: "renewlet",
       subscriptions,
+      ...(groups.length > 0 ? { groups } : {}),
+      ...(billingRecords.length > 0 ? { billingRecords } : {}),
       settings: data.data.settings,
       customConfig: prepareRenewletExportCustomConfig(data.data.customConfig, assetFiles, assets),
       exchangeRateSnapshots: data.data.exchangeRateSnapshots,
@@ -445,6 +485,38 @@ function makePaymentMethodIconAssetRef(paymentMethodIndex: number, filename: str
   return source instanceof Blob
     ? { target: { type: "paymentMethodIcon", paymentMethodIndex }, kind: "icon", filename, blob: source }
     : { target: { type: "paymentMethodIcon", paymentMethodIndex }, kind: "icon", filename, ...source };
+}
+
+function makeGroupLogoAssetRef(groupIndex: number, filename: string, source: ImportAssetSource): ImportAssetRef {
+  return source instanceof Blob
+    ? { target: { type: "groupLogo", groupIndex }, kind: "logo", filename, blob: source }
+    : { target: { type: "groupLogo", groupIndex }, kind: "logo", filename, ...source };
+}
+
+function makeBillingReceiptAssetRef(
+  billingRecordIndex: number,
+  assetId: string,
+  filename: string,
+  source: ImportAssetSource,
+): ImportAssetRef {
+  return source instanceof Blob
+    ? { target: { type: "billingReceipt", billingRecordIndex, assetId }, kind: "receipt", filename, blob: source }
+    : { target: { type: "billingReceipt", billingRecordIndex, assetId }, kind: "receipt", filename, ...source };
+}
+
+/**
+ * 凭证在 data.json 中只存资产 ID，而 ZIP 条目名是 assets/{id}{ext}；
+ * 用条目名 stem 精确匹配，避免前缀碰撞（如 id "ab" 误命中 "abc.png"）。
+ */
+function findAssetSourceById(
+  assetFiles: Map<string, ImportAssetSource>,
+  assetId: string,
+): { path: string; source: ImportAssetSource } | undefined {
+  for (const [path, source] of assetFiles) {
+    const match = /^assets\/([^/]+)$/.exec(path);
+    if (match?.[1]?.replace(/\.[^.]+$/, "") === assetId) return { path, source };
+  }
+  return undefined;
 }
 
 function isExportAssetPath(value: string | undefined): boolean {

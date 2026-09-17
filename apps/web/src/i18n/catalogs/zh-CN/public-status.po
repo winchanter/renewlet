@@ -34,12 +34,22 @@ msgid "publicStatus.notFoundTitle"
 msgstr "公开页不可用"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:51
+msgid "publicStatus.vault.fieldGroup"
+msgstr "关联组"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/public-status.ts:50
+msgid "publicStatus.vault.fieldSubscription"
+msgstr "关联订阅"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/public-status.ts:15
 msgid "publicStatus.visibleMoneySubtitle"
 msgstr "其中 {count} 个计入金额"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:67
+#: src/i18n/descriptors/public-status.ts:69
 msgid "publicStatus.vault.requestAgain"
 msgstr "再申请一个"
 
@@ -64,22 +74,12 @@ msgid "publicStatus.vault.fieldNotes"
 msgstr "备注"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:50
-msgid "publicStatus.vault.fieldSubscription"
-msgstr "关联订阅"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:51
-msgid "publicStatus.vault.fieldGroup"
-msgstr "关联组"
-
-#. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:52
+#: src/i18n/descriptors/public-status.ts:54
 msgid "publicStatus.vault.copy"
 msgstr "复制"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:54
+#: src/i18n/descriptors/public-status.ts:56
 msgid "publicStatus.vault.copyFailed"
 msgstr "复制失败"
 
@@ -94,7 +94,7 @@ msgid "publicStatus.visibleCount"
 msgstr "展示订阅"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:53
+#: src/i18n/descriptors/public-status.ts:55
 msgid "publicStatus.vault.copied"
 msgstr "已复制"
 
@@ -134,22 +134,22 @@ msgid "publicStatus.vault.codeLabel"
 msgstr "授权码"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:62
+#: src/i18n/descriptors/public-status.ts:64
 msgid "publicStatus.vault.requestSubmitting"
 msgstr "提交中…"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:64
+#: src/i18n/descriptors/public-status.ts:66
 msgid "publicStatus.vault.requestFailed"
 msgstr "提交失败"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:61
+#: src/i18n/descriptors/public-status.ts:63
 msgid "publicStatus.vault.requestSubmit"
 msgstr "提交申请"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:57
+#: src/i18n/descriptors/public-status.ts:59
 msgid "publicStatus.vault.subscriptionSearch"
 msgstr "搜索订阅"
 
@@ -169,7 +169,7 @@ msgid "publicStatus.monthlyTotalSubtitle"
 msgstr "日均 {amount} · {basis}"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:50
+#: src/i18n/descriptors/public-status.ts:52
 msgid "publicStatus.vault.revealPassword"
 msgstr "显示密码"
 
@@ -199,7 +199,7 @@ msgid "publicStatus.ratesLoading"
 msgstr "汇率更新中"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:58
+#: src/i18n/descriptors/public-status.ts:60
 msgid "publicStatus.vault.subscriptionEmpty"
 msgstr "没有可选订阅"
 
@@ -219,7 +219,7 @@ msgid "publicStatus.vault.fieldUsername"
 msgstr "用户名"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:65
+#: src/i18n/descriptors/public-status.ts:67
 msgid "publicStatus.vault.requestSuccessTitle"
 msgstr "申请已提交"
 
@@ -229,12 +229,12 @@ msgid "publicStatus.vault.tabRequest"
 msgstr "申请访问"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:59
+#: src/i18n/descriptors/public-status.ts:61
 msgid "publicStatus.vault.noteLabel"
 msgstr "留言（可选）"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:66
+#: src/i18n/descriptors/public-status.ts:68
 msgid "publicStatus.vault.requestSuccessDescription"
 msgstr "管理员审批通过后会生成新的授权码，请通过原渠道向管理员获取。"
 
@@ -284,12 +284,12 @@ msgid "publicStatus.updatedAt"
 msgstr "记录更新：{time}"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:63
+#: src/i18n/descriptors/public-status.ts:65
 msgid "publicStatus.vault.requestSuccessToast"
 msgstr "访问申请已提交"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:60
+#: src/i18n/descriptors/public-status.ts:62
 msgid "publicStatus.vault.notePlaceholder"
 msgstr "说明你为什么需要访问权限，方便管理员审批。"
 
@@ -314,17 +314,17 @@ msgid "publicStatus.notFoundDescription"
 msgstr "这个链接不存在、已撤销或已重新生成。"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:56
+#: src/i18n/descriptors/public-status.ts:58
 msgid "publicStatus.vault.subscriptionPlaceholder"
 msgstr "选择要申请访问的订阅"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:55
+#: src/i18n/descriptors/public-status.ts:57
 msgid "publicStatus.vault.subscriptionLabel"
 msgstr "选择订阅"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/public-status.ts:51
+#: src/i18n/descriptors/public-status.ts:53
 msgid "publicStatus.vault.hidePassword"
 msgstr "隐藏密码"
 

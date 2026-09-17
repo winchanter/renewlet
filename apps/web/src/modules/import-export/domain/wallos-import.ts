@@ -19,6 +19,7 @@ import {
   type ImportAssetRef,
   type ImportLogoAutoMatch,
   type PreparedImport,
+  privateAssetIdFromLogo,
 } from "./import-export-model";
 import { assetService } from "@/services/asset-service";
 import type { WallosImportWorkerPayload, WallosImportWorkerResult } from "./wallos-import-worker-contract";
@@ -188,6 +189,9 @@ export async function resolveImportAssets(
   if (assets.length === 0) return { payload: prepared.payload, uploadedLogoCount: 0, uploadedIconCount: 0 };
   const logoOverrides = new Map<number, string | null>();
   const iconOverrides = new Map<number, string>();
+  const groupLogoOverrides = new Map<number, string>();
+  // 凭证重写按“流水下标 → (备份内资产 ID → 新实例资产 ID)”组织；同一资产被多条流水引用时只上传一次。
+  const receiptOverrides = new Map<number, Map<string, string>>();
   let done = 0;
   onProgress?.(done, assets.length);
   // 上传并发限制保护 Cloudflare R2/D1 与 PocketBase collection；导入几百个私有图标时不能无界占满浏览器连接。
@@ -196,15 +200,26 @@ export async function resolveImportAssets(
     const uploaded = await assetService.create(blob, asset.kind, asset.filename);
     if (asset.target.type === "subscriptionLogo") {
       logoOverrides.set(asset.target.subscriptionIndex, uploaded.url);
-    } else {
+    } else if (asset.target.type === "paymentMethodIcon") {
       iconOverrides.set(asset.target.paymentMethodIndex, uploaded.url);
+    } else if (asset.target.type === "groupLogo") {
+      groupLogoOverrides.set(asset.target.groupIndex, uploaded.url);
+    } else {
+      // receiptAssetIds 存的是资产 ID（不是代理路径）：从上传响应 URL 解析新 ID 后按源 ID 建替换映射。
+      const newAssetId = privateAssetIdFromLogo(uploaded.url);
+      if (newAssetId) {
+        const perRecord = receiptOverrides.get(asset.target.billingRecordIndex) ?? new Map<string, string>();
+        perRecord.set(asset.target.assetId, newAssetId);
+        receiptOverrides.set(asset.target.billingRecordIndex, perRecord);
+      }
     }
     done += 1;
     onProgress?.(done, assets.length);
   });
   return {
-    payload: buildPayloadWithAssetOverrides(prepared.payload, logoOverrides, iconOverrides),
-    uploadedLogoCount: logoOverrides.size,
+    payload: buildPayloadWithAssetOverrides(prepared.payload, logoOverrides, iconOverrides, groupLogoOverrides, receiptOverrides),
+    // 组 logo 与订阅 logo 同属 logo 类缓存失效口径。
+    uploadedLogoCount: logoOverrides.size + groupLogoOverrides.size,
     uploadedIconCount: iconOverrides.size,
   };
 }
@@ -213,7 +228,16 @@ function importAssetWillBeWritten(prepared: PreparedImport, writableIndexes: Rea
   if (asset.target.type === "subscriptionLogo") {
     return writableIndexes.has(asset.target.subscriptionIndex) && Boolean(prepared.payload.subscriptions[asset.target.subscriptionIndex]);
   }
-  return Boolean(prepared.payload.customConfig?.paymentMethods[asset.target.paymentMethodIndex]);
+  if (asset.target.type === "paymentMethodIcon") {
+    return Boolean(prepared.payload.customConfig?.paymentMethods[asset.target.paymentMethodIndex]);
+  }
+  if (asset.target.type === "groupLogo") {
+    // 分组整批重建，没有单条 skip 概念：payload 中存在该下标即上传。
+    return Boolean(prepared.payload.groups?.[asset.target.groupIndex]);
+  }
+  // 凭证只要随包记录存在就上传：前端无法预知服务端宿主映射（existing 订阅即使 action=skip，
+  // 其流水仍会挂到库内既有订阅）。真正无宿主的流水由服务端整行丢弃，凭证不会悬挂。
+  return Boolean(prepared.payload.billingRecords?.[asset.target.billingRecordIndex]);
 }
 
 async function parseHeavyFileInWorker(
@@ -246,17 +270,40 @@ function buildPayloadWithAssetOverrides(
   payload: ImportPayload,
   logoOverrides: ReadonlyMap<number, string | null>,
   iconOverrides: ReadonlyMap<number, string>,
+  groupLogoOverrides: ReadonlyMap<number, string>,
+  receiptOverrides: ReadonlyMap<number, ReadonlyMap<string, string>>,
 ): ImportPayload {
-  const nextPayload = buildPayloadWithLogoOverrides(payload, logoOverrides);
-  if (iconOverrides.size === 0 || !nextPayload.customConfig) return nextPayload;
-  const customConfig = {
-    ...nextPayload.customConfig,
-    paymentMethods: nextPayload.customConfig.paymentMethods.map((item, index) => {
-      const icon = iconOverrides.get(index);
-      return icon === undefined ? item : { ...item, icon };
-    }),
-  };
-  return importPayloadSchema.parse({ ...nextPayload, customConfig });
+  let nextPayload = buildPayloadWithLogoOverrides(payload, logoOverrides);
+  if (iconOverrides.size > 0 && nextPayload.customConfig) {
+    const customConfig = {
+      ...nextPayload.customConfig,
+      paymentMethods: nextPayload.customConfig.paymentMethods.map((item, index) => {
+        const icon = iconOverrides.get(index);
+        return icon === undefined ? item : { ...item, icon };
+      }),
+    };
+    nextPayload = { ...nextPayload, customConfig };
+  }
+  if (groupLogoOverrides.size > 0 && nextPayload.groups) {
+    const groups = nextPayload.groups.map((group, index) => {
+      const logo = groupLogoOverrides.get(index);
+      return logo === undefined ? group : { ...group, logo };
+    });
+    nextPayload = { ...nextPayload, groups };
+  }
+  if (receiptOverrides.size > 0 && nextPayload.billingRecords) {
+    const billingRecords = nextPayload.billingRecords.map((record, index) => {
+      const replacements = receiptOverrides.get(index);
+      if (!replacements) return record;
+      // 未取得新 ID（宿主被 skip 等）的源资产 ID 直接移除，绝不把旧实例 ID 写进新库。
+      const receiptAssetIds = record.receiptAssetIds
+        .map((assetId) => replacements.get(assetId))
+        .filter((assetId): assetId is string => Boolean(assetId));
+      return { ...record, receiptAssetIds };
+    });
+    nextPayload = { ...nextPayload, billingRecords };
+  }
+  return importPayloadSchema.parse(nextPayload);
 }
 
 function optionalRows(value: unknown): WallosTableRow[] {

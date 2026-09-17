@@ -90,12 +90,14 @@ type cloudBackupExportAsset struct {
 }
 
 type cloudBackupExportManifest struct {
-	Kind          string                          `json:"kind"`
-	SchemaVersion int                             `json:"schemaVersion"`
-	ExportedAt    string                          `json:"exportedAt"`
-	Subscriptions int                             `json:"subscriptions"`
-	Assets        int                             `json:"assets"`
-	MissingAssets []cloudBackupExportMissingAsset `json:"missingAssets"`
+	Kind           string                          `json:"kind"`
+	SchemaVersion  int                             `json:"schemaVersion"`
+	ExportedAt     string                          `json:"exportedAt"`
+	Subscriptions  int                             `json:"subscriptions"`
+	Groups         int                             `json:"groups"`
+	BillingRecords int                             `json:"billingRecords"`
+	Assets         int                             `json:"assets"`
+	MissingAssets  []cloudBackupExportMissingAsset `json:"missingAssets"`
 }
 
 type cloudBackupExportMissingAsset struct {
@@ -167,8 +169,22 @@ func buildCloudBackupExportBundle(app core.App, user *core.Record, exportedAt ti
 		}
 		subscriptions = append(subscriptions, subscription)
 	}
+	groups, err := cloudBackupExportGroups(app, user, assetCollector)
+	if err != nil {
+		return cloudBackupExportBundle{}, err
+	}
+	billingRecords, err := cloudBackupExportBillingRecords(app, user, assetCollector)
+	if err != nil {
+		return cloudBackupExportBundle{}, err
+	}
 	data := map[string]interface{}{
 		"subscriptions": subscriptions,
+	}
+	if len(groups) > 0 {
+		data["groups"] = groups
+	}
+	if len(billingRecords) > 0 {
+		data["billingRecords"] = billingRecords
 	}
 	// 云快照只导出可恢复的产品资料；账号安全主密钥和 session/MFA/passkey/recovery/ticket 都必须由用户重新建立。
 	if settings, ok, err := cloudBackupExportSettings(app, user); err != nil {
@@ -205,12 +221,14 @@ func buildCloudBackupExportBundle(app core.App, user *core.Record, exportedAt ti
 		"data":          data,
 	}
 	manifest := cloudBackupExportManifest{
-		Kind:          "renewlet-export",
-		SchemaVersion: 1,
-		ExportedAt:    exportedAt.Format(time.RFC3339Nano),
-		Subscriptions: len(subscriptions),
-		Assets:        len(assetCollector.assets),
-		MissingAssets: assetCollector.missingAssets,
+		Kind:           "renewlet-export",
+		SchemaVersion:  1,
+		ExportedAt:     exportedAt.Format(time.RFC3339Nano),
+		Subscriptions:  len(subscriptions),
+		Groups:         len(groups),
+		BillingRecords: len(billingRecords),
+		Assets:         len(assetCollector.assets),
+		MissingAssets:  assetCollector.missingAssets,
 	}
 	if manifest.MissingAssets == nil {
 		manifest.MissingAssets = []cloudBackupExportMissingAsset{}
@@ -406,6 +424,80 @@ func privateAssetIDFromPath(value string) string {
 		return ""
 	}
 	return strings.TrimSpace(strings.TrimPrefix(value, prefix))
+}
+
+// 云备份恢复包的实体上限与导入契约（shared import-export.ts）对齐：
+// 超出部分不进包，避免备份包体和恢复事务无界膨胀。
+const maxCloudBackupGroups = 100
+const maxCloudBackupBillingRecords = 2000
+
+// cloudBackupExportGroups 导出用户分组；组 logo 的私有资产与订阅 logo 走同一收集/缺失审计链路。
+func cloudBackupExportGroups(app core.App, user *core.Record, collector *cloudBackupExportAssetCollector) ([]map[string]interface{}, error) {
+	rows, err := app.FindRecordsByFilter(
+		"subscription_groups",
+		"user = {:user}",
+		"sortOrder, created, -id",
+		maxCloudBackupGroups,
+		0,
+		dbx.Params{"user": user.Id},
+	)
+	if err != nil {
+		return nil, err
+	}
+	groups := make([]map[string]interface{}, 0, len(rows))
+	for _, row := range rows {
+		group := map[string]interface{}{
+			"id":          row.Id,
+			"name":        row.GetString("name"),
+			"logo":        nullableString(row.GetString("logo")),
+			"description": nullableString(row.GetString("description")),
+			"sortOrder":   row.GetInt("sortOrder"),
+		}
+		if logo := row.GetString("logo"); logo != "" {
+			if assetID := privateAssetIDFromPath(logo); assetID != "" {
+				if assetPath, ok := collector.resolve(assetID, logo, "group.logo", row.Id); ok {
+					group["logo"] = assetPath
+				} else {
+					// 组 logo 是展示增强：读不到时不阻断备份，data.json 落 null 并由 manifest 记录缺失。
+					group["logo"] = nil
+				}
+			}
+		}
+		groups = append(groups, group)
+	}
+	return groups, nil
+}
+
+// cloudBackupExportBillingRecords 导出不可变续订流水；凭证资产只收集内容、receiptAssetIds 保留原 ID
+// （恢复时前端按 ZIP 内 assets 元数据上传后重写为新资产 ID）。读不到的凭证 ID 直接从快照移除。
+func cloudBackupExportBillingRecords(app core.App, user *core.Record, collector *cloudBackupExportAssetCollector) ([]billingRecordItem, error) {
+	rows, err := app.FindRecordsByFilter(
+		billingRecordsCollectionName,
+		"user_id = {:user}",
+		"-billing_date,-id",
+		maxCloudBackupBillingRecords,
+		0,
+		dbx.Params{"user": user.Id},
+	)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]billingRecordItem, 0, len(rows))
+	for _, row := range rows {
+		item := billingRecordItemFromRecord(row)
+		if len(item.ReceiptAssetIds) > 0 {
+			kept := make([]string, 0, len(item.ReceiptAssetIds))
+			for _, assetID := range item.ReceiptAssetIds {
+				// 凭证按 ID 引用（不是路径字段）：resolve 只负责把资产收进 ZIP，data.json 保留原 ID。
+				if _, ok := collector.resolve(assetID, "/api/app/assets/"+assetID, "billingRecord.receiptAssetIds", row.Id); ok {
+					kept = append(kept, assetID)
+				}
+			}
+			item.ReceiptAssetIds = kept
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 func extensionFromCloudBackupMime(mimeType string, filename string) string {

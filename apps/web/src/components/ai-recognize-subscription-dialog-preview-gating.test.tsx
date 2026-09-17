@@ -35,6 +35,7 @@ vi.mock("@/modules/import-export/application/use-import-preview-apply", () => ({
     conflictMode: "skip",
     previewFilter: "all",
     skippedIndexes: new Set<number>(),
+    forceReplaceIndexes: new Set<number>(),
     error: null,
     applying: false,
     assetProgress: null,
@@ -45,7 +46,7 @@ vi.mock("@/modules/import-export/application/use-import-preview-apply", () => ({
     previewPrepared: mocks.previewPrepared,
     handleConflictModeChange: vi.fn(),
     handleLogoChange: vi.fn(),
-    handleSkipChange: vi.fn(),
+    handleToggleRow: vi.fn(),
     handleApply: mocks.handleApply,
   }),
 }));

@@ -147,6 +147,39 @@ function importPayload(subscriptions: unknown[]) {
   };
 }
 
+function importBillingRecord(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "bill_src",
+    subscriptionId: "sub_src",
+    name: "Record Plan",
+    billingDate: "2026-05-21",
+    periodEndDate: "2026-06-21",
+    amount: "12",
+    currency: "USD",
+    mode: "initial",
+    receiptAssetIds: ["asset_receipt_1"],
+    billingCycle: "monthly",
+    usageRemainingBefore: null,
+    usageExpiresAt: null,
+    createdAt: "2026-05-21T00:00:00.000Z",
+    updatedAt: "2026-05-21T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function renewletRestorePayload(partial: { subscriptions?: unknown[]; groups?: unknown[]; billingRecords?: unknown[] }) {
+  return {
+    payload: {
+      source: "renewlet",
+      subscriptions: partial.subscriptions ?? [],
+      ...(partial.groups ? { groups: partial.groups } : {}),
+      ...(partial.billingRecords ? { billingRecords: partial.billingRecords } : {}),
+    },
+    conflictMode: "skip",
+    skipIndexes: [],
+  };
+}
+
 function exchangeRateSnapshotPayload(source: "renewlet" | "wallos") {
   return {
     payload: {
@@ -466,5 +499,129 @@ describe("Cloudflare import", () => {
     expect(json.summary.skips).toBe(1);
     expect(json.summary.replaces).toBe(0);
     expect(json.items[0]).toMatchObject({ action: "skip", existingId: "sub_existing" });
+  });
+
+  it("restores renewlet billing records with remapped subscription ids and drops orphans", async () => {
+    dbMocks.newId.mockImplementation((prefix: string) => (prefix === "bill" ? "bill_new" : "sub_new"));
+    const { env, db, statements } = envFixture();
+    const subscription = importSubscription({
+      extra: { import: { source: "renewlet", sourceId: "sub_src", confidence: "high" } },
+    });
+
+    const response = await applyImport(requestFor("/api/app/import/apply", renewletRestorePayload({
+      subscriptions: [subscription],
+      groups: [{ id: "grp_src", name: "Work", sortOrder: 0 }],
+      billingRecords: [
+        importBillingRecord(),
+        importBillingRecord({ id: "bill_orphan", subscriptionId: "sub_missing" }),
+      ],
+    })), env);
+    const data = await readSuccessData<{
+      includesGroups: boolean;
+      groupsCount: number;
+      includesBillingRecords: boolean;
+      billingRecordsCount: number;
+    }>(response);
+
+    expect(response.status).toBe(200);
+    // Worker 无分组表：计数如实回报但不产生任何 groups 写入；流水计数按包内条数回报。
+    expect(data).toMatchObject({
+      includesGroups: true,
+      groupsCount: 1,
+      includesBillingRecords: true,
+      billingRecordsCount: 2,
+    });
+    const billingInserts = statements.filter((statement) => statement.sql.includes("INSERT INTO subscription_billing_records"));
+    expect(billingInserts).toHaveLength(1);
+    const values = billingInserts[0]?.values ?? [];
+    // 源记录 id 不保留；宿主源 ID 已重映射到本次新建订阅；孤儿流水被丢弃。
+    expect(values.slice(0, 6)).toEqual([
+      "bill_new",
+      authUser.id,
+      "sub_new",
+      "Record Plan",
+      "2026-05-21",
+      "2026-06-21",
+    ]);
+    expect(values[19]).toBe(JSON.stringify(["asset_receipt_1"]));
+    expect(values[20]).toBe("2026-05-21T00:00:00.000Z");
+    expect(values[21]).toBe("2026-06-05T00:00:00.000Z");
+    expect(statements.some((statement) => /groups/i.test(statement.sql))).toBe(false);
+    expect(db.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it("attaches imported billing records to already-restored same-id subscriptions", async () => {
+    // 模拟分块 apply 的后续块或同实例自恢复：订阅已在库中（含 renewlet:<id> 幂等键），
+    // 本次无订阅写入，流水仍应挂到既有订阅 ID。
+    dbMocks.listSubscriptions.mockResolvedValue([
+      {
+        id: "sub_src",
+        user_id: authUser.id,
+        name: "Imported",
+        logo: null,
+        price: "12",
+        currency: "USD",
+        billing_cycle: "monthly",
+        custom_days: null,
+        custom_cycle_unit: null,
+        one_time_term_count: null,
+        one_time_term_unit: null,
+        usage_unit: null,
+        usage_total: null,
+        usage_daily_rate: null,
+        usage_expires_at: null,
+        category: "productivity",
+        status: "active",
+        pinned: 0,
+        public_hidden: 0,
+        payment_method: null,
+        start_date: "2026-05-21",
+        next_billing_date: "2026-06-21",
+        auto_renew: 0,
+        auto_calculate_next_billing_date: 1,
+        trial_end_date: null,
+        website: null,
+        notes: null,
+        tags_json: "[]",
+        reminder_days: 3,
+        repeat_reminder_enabled: 0,
+        repeat_reminder_interval: "1h",
+        repeat_reminder_window: "72h",
+        cost_sharing_json: "{}",
+        cost_sharing_collection_reminder_enabled: 0,
+        cost_sharing_next_collection_reminder_date: null,
+        extra_json: JSON.stringify({ import: { source: "renewlet", sourceId: "sub_src", confidence: "high" } }),
+        created_at: "2026-06-01T00:00:00.000Z",
+        updated_at: "2026-06-01T00:00:00.000Z",
+      } satisfies SubscriptionRow,
+    ]);
+    dbMocks.newId.mockImplementation((prefix: string) => (prefix === "bill" ? "bill_new" : "sub_src"));
+    const { env, statements } = envFixture();
+
+    const response = await applyImport(requestFor("/api/app/import/apply", renewletRestorePayload({
+      subscriptions: [importSubscription({
+        extra: { import: { source: "renewlet", sourceId: "sub_src", confidence: "high" } },
+      })],
+      billingRecords: [importBillingRecord()],
+    })), env);
+
+    expect(response.status).toBe(200);
+    expect(statements.some((statement) => statement.sql.includes("INSERT INTO subscriptions"))).toBe(false);
+    const billingInsert = statements.find((statement) => statement.sql.includes("INSERT INTO subscription_billing_records"));
+    expect(billingInsert?.values[2]).toBe("sub_src");
+  });
+
+  it("rejects groups and billing records outside renewlet exports", async () => {
+    const { env, db } = envFixture();
+
+    await expect(previewImport(requestFor("/api/app/import/preview", {
+      payload: { source: "wallos", subscriptions: [], billingRecords: [importBillingRecord()] },
+      conflictMode: "skip",
+      skipIndexes: [],
+    }), env)).rejects.toMatchObject({
+      status: 400,
+      code: "IMPORT_GROUPS_BILLING_RECORDS_SOURCE_INVALID",
+    } satisfies Partial<HttpError>);
+    expect(db.batch).not.toHaveBeenCalled();
   });
 });

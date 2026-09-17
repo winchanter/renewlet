@@ -105,6 +105,20 @@ function parseReceiptAssetIds(raw: string | null | undefined): string[] {
   }
 }
 
+/**
+ * 云备份导出专用：按用户拉全量扣费记录（不分订阅、不游标），条数由调用方按 shared
+ * IMPORT_BILLING_RECORDS_LIMIT 截断。排序与列表接口一致，保证备份内时间线稳定。
+ */
+export async function listBillingRecordsForUser(env: Env, userId: string, limit: number): Promise<BillingRecordRow[]> {
+  const result = await env.DB.prepare(`
+    SELECT ${BILLING_RECORD_COLUMNS} FROM subscription_billing_records
+    WHERE user_id = ?
+    ORDER BY billing_date DESC, id DESC
+    LIMIT ?
+  `).bind(userId, limit).all<BillingRecordRow>();
+  return result.results;
+}
+
 /** 记录列表是订阅详情的附属读取；owner 与订阅归属共同过滤，游标不能跨用户复用。 */
 export async function listBillingRecords(request: Request, env: Env, subscriptionId: string): Promise<Response> {
   const locale = requestLocale(request);

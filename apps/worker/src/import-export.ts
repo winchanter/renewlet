@@ -24,7 +24,8 @@ import { buildCostSharingCollectionReminderMirrorStatements, normalizeSubscripti
 import { subscriptionDerivedBulkMutationPlan, type SubscriptionDerivedMutation } from "./subscription-derived-state";
 import { buildSubscriptionSchedulerRefreshStatements } from "./subscription-scheduler-state";
 import { exchangeRateSnapshotUpsertStatement } from "./exchange-rate-snapshots";
-import type { Env, SubscriptionRow } from "./types";
+import { BILLING_RECORD_ID_PREFIX, buildBillingRecordUpsertStatements } from "./billing-records";
+import type { BillingRecordRow, Env, SubscriptionRow } from "./types";
 
 const IMPORT_WARNING_LOW_CONFIDENCE_KEY = "IMPORT_WARNING_LOW_CONFIDENCE_KEY";
 const IMPORT_WARNING_LOW_CONFIDENCE_NAME_MATCHED = "IMPORT_WARNING_LOW_CONFIDENCE_NAME_MATCHED";
@@ -44,9 +45,11 @@ async function previewImportRequest(request: Request, env: Env, metrics: { bodyB
   metrics.items = body.payload.subscriptions.length;
   assertPreviewPayloadSize(body.payload.subscriptions.length, locale);
   assertValidSkipIndexes(body.skipIndexes, body.payload.subscriptions.length, locale);
+  assertValidForceReplaceIndexes(body.forceReplaceIndexes, body.skipIndexes, body.payload.subscriptions.length, locale);
   assertExchangeRateSnapshotSource(body.payload, locale);
+  assertGroupsBillingRecordsSource(body.payload, locale);
   const existing = await listSubscriptions(env, auth.user.id);
-  return successJson(importPreviewPayloadSchema.parse(publicPreview(buildPreview(body.payload, body.conflictMode, existing, body.skipIndexes))));
+  return successJson(importPreviewPayloadSchema.parse(publicPreview(buildPreview(body.payload, body.conflictMode, existing, body.skipIndexes, body.forceReplaceIndexes))));
 }
 
 /** 应用导入会重新计算 preview，避免客户端篡改 action 结果后直接写库。 */
@@ -66,9 +69,11 @@ async function applyImportRequest(request: Request, env: Env, metrics: { bodyByt
   assertApplyPayloadSize(body.payload.subscriptions.length, locale);
   // 导入只在当前登录用户范围内查重；payload 里的来源用户仅用于 extra.import 幂等键，不能变成 owner。
   assertValidSkipIndexes(body.skipIndexes, body.payload.subscriptions.length, locale);
+  assertValidForceReplaceIndexes(body.forceReplaceIndexes, body.skipIndexes, body.payload.subscriptions.length, locale);
   assertExchangeRateSnapshotSource(body.payload, locale);
+  assertGroupsBillingRecordsSource(body.payload, locale);
   const existing = await listSubscriptions(env, auth.user.id);
-  const preview = buildPreview(body.payload, body.conflictMode, existing, body.skipIndexes);
+  const preview = buildPreview(body.payload, body.conflictMode, existing, body.skipIndexes, body.forceReplaceIndexes);
   if (preview.summary.errors > 0) {
     throw new HttpError(400, serverText(locale, "import.previewFailed"), "IMPORT_PREVIEW_FAILED", publicPreview(preview));
   }
@@ -77,6 +82,12 @@ async function applyImportRequest(request: Request, env: Env, metrics: { bodyByt
   const statements: D1PreparedStatement[] = [];
   const subscriptionMutations: SubscriptionDerivedMutation[] = [];
   const existingMatches = buildExistingImportMatches(existing);
+  // 流水宿主 源订阅ID → 目标订阅ID 映射：库内同 ID 订阅（前序分块已恢复/同实例自恢复）先预填，
+  // 本次 create/replace 再覆盖为新记录 ID；完全无宿主的流水在构造行时被丢弃。
+  const restoredSubscriptionIds = new Map<string, string>();
+  for (const row of existing) {
+    restoredSubscriptionIds.set(row.id, row.id);
+  }
   const settingsForRows = await getSettings(env, auth.user.id);
   let finalSettingsForMirrors = settingsForRows;
   let scheduleSettingsChanged = false;
@@ -110,6 +121,7 @@ async function applyImportRequest(request: Request, env: Env, metrics: { bodyByt
     } else {
       subscriptionMutations.push({ before: null, after: row, kind: "create" });
     }
+    restoredSubscriptionIds.set(item.sourceId, row.id);
   }
   if (scheduleSettingsChanged) {
     // 旧行镜像先写，随后 bulk fact 会用最终导入 row 覆盖 replace 项；未出现在导入里的行也能同步新规则。
@@ -149,6 +161,10 @@ async function applyImportRequest(request: Request, env: Env, metrics: { bodyByt
     // ZIP 恢复是唯一允许写历史汇率月份的路径；只 upsert shared schema 规范化后的快照。
     statements.push(exchangeRateSnapshotUpsertStatement(env, auth.user.id, snapshot, timestamp));
   }
+  // 续订流水最后入 batch：D1 按语句顺序执行，此时订阅 fact 已全部排在前面。
+  // Worker 没有分组表：payload.groups 在此安全忽略（来源校验已保证只能随 renewlet 包出现）。
+  const billingRecordRows = buildImportedBillingRecordRows(body.payload, restoredSubscriptionIds, auth.user.id, timestamp);
+  statements.push(...buildBillingRecordUpsertStatements(env, billingRecordRows));
 
   if (statements.length > 0) {
     // D1 batch 在同一事务里执行；导入要么整体写入，要么让调用方看到明确失败。
@@ -219,6 +235,10 @@ type PreviewResult = {
   includesCustomConfig: boolean;
   includesExchangeRateSnapshots: boolean;
   exchangeRateSnapshotsCount: number;
+  includesGroups: boolean;
+  groupsCount: number;
+  includesBillingRecords: boolean;
+  billingRecordsCount: number;
   normalizedByIndex: Map<number, NormalizedImportSubscription>;
 };
 
@@ -229,9 +249,10 @@ function publicPreview(preview: PreviewResult): Omit<PreviewResult, "normalizedB
   return rest;
 }
 
-function buildPreview(payload: ImportPayload, conflictMode: ImportConflictMode, existing: SubscriptionRow[], skipIndexes: number[]): PreviewResult {
+function buildPreview(payload: ImportPayload, conflictMode: ImportConflictMode, existing: SubscriptionRow[], skipIndexes: number[], forceReplaceIndexes: number[]): PreviewResult {
   const existingMatches = buildExistingImportMatches(existing);
   const skippedIndexes = new Set(skipIndexes);
+  const forceReplaceSet = new Set(forceReplaceIndexes);
   const seenPayloadKeys = new Set<string>();
   const normalizedByIndex = new Map<number, NormalizedImportSubscription>();
   const items = payload.subscriptions.map((subscription, index) => {
@@ -269,7 +290,7 @@ function buildPreview(payload: ImportPayload, conflictMode: ImportConflictMode, 
       // Wallos display:* 是低置信桥接，只给用户 warning；真正写入仍保留原 import key 方便后续精确替换。
       warnings.push(IMPORT_WARNING_LOW_CONFIDENCE_NAME_MATCHED);
     }
-    const action = errors.length > 0 ? "error" : existingRow ? (conflictMode === "replace" ? "replace" : "skip") : "create";
+    const action = errors.length > 0 ? "error" : existingRow ? (conflictMode === "replace" || forceReplaceSet.has(index) ? "replace" : "skip") : "create";
     return {
       index,
       name: subscription.name,
@@ -288,6 +309,11 @@ function buildPreview(payload: ImportPayload, conflictMode: ImportConflictMode, 
     includesCustomConfig: Boolean(payload.customConfig),
     includesExchangeRateSnapshots: Boolean(payload.exchangeRateSnapshots?.length),
     exchangeRateSnapshotsCount: payload.exchangeRateSnapshots?.length ?? 0,
+    // Worker 不持久化分组，但预览计数仍如实回报包内容，避免前端误判为“旧格式备份”。
+    includesGroups: Boolean(payload.groups?.length),
+    groupsCount: payload.groups?.length ?? 0,
+    includesBillingRecords: Boolean(payload.billingRecords?.length),
+    billingRecordsCount: payload.billingRecords?.length ?? 0,
     normalizedByIndex,
   };
 }
@@ -379,10 +405,74 @@ function assertValidSkipIndexes(indexes: number[], subscriptionCount: number, lo
   }
 }
 
+function assertValidForceReplaceIndexes(forceReplaceIndexes: number[], skipIndexes: number[], subscriptionCount: number, locale: ReturnType<typeof requestLocale>): void {
+  if (forceReplaceIndexes.some((index) => index < 0 || index >= subscriptionCount)) {
+    throw new HttpError(400, serverText(locale, "import.invalid"), "IMPORT_FORCE_REPLACE_INDEX_INVALID");
+  }
+  const skipSet = new Set(skipIndexes);
+  for (const index of forceReplaceIndexes) {
+    if (skipSet.has(index)) {
+      throw new HttpError(400, serverText(locale, "import.invalid"), "IMPORT_INDEX_IN_BOTH_SKIP_AND_FORCE_REPLACE");
+    }
+  }
+}
+
 function assertExchangeRateSnapshotSource(payload: ImportPayload, locale: AppLocale): void {
   if ((payload.exchangeRateSnapshots?.length ?? 0) > 0 && payload.source !== "renewlet") {
     throw new HttpError(400, serverText(locale, "import.invalid"), "IMPORT_EXCHANGE_RATE_SNAPSHOTS_SOURCE_INVALID");
   }
+}
+
+/** 分组与续订流水只随 Renewo 自导出恢复；Wallos/AI payload 夹带这两段必须拒绝（数量上限由 shared schema 保证）。 */
+function assertGroupsBillingRecordsSource(payload: ImportPayload, locale: AppLocale): void {
+  const hasGroups = (payload.groups?.length ?? 0) > 0;
+  const hasBillingRecords = (payload.billingRecords?.length ?? 0) > 0;
+  if ((hasGroups || hasBillingRecords) && payload.source !== "renewlet") {
+    throw new HttpError(400, serverText(locale, "import.invalid"), "IMPORT_GROUPS_BILLING_RECORDS_SOURCE_INVALID");
+  }
+}
+
+/**
+ * 恢复包流水 → D1 行：源记录 id 不保留（每行新 id，由 ON CONFLICT 幂等去重），
+ * subscriptionId 重映射到本次落库的目标订阅；宿主缺失（skip/不存在）的流水跳过。
+ * created_at 沿用源时间以保留历史时间线，updated_at 固定为本次恢复时间。
+ */
+function buildImportedBillingRecordRows(
+  payload: ImportPayload,
+  restoredSubscriptionIds: Map<string, string>,
+  userId: string,
+  timestamp: string,
+): BillingRecordRow[] {
+  const rows: BillingRecordRow[] = [];
+  for (const record of payload.billingRecords ?? []) {
+    const subscriptionId = restoredSubscriptionIds.get(record.subscriptionId);
+    if (!subscriptionId) continue;
+    rows.push({
+      id: newId(BILLING_RECORD_ID_PREFIX),
+      user_id: userId,
+      subscription_id: subscriptionId,
+      name: record.name,
+      billing_date: record.billingDate,
+      period_end_date: record.periodEndDate,
+      amount: record.amount,
+      currency: record.currency,
+      billing_cycle: record.billingCycle,
+      custom_days: record.customDays ?? null,
+      custom_cycle_unit: record.customCycleUnit ?? null,
+      one_time_term_count: record.oneTimeTermCount ?? null,
+      one_time_term_unit: record.oneTimeTermUnit ?? null,
+      usage_unit: record.usageUnit ?? null,
+      usage_total: record.usageTotal ?? null,
+      usage_daily_rate: record.usageDailyRate ?? null,
+      usage_remaining_before: record.usageRemainingBefore ?? 0,
+      usage_expires_at: record.usageExpiresAt ?? "",
+      mode: record.mode,
+      receipt_asset_ids: JSON.stringify(record.receiptAssetIds ?? []),
+      created_at: record.createdAt ?? timestamp,
+      updated_at: timestamp,
+    });
+  }
+  return rows;
 }
 
 function isLowConfidenceWallosKey(value: ImportSubscription["extra"]["import"]): boolean {

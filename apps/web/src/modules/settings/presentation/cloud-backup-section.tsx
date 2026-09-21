@@ -22,12 +22,15 @@ import type { CloudBackupController } from "../application/use-cloud-backup-cont
 import type { CloudBackupProvider, CloudBackupSnapshot } from "@/lib/api/schemas/cloud-backup";
 import { ManagerDataBoundary } from "./manager-data-boundary";
 import { SettingsSectionHeader } from "./settings-section-header";
+import { VaultBackupPasswordSection } from "./vault-backup-section";
 
 interface CloudBackupSectionProps {
   id?: string;
   className?: string;
   controller: CloudBackupController;
   disabled?: boolean;
+  /** Docker/Go 运行面展示账号库备份密码子块；Cloudflare 面传 false 保持云备份区域纯同步配置。 */
+  showVaultBackup?: boolean;
 }
 
 type CloudBackupStatus = "idle" | "success" | "failed";
@@ -38,6 +41,7 @@ export function CloudBackupSection({
   className,
   controller,
   disabled = false,
+  showVaultBackup = false,
 }: CloudBackupSectionProps) {
   const { t, formatDateTime } = useI18n();
   const [deleteTarget, setDeleteTarget] = useState<CloudBackupSnapshot | null>(null);
@@ -131,6 +135,11 @@ export function CloudBackupSection({
           onScheduleWeekdayChange={(weekday) => updateForm("scheduleWeekday", weekday)}
           onRetentionChange={(value) => updateForm("retention", value)}
         />
+        {showVaultBackup ? (
+          <div className="grid gap-4 rounded-lg border border-border bg-secondary/20 p-4">
+            <VaultBackupPasswordSection />
+          </div>
+        ) : null}
         <CloudBackupActionsPanel
           providerLabel={providerLabel}
           credentialLabel={credentialLabel}

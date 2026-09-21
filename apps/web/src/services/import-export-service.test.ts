@@ -77,6 +77,8 @@ function applyData(payload: ImportPayload) {
     groupsCount: payload.groups?.length ?? 0,
     includesBillingRecords: Boolean(payload.billingRecords?.length),
     billingRecordsCount: payload.billingRecords?.length ?? 0,
+    includesVaultCredentials: Boolean(payload.vaultCredentials?.length),
+    vaultCredentialsCount: payload.vaultCredentials?.length ?? 0,
   };
 }
 
@@ -153,5 +155,55 @@ describe("importExportService.applyChunked", () => {
     expect(requests[0]?.groups).toHaveLength(1);
     expect(requests[0]?.billingRecords).toHaveLength(1);
     expect(result).toMatchObject({ groupsCount: 1, billingRecordsCount: 1 });
+  });
+
+  it("sends vault segments only in the first chunk and passes backupPassphrase on every request", async () => {
+    const requests: Array<{ payload: ImportPayload; backupPassphrase?: string }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { payload: ImportPayload; backupPassphrase?: string };
+      requests.push(body);
+      return new Response(JSON.stringify({ ok: true, data: applyData(body.payload) }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }));
+
+    const vaultSegment = {
+      backupEnvelope: {
+        kdf: "argon2id" as const,
+        version: 1 as const,
+        salt: "c2FsdFNhbRTkIRTk2FsdFNhbRTkIRTk",
+        params: { memoryKiB: 65536, iterations: 3, parallelism: 1 },
+      },
+      vaultCredentials: [{
+        id: "cred_1",
+        title: "AWS root",
+        url: "",
+        username: "root",
+        sortOrder: 0,
+        subscriptionId: "sub_0",
+        groupId: "",
+        passwordBackup: "v1.nonce.ct",
+        notesBackup: "",
+      }],
+    };
+    const payload = {
+      source: "renewlet",
+      subscriptions: Array.from({ length: IMPORT_APPLY_SUBSCRIPTION_LIMIT + 1 }, (_, index) => subscriptionPayload(index)),
+      ...vaultSegment,
+    } as ImportPayload;
+
+    const result = await importExportService.applyChunked(payload, "skip", [], [], undefined, "secret-passphrase");
+
+    expect(requests).toHaveLength(2);
+    // 账号库凭据段与 groups 同策略：只随第一个分块发出，后续分块不重复携带。
+    expect(requests[0]?.payload.backupEnvelope).toEqual(vaultSegment.backupEnvelope);
+    expect(requests[0]?.payload.vaultCredentials).toEqual(vaultSegment.vaultCredentials);
+    expect(requests[1]?.payload).not.toHaveProperty("backupEnvelope");
+    expect(requests[1]?.payload).not.toHaveProperty("vaultCredentials");
+    // backupPassphrase 是请求级字段：preview/apply 每次都透传。
+    expect(requests[0]?.backupPassphrase).toBe("secret-passphrase");
+    expect(requests[1]?.backupPassphrase).toBe("secret-passphrase");
+    expect(result).toMatchObject({ includesVaultCredentials: true, vaultCredentialsCount: 1 });
   });
 });

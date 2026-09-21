@@ -73,7 +73,7 @@ func TestCloudBackupExportZipAuditsMissingPrivateAssets(t *testing.T) {
 		}}
 	})
 
-	source, _, err := buildCloudBackupExportZip(app, user)
+	source, _, _, err := buildCloudBackupExportZip(app, user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestCloudBackupExportZipDeduplicatesSharedPrivateAssets(t *testing.T) {
 	createRouteTestSubscription(t, app, user.Id, map[string]interface{}{"name": "First", "logo": assetURL})
 	createRouteTestSubscription(t, app, user.Id, map[string]interface{}{"name": "Second", "logo": assetURL})
 
-	source, _, err := buildCloudBackupExportZip(app, user)
+	source, _, _, err := buildCloudBackupExportZip(app, user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestCloudBackupExportZipIncludesExchangeRateSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	source, _, err := buildCloudBackupExportZip(app, user)
+	source, _, _, err := buildCloudBackupExportZip(app, user)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,7 +5,7 @@
  * - 列表/网格两种视图
  * - 搜索/分类/状态/标签筛选
  * - 新增/编辑/删除订阅
- * - 导出 JSON / CSV
+ * - 导出备份 ZIP（可选包含通知密钥/账号库密码）/ CSV
  *
  * 架构位置：
  * - 筛选、导出、CRUD 状态分别由 application hooks 管理。
@@ -26,6 +26,10 @@ import { EditSubscriptionDialog } from '@/components/edit-subscription-dialog';
 import { DeferredRenewSubscriptionDialog } from '@/components/renew-subscription-dialog-loader';
 import { DeferredBillingRecordsDialog } from '@/components/billing-records-dialog-loader';
 import { SubscriptionDialog } from '@/components/subscription-dialog';
+import {
+  DeferredExportBackupDialog,
+  preloadExportBackupDialog,
+} from '@/components/export-backup-dialog-loader';
 import {
   DeferredImportDataDialog,
   preloadImportDataDialog,
@@ -235,8 +239,9 @@ const Subscriptions = () => {
   } = useSubscriptionCrud(displaySourceSubscriptions);
   const settings = settingsQuery.data?.settings ?? DEFAULT_SETTINGS;
   const priceReferenceCurrency = resolveSubscriptionPriceReferenceCurrency(settings);
-  const { exportToJSON, exportToJSONWithSecrets, exportToCSV, exporting } =
+  const { exportBackup, exportToCSV, exporting } =
     useSubscriptionExport(config, settings, locale, selectSubscriptionsForExport, timeZone, convert);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const today = useMemo(() => todayDateOnlyInTimeZone(new Date(), timeZone), [timeZone]);
   const {
     detailDialogOpen,
@@ -339,11 +344,14 @@ const Subscriptions = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={exportToJSON} disabled={exporting}>
+                <DropdownMenuItem
+                  onClick={() => setExportDialogOpen(true)}
+                  disabled={exporting}
+                  onFocus={preloadExportBackupDialog}
+                  onPointerEnter={preloadExportBackupDialog}
+                  onTouchStart={preloadExportBackupDialog}
+                >
                   {t("subscriptions.exportJson")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportToJSONWithSecrets} disabled={exporting}>
-                  {t("subscriptions.exportJsonWithSecrets")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={exportToCSV} disabled={exporting}>
                   {t("subscriptions.exportCsv")}
@@ -792,6 +800,12 @@ const Subscriptions = () => {
         onOpenChange={setImportDialogOpen}
         settings={settings}
         config={config}
+      />
+      <DeferredExportBackupDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        exporting={exporting}
+        onExport={exportBackup}
       />
       <DeferredAIRecognizeSubscriptionDialog
         open={aiRecognitionDialogOpen}

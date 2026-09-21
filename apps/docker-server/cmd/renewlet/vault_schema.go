@@ -36,7 +36,40 @@ func ensureVaultCollections(app core.App, users *core.Collection) error {
 	if err := ensureVaultAccessRequestsCollection(app, users); err != nil {
 		return err
 	}
-	return ensureVaultAccessLogsCollection(app, users)
+	if err := ensureVaultAccessLogsCollection(app, users); err != nil {
+		return err
+	}
+	// backup_keys 保存用户备份密码的 KDF 盐、参数、wrappedKek 与校验器；明文密码永不入库。
+	return ensureBackupKeysCollection(app, users)
+}
+
+// ensureBackupKeysCollection 用户 1:1 的备份密码封装记录；无任何 REST 规则，只经服务端 route 触达。
+func ensureBackupKeysCollection(app core.App, users *core.Collection) error {
+	return ensureCollection(app, "backup_keys", func(c *core.Collection) error {
+		secretCollectionRules(c)
+		fields := []core.Field{
+			userRelation(users),
+			// Argon2id 盐（base64，32B）；随导出包落 backupEnvelope.salt，旧备份包仍可用旧密码解。
+			&core.TextField{Name: "kdfSalt", Required: true, Max: 128},
+			// kdfParams JSON：{memoryKiB, iterations, parallelism}；随包导出让目标实例可复算 KEK。
+			&core.JSONField{Name: "kdfParams", MaxSize: 256},
+			// wrappedKek：备份密码派生 KEK 的密文（v1.nonce.ciphertext），用实例 backup-kek-wrap 域加密，
+			// 仅自动云备份在本实例内解封；离开实例无法解。
+			&core.TextField{Name: "wrappedKek", Required: true, Max: 512},
+			// verifier：用 KEK 加密的固定串，用于校验备份密码是否正确而不存储密码。
+			&core.TextField{Name: "verifier", Required: true, Max: 512},
+		}
+		for _, field := range fields {
+			if err := upsertField(c, field); err != nil {
+				return err
+			}
+		}
+		if err := ensureAutodates(c); err != nil {
+			return err
+		}
+		c.AddIndex("idx_backup_keys_user", true, "user", "")
+		return nil
+	})
 }
 
 func ensureVaultCredentialsCollection(app core.App, users *core.Collection, subscriptions *core.Collection, groups *core.Collection) error {

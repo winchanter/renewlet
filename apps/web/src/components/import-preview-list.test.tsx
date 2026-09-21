@@ -84,6 +84,8 @@ const preview = {
   groupsCount: 0,
   includesBillingRecords: false,
   billingRecordsCount: 0,
+  includesVaultCredentials: false,
+  vaultCredentialsCount: 0,
 } satisfies ImportPreviewResponse;
 
 describe("ImportPreviewList", () => {

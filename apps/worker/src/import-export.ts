@@ -48,6 +48,7 @@ async function previewImportRequest(request: Request, env: Env, metrics: { bodyB
   assertValidForceReplaceIndexes(body.forceReplaceIndexes, body.skipIndexes, body.payload.subscriptions.length, locale);
   assertExchangeRateSnapshotSource(body.payload, locale);
   assertGroupsBillingRecordsSource(body.payload, locale);
+  assertVaultCredentialsDockerOnly(body.payload, locale);
   const existing = await listSubscriptions(env, auth.user.id);
   return successJson(importPreviewPayloadSchema.parse(publicPreview(buildPreview(body.payload, body.conflictMode, existing, body.skipIndexes, body.forceReplaceIndexes))));
 }
@@ -72,6 +73,8 @@ async function applyImportRequest(request: Request, env: Env, metrics: { bodyByt
   assertValidForceReplaceIndexes(body.forceReplaceIndexes, body.skipIndexes, body.payload.subscriptions.length, locale);
   assertExchangeRateSnapshotSource(body.payload, locale);
   assertGroupsBillingRecordsSource(body.payload, locale);
+  // 账号库凭据恢复依赖实例内 KEK/vault 域密钥，Worker 面没有对应能力；两段出现必须明确拒绝。
+  assertVaultCredentialsDockerOnly(body.payload, locale);
   const existing = await listSubscriptions(env, auth.user.id);
   const preview = buildPreview(body.payload, body.conflictMode, existing, body.skipIndexes, body.forceReplaceIndexes);
   if (preview.summary.errors > 0) {
@@ -239,6 +242,8 @@ type PreviewResult = {
   groupsCount: number;
   includesBillingRecords: boolean;
   billingRecordsCount: number;
+  includesVaultCredentials: boolean;
+  vaultCredentialsCount: number;
   normalizedByIndex: Map<number, NormalizedImportSubscription>;
 };
 
@@ -314,6 +319,9 @@ function buildPreview(payload: ImportPayload, conflictMode: ImportConflictMode, 
     groupsCount: payload.groups?.length ?? 0,
     includesBillingRecords: Boolean(payload.billingRecords?.length),
     billingRecordsCount: payload.billingRecords?.length ?? 0,
+    // Worker 已在入口拒绝凭据段；这里固定回 false/0 让 shared preview schema 恒可满足。
+    includesVaultCredentials: false,
+    vaultCredentialsCount: 0,
     normalizedByIndex,
   };
 }
@@ -429,6 +437,14 @@ function assertGroupsBillingRecordsSource(payload: ImportPayload, locale: AppLoc
   const hasBillingRecords = (payload.billingRecords?.length ?? 0) > 0;
   if ((hasGroups || hasBillingRecords) && payload.source !== "renewlet") {
     throw new HttpError(400, serverText(locale, "import.invalid"), "IMPORT_GROUPS_BILLING_RECORDS_SOURCE_INVALID");
+  }
+}
+
+/** 账号库凭据恢复仅 Docker 面支持；Worker 没有 vault 域/KEK 基础设施，凭据段一律拒收。 */
+function assertVaultCredentialsDockerOnly(payload: ImportPayload, locale: AppLocale): void {
+  const hasVaultCredentials = (payload.vaultCredentials?.length ?? 0) > 0;
+  if (hasVaultCredentials || payload.backupEnvelope) {
+    throw new HttpError(400, serverText(locale, "import.vaultUnsupported"), "IMPORT_VAULT_UNSUPPORTED");
   }
 }
 

@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { createElement, type ReactNode } from "react";
 // 订阅页测试覆盖筛选、导入导出、分页与卡片交互，防止页面组合层绕过领域 hook 的缓存契约。
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -48,8 +48,7 @@ const mocks = vi.hoisted(() => ({
   handleTogglePublicHiddenSubscription: vi.fn(),
   handleSaveSubscription: vi.fn(),
   handleEditDialogOpenChange: vi.fn(),
-  exportToJSON: vi.fn(),
-  exportToJSONWithSecrets: vi.fn(),
+  exportBackup: vi.fn(),
   exportToCSV: vi.fn(),
   renderHeaderActions: false,
 }));
@@ -149,14 +148,32 @@ vi.mock("@/modules/subscriptions/application/use-subscription-crud", () => ({
 
 vi.mock("@/modules/subscriptions/application/use-subscription-export", () => ({
   useSubscriptionExport: () => ({
-    exportToJSON: mocks.exportToJSON,
-    exportToJSONWithSecrets: mocks.exportToJSONWithSecrets,
+    exportBackup: mocks.exportBackup,
     exportToCSV: mocks.exportToCSV,
+    exporting: false,
   }),
+}));
+
+// 导出备份对话框打开时会查询备份密码设置状态；测试环境拦掉真实请求。
+vi.mock("@/services/vault-service", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getVaultBackupKeysStatus: vi.fn(async () => ({ configured: false })),
 }));
 
 vi.mock("@/components/import-data-dialog", () => ({
   ImportDataDialogContent: ({ open }: { open: boolean }) => <div data-testid="import-dialog-state">{String(open)}</div>,
+}));
+
+// 导出备份对话框经 Deferred 懒加载；stub 提供取消按钮以验证菜单→对话框→关闭的布线。
+vi.mock("@/components/export-backup-dialog", () => ({
+  ExportBackupDialog: (props: { open: boolean; onOpenChange: (open: boolean) => void }) =>
+    props.open
+      ? createElement(
+          "div",
+          { "data-testid": "export-backup-dialog-stub" },
+          createElement("button", { onClick: () => props.onOpenChange(false) }, "取消"),
+        )
+      : null,
 }));
 
 vi.mock("@/components/header", () => ({
@@ -499,19 +516,18 @@ describe("Subscriptions page sorting", () => {
 
   it("keeps import as a dedicated action next to the export menu", async () => {
     const user = userEvent.setup();
-    mocks.exportToJSON.mockClear();
-    mocks.exportToJSONWithSecrets.mockClear();
+    mocks.exportBackup.mockClear();
     mocks.exportToCSV.mockClear();
     renderSubscriptionsPage();
 
     await user.click(screen.getByRole("button", { name: "导出订阅" }));
     expect(screen.queryByRole("menuitem", { name: "导入数据" })).not.toBeInTheDocument();
+    // JSON 备份导出统一走导出对话框，确认后才触发主导出。
     await user.click(await screen.findByRole("menuitem", { name: "导出备份 ZIP" }));
-    expect(mocks.exportToJSON).toHaveBeenCalledTimes(1);
-
-    await user.click(screen.getByRole("button", { name: "导出订阅" }));
-    await user.click(await screen.findByRole("menuitem", { name: "导出备份 ZIP（含通知密钥）" }));
-    expect(mocks.exportToJSONWithSecrets).toHaveBeenCalledTimes(1);
+    expect(mocks.exportBackup).not.toHaveBeenCalled();
+    // 导出对话框经 Deferred 懒加载：等 stub 内容出现后点取消，验证对话框布线与关闭回调。
+    await user.click(await screen.findByRole("button", { name: "取消" }));
+    await waitFor(() => expect(screen.queryByTestId("export-backup-dialog-stub")).not.toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: "导出订阅" }));
     await user.click(await screen.findByRole("menuitem", { name: "导出 CSV" }));

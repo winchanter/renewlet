@@ -20,16 +20,16 @@ import (
 	"github.com/zhiyingzzhou/renewlet/apps/docker-server/internal/snapshotzip"
 )
 
-func buildCloudBackupExportZip(app core.App, user *core.Record) (cloudBackupSnapshotSource, time.Time, error) {
+func buildCloudBackupExportZip(app core.App, user *core.Record) (cloudBackupSnapshotSource, time.Time, int, error) {
 	startedAt := time.Now()
 	exportedAt := time.Now().UTC()
 	bundle, err := buildCloudBackupExportBundle(app, user, exportedAt)
 	if err != nil {
-		return cloudBackupSnapshotSource{}, exportedAt, err
+		return cloudBackupSnapshotSource{}, exportedAt, 0, err
 	}
 	tempFile, err := os.CreateTemp("", "renewlet-cloud-backup-*.zip")
 	if err != nil {
-		return cloudBackupSnapshotSource{}, exportedAt, err
+		return cloudBackupSnapshotSource{}, exportedAt, 0, err
 	}
 	cleanup := func() {
 		_ = tempFile.Close()
@@ -37,7 +37,7 @@ func buildCloudBackupExportZip(app core.App, user *core.Record) (cloudBackupSnap
 	}
 	if err := tempFile.Chmod(0o600); err != nil {
 		cleanup()
-		return cloudBackupSnapshotSource{}, exportedAt, err
+		return cloudBackupSnapshotSource{}, exportedAt, 0, err
 	}
 	// Open 延迟到 ZIP writer 逐项消费，避免扫描阶段同时打开文件或持有全部图片内容。
 	assets := make([]snapshotzip.Asset, 0, len(bundle.Assets))
@@ -60,11 +60,11 @@ func buildCloudBackupExportZip(app core.App, user *core.Record) (cloudBackupSnap
 	})
 	if err != nil {
 		cleanup()
-		return cloudBackupSnapshotSource{}, exportedAt, err
+		return cloudBackupSnapshotSource{}, exportedAt, 0, err
 	}
 	if err := tempFile.Close(); err != nil {
 		cleanup()
-		return cloudBackupSnapshotSource{}, exportedAt, err
+		return cloudBackupSnapshotSource{}, exportedAt, 0, err
 	}
 	slog.Info("cloud backup snapshot built",
 		"entries", writeResult.Entries,
@@ -72,13 +72,14 @@ func buildCloudBackupExportZip(app core.App, user *core.Record) (cloudBackupSnap
 		"zip_bytes", writeResult.ArchiveBytes,
 		"duration", time.Since(startedAt),
 	)
-	return cloudBackupSnapshotSource{path: tempFile.Name(), size: writeResult.ArchiveBytes}, exportedAt, nil
+	return cloudBackupSnapshotSource{path: tempFile.Name(), size: writeResult.ArchiveBytes}, exportedAt, bundle.VaultCredentialsCount, nil
 }
 
 type cloudBackupExportBundle struct {
-	Payload  map[string]interface{}
-	Assets   []cloudBackupExportAsset
-	Manifest cloudBackupExportManifest
+	Payload               map[string]interface{}
+	Assets                []cloudBackupExportAsset
+	Manifest              cloudBackupExportManifest
+	VaultCredentialsCount int
 }
 
 type cloudBackupExportAsset struct {
@@ -202,6 +203,13 @@ func buildCloudBackupExportBundle(app core.App, user *core.Record, exportedAt ti
 	} else if ok {
 		data["exchangeRateSnapshots"] = snapshots
 	}
+	// 用户已设置备份密码时，账号库凭据以 KEK 密文随包导出；未设置则维持现状不含凭据。
+	if envelope, credentials, ok, err := cloudBackupExportVaultCredentials(app, user); err != nil {
+		return cloudBackupExportBundle{}, err
+	} else if ok {
+		data["backupEnvelope"] = envelope
+		data["vaultCredentials"] = credentials
+	}
 	if len(assetCollector.assets) > 0 {
 		exportAssets := make([]interface{}, 0, len(assetCollector.assets))
 		for _, asset := range assetCollector.assets {
@@ -233,7 +241,12 @@ func buildCloudBackupExportBundle(app core.App, user *core.Record, exportedAt ti
 	if manifest.MissingAssets == nil {
 		manifest.MissingAssets = []cloudBackupExportMissingAsset{}
 	}
-	return cloudBackupExportBundle{Payload: payload, Assets: assetCollector.assets, Manifest: manifest}, nil
+	vaultCredCount, _ := data["vaultCredentials"].([]interface{})
+	bundle := cloudBackupExportBundle{Payload: payload, Assets: assetCollector.assets, Manifest: manifest}
+	if vaultCredCount != nil {
+		bundle.VaultCredentialsCount = len(vaultCredCount)
+	}
+	return bundle, nil
 }
 
 func subscriptionDetailResponseMap(subscription subscriptionDetailResponse) (map[string]interface{}, error) {
@@ -498,6 +511,31 @@ func cloudBackupExportBillingRecords(app core.App, user *core.Record, collector 
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+// cloudBackupExportVaultCredentials 自动云快照的账号库段：本实例内解封 wrappedKek 得 KEK，
+// vault 域解密明文后立即用 KEK 重加密入包；备份密码本身与实例主密钥永不进包。
+func cloudBackupExportVaultCredentials(app core.App, user *core.Record) (backupEnvelope, []vaultExportCredential, bool, error) {
+	record, err := findBackupKeyRecord(app, user.Id)
+	if err != nil {
+		return backupEnvelope{}, nil, false, err
+	}
+	if record == nil {
+		return backupEnvelope{}, nil, false, nil
+	}
+	kek, err := unwrapBackupKEK(app, record)
+	if err != nil {
+		return backupEnvelope{}, nil, false, err
+	}
+	envelope, err := backupEnvelopeFromRecord(record)
+	if err != nil {
+		return backupEnvelope{}, nil, false, err
+	}
+	credentials, err := collectVaultExportCredentials(app, user.Id, kek)
+	if err != nil {
+		return backupEnvelope{}, nil, false, err
+	}
+	return envelope, credentials, true, nil
 }
 
 func extensionFromCloudBackupMime(mimeType string, filename string) string {

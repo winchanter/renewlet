@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
-import { AlertTriangle, Archive, CheckCircle2, FileJson, FileUp, Loader2 } from "lucide-react";
+import { AlertTriangle, Archive, CheckCircle2, FileJson, FileUp, KeyRound, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImportFileDropZone, ImportPastePanel, ImportStep } from "@/components/import-data-dialog-parts";
 import { ImportPreviewPanel } from "@/components/import-preview-panel";
@@ -21,6 +33,7 @@ import {
 } from "@/modules/import-export/domain/wallos-import";
 import { formatImportMessage } from "@/modules/import-export/domain/import-message-format";
 import { useImportPreviewApply } from "@/modules/import-export/application/use-import-preview-apply";
+import { verifyImportVaultPassphrase } from "@/services/vault-service";
 
 export interface ImportDataDialogProps {
   open: boolean;
@@ -63,6 +76,8 @@ export function ImportDataDialogContent({ open, onOpenChange, settings, config, 
     applying,
     assetProgress,
     applyProgress,
+    backupPassphrase,
+    setBackupPassphrase,
     setError,
     setPreviewFilter,
     resetImportPreview,
@@ -72,7 +87,49 @@ export function ImportDataDialogContent({ open, onOpenChange, settings, config, 
     handleToggleRow,
     handleApply,
   } = importPreview;
+  // Renewo 自导出包中的账号库凭据段：存在时允许留空备份密码跳过凭据恢复。
+  const vaultCredentialsCount = prepared?.payload.vaultCredentials?.length ?? 0;
+  // 预检用样本密文：任一字段非空即可验证 KEK 是否正确。
+  const vaultProbeCredential = prepared?.payload.vaultCredentials?.find(
+    (item) => item.passwordBackup || item.notesBackup,
+  );
+  const vaultProbeCiphertext = vaultProbeCredential?.passwordBackup || vaultProbeCredential?.notesBackup || "";
+  // empty = 未输入密码；invalid = 密码预检失败。二次确认后跳过凭据执行其余导入。
+  const [vaultConfirmReason, setVaultConfirmReason] = useState<"empty" | "invalid" | null>(null);
+  const [verifyingPassphrase, setVerifyingPassphrase] = useState(false);
   useDeferredDialogInitialFocus(open, true, "import", resolveInitialFocus);
+
+  // 点击执行导入：含凭据段时先做密码预检——留空或密码错误都先弹二次确认，
+  // 用户可选择跳过凭据继续导入，或返回修改密码；预检不写任何业务数据。
+  const handleExecuteClick = useCallback(async () => {
+    if (vaultCredentialsCount === 0) {
+      void handleApply();
+      return;
+    }
+    if (backupPassphrase.trim().length === 0) {
+      setVaultConfirmReason("empty");
+      return;
+    }
+    const envelope = prepared?.payload.backupEnvelope;
+    if (!envelope || !vaultProbeCiphertext) {
+      // 包结构缺少 envelope/密文样本时无法预检，交给 apply 按契约处理。
+      void handleApply();
+      return;
+    }
+    setVerifyingPassphrase(true);
+    try {
+      const valid = await verifyImportVaultPassphrase(envelope, vaultProbeCiphertext, backupPassphrase);
+      if (valid) {
+        void handleApply();
+      } else {
+        setVaultConfirmReason("invalid");
+      }
+    } catch (verifyError) {
+      setError(verifyError instanceof Error ? verifyError.message : t("import.vaultVerifyFailed"));
+    } finally {
+      setVerifyingPassphrase(false);
+    }
+  }, [backupPassphrase, handleApply, prepared, setError, t, vaultCredentialsCount, vaultProbeCiphertext]);
 
   const parseFile = useCallback(async (
     nextFile: File,
@@ -291,6 +348,29 @@ export function ImportDataDialogContent({ open, onOpenChange, settings, config, 
           </div>
         )}
 
+        {vaultCredentialsCount > 0 && (
+          <div className="grid gap-2 rounded-lg border border-border bg-secondary/20 p-3">
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-primary" />
+              <Label htmlFor="import-backup-passphrase" className="text-sm font-medium text-foreground">
+                {t("import.vaultPassphraseLabel")}
+              </Label>
+            </div>
+            <Input
+              id="import-backup-passphrase"
+              type="password"
+              value={backupPassphrase}
+              onChange={(event) => setBackupPassphrase(event.target.value)}
+              className="border-border bg-background"
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("import.vaultPassphraseHint", { count: vaultCredentialsCount })}
+            </p>
+            <p className="text-xs text-destructive">{t("import.vaultPassphraseWarning")}</p>
+          </div>
+        )}
+
         {preview && (
           prepared ? (
             <ImportPreviewPanel
@@ -316,11 +396,43 @@ export function ImportDataDialogContent({ open, onOpenChange, settings, config, 
 
       <DialogFooter className="shrink-0 border-t border-border bg-card px-4 py-4 sm:px-6">
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
-        <Button type="button" onClick={() => void handleApply()} disabled={!preview || preview.summary.errors > 0 || applying}>
-          {applying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-          {t("import.apply")}
+        <Button
+          type="button"
+          onClick={() => void handleExecuteClick()}
+          disabled={!preview || preview.summary.errors > 0 || applying || verifyingPassphrase}
+        >
+          {applying || verifyingPassphrase ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+          {verifyingPassphrase ? t("import.vaultVerifying") : t("import.apply")}
         </Button>
       </DialogFooter>
+
+      <AlertDialog open={vaultConfirmReason !== null} onOpenChange={(nextOpen) => { if (!nextOpen) setVaultConfirmReason(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {vaultConfirmReason === "invalid" ? t("import.vaultInvalidConfirmTitle") : t("import.vaultSkipConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {vaultConfirmReason === "invalid"
+                ? t("import.vaultInvalidConfirmDescription", { count: vaultCredentialsCount })
+                : t("import.vaultSkipConfirmDescription", { count: vaultCredentialsCount })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("import.vaultSkipConfirmCancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                // 保留原密码提交：预检已确认 GCM 失败，apply 会按 invalid 跳过凭据并恢复其他数据。
+                setVaultConfirmReason(null);
+                void handleApply();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t("import.vaultSkipConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

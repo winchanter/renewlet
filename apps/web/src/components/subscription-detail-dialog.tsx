@@ -4,7 +4,7 @@
  * 架构位置：列表、仪表盘和日历共用这一份只读详情，编辑仍交回页面级 CRUD 控制器。
  * 注意：金额、周期、状态和提醒标签必须继续复用订阅 domain 常量，避免不同入口展示口径分叉。
  */
-import { useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { CalendarPlus, Edit2, ExternalLink, History, RotateCw } from "lucide-react";
 import type { Subscription, SubscriptionCollectionItem } from "@/types/subscription";
 import {
@@ -15,7 +15,6 @@ import {
 import { AddToCalendarDialog } from "@/components/add-to-calendar-dialog";
 import { preloadRenewSubscriptionDialog } from "@/components/renew-subscription-dialog-loader";
 import { preloadBillingRecordsDialog } from "@/components/billing-records-dialog-loader";
-import { LinkedAccountsSection } from "@/components/vault/linked-accounts-section";
 import { SubscriptionLogo } from "@/components/subscription-logo";
 import {
   createSubscriptionDetailLoadingSlots,
@@ -51,6 +50,11 @@ import { isManualRenewEligible } from "@renewlet/shared/subscription-renewal";
 import { calculateCostSharingSummary } from "@renewlet/shared/cost-sharing";
 
 const DEFAULT_LOGO_FALLBACK_COLOR = "hsl(var(--primary))";
+
+// 关联账号区块依赖 vault 页面链路（use-vault/vault chunk），懒加载使其不进订阅页路由闭包（bundle 预算守卫）。
+const LinkedAccountsSection = lazy(() =>
+  import("@/components/vault/linked-accounts-section").then((m) => ({ default: m.LinkedAccountsSection })),
+);
 
 interface SubscriptionDetailDialogProps {
   open: boolean;
@@ -391,7 +395,9 @@ function SubscriptionDetailContent({
               </div>
             </div>
           ) : null}
-          <LinkedAccountsSection subscriptionId={subscription.id} />
+          <Suspense fallback={<div className="h-24 animate-pulse rounded-lg bg-secondary/40" />}>
+            <LinkedAccountsSection subscriptionId={subscription.id} />
+          </Suspense>
         </>
       )}
       actions={(
@@ -456,6 +462,10 @@ export function SubscriptionDetailDialog({
 }: SubscriptionDetailDialogProps) {
   const isMobile = useMediaQuery("(max-width: 639px)");
   const { t } = useI18n();
+  // 打开详情时预热关联账号区块，避免渲染处 Suspense 出现可感知的占位闪烁。
+  useEffect(() => {
+    if (open) void import("@/components/vault/linked-accounts-section");
+  }, [open]);
   const [showAddToCalendarDialog, setShowAddToCalendarDialog] = useState(false);
   const [calendarSubscription, setCalendarSubscription] = useState<Subscription | null>(null);
   const titleSubscription = subscription ?? loadingPreview;

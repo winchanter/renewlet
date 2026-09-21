@@ -237,10 +237,16 @@ func handleCloudBackupsCreate(app core.App, e *core.RequestEvent) error {
 	if err := body.Validate(locale); err != nil {
 		return e.BadRequestError(serverText(locale, "common.invalidPayload"), err)
 	}
-	snapshots, err := createCloudBackupSnapshotForUserProvider(e.Request.Context(), app, e.Auth, body.Provider)
+	snapshots, vaultCredCount, err := createCloudBackupSnapshotForUserProvider(e.Request.Context(), app, e.Auth, body.Provider)
 	if err != nil {
 		markCloudBackupStatus(app, e.Auth.Id, body.Provider, cloudBackupStatusFailed, persistedCloudBackupErrorMessage(err))
 		return cloudBackupOperationError(e, locale, "cloudBackup.createFailed", "CLOUD_BACKUP_CREATE_FAILED", err)
+	}
+	// 云快照内的账号库凭据段由服务端自动解封 wrappedKek 并加密入包，全程无需用户介入；
+	// 但在安全审计上这仍是敏感操作——用真实条数写入审计日志，detail.via 标识为云快照。
+	if vaultCredCount > 0 {
+		writeVaultAccessLog(app, e.Auth.Id, vaultLogActionBackupExported, vaultLogSourceAdmin, vaultLogResultSuccess,
+			"", "", "", clientIP(e.Request), e.Request.UserAgent(), map[string]any{"via": "cloud_snapshot", "credentials": vaultCredCount})
 	}
 	return apiSuccessJSON(e, http.StatusCreated, cloudBackupCreateSnapshotResponse{Snapshots: snapshots})
 }
@@ -404,26 +410,26 @@ func cloudBackupTargetProvidersForConfig(config cloudBackupResolvedConfig) []str
 	return providers
 }
 
-func createCloudBackupSnapshotForUserProvider(ctx context.Context, app core.App, user *core.Record, provider string) ([]cloudBackupSnapshotDTO, error) {
+func createCloudBackupSnapshotForUserProvider(ctx context.Context, app core.App, user *core.Record, provider string) ([]cloudBackupSnapshotDTO, int, error) {
 	config, err := readCloudBackupConfig(app, user.Id)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	target, err := cloudBackupRemoteTargetForProvider(config, provider)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	return createCloudBackupSnapshotForTargets(ctx, app, user, []cloudBackupTarget{target})
 }
 
-func createCloudBackupSnapshotForTargets(ctx context.Context, app core.App, user *core.Record, targets []cloudBackupTarget) ([]cloudBackupSnapshotDTO, error) {
+func createCloudBackupSnapshotForTargets(ctx context.Context, app core.App, user *core.Record, targets []cloudBackupTarget) ([]cloudBackupSnapshotDTO, int, error) {
 	if len(targets) == 0 {
-		return nil, errors.New("CLOUD_BACKUP_TARGET_REQUIRED")
+		return nil, 0, errors.New("CLOUD_BACKUP_TARGET_REQUIRED")
 	}
 	// 多目标只在定时任务内部复用同一份 ZIP；手动立即备份会传入单个当前 provider 目标。
 	payload, err := buildCloudBackupSnapshotPayload(app, user)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	snapshots := make([]cloudBackupSnapshotDTO, 0, len(targets))
 	err = withCloudBackupSnapshotPayload(user.Id, payload, func(payload cloudBackupSnapshotPayload) error {
@@ -437,9 +443,9 @@ func createCloudBackupSnapshotForTargets(ctx context.Context, app core.App, user
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return snapshots, nil
+	return snapshots, payload.VaultCredentialsCount, nil
 }
 
 func withCloudBackupSnapshotPayload(userID string, payload cloudBackupSnapshotPayload, use func(cloudBackupSnapshotPayload) error) error {
@@ -453,7 +459,7 @@ func withCloudBackupSnapshotPayload(userID string, payload cloudBackupSnapshotPa
 }
 
 func buildCloudBackupSnapshotPayload(app core.App, user *core.Record) (cloudBackupSnapshotPayload, error) {
-	source, exportedAt, err := buildCloudBackupExportZip(app, user)
+	source, exportedAt, vaultCredCount, err := buildCloudBackupExportZip(app, user)
 	if err != nil {
 		return cloudBackupSnapshotPayload{}, err
 	}
@@ -485,7 +491,7 @@ func buildCloudBackupSnapshotPayload(app core.App, user *core.Record) (cloudBack
 		ExportKind:          "renewlet-export",
 		ExportSchemaVersion: 1,
 	}
-	return cloudBackupSnapshotPayload{Source: source, ID: id, Filename: filename, Manifest: manifest}, nil
+	return cloudBackupSnapshotPayload{Source: source, ID: id, Filename: filename, Manifest: manifest, VaultCredentialsCount: vaultCredCount}, nil
 }
 
 func uploadCloudBackupSnapshotToTarget(ctx context.Context, app core.App, userID string, payload cloudBackupSnapshotPayload, target cloudBackupTarget) (cloudBackupSnapshotDTO, error) {

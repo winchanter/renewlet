@@ -21,6 +21,8 @@ export const IMPORT_PREVIEW_MAX_BYTES = 8 * 1024 * 1024;
 /** 分组与续订流水只随 Renewo 自导出恢复；流水是不可变快照，条数上限高于订阅，但仍受 8 MiB body 约束。 */
 export const IMPORT_GROUPS_LIMIT = 100;
 export const IMPORT_BILLING_RECORDS_LIMIT = 2000;
+/** 账号库凭据只随 Renewo 自导出恢复；上限与 Go maxVaultExportCredentials 对齐。 */
+export const IMPORT_VAULT_CREDENTIALS_LIMIT = 200;
 
 export const importConflictModeSchema = z.enum(["replace", "skip"]);
 export type ImportConflictMode = z.infer<typeof importConflictModeSchema>;
@@ -69,6 +71,40 @@ export type ImportGroup = z.infer<typeof importGroupSchema>;
 export const importBillingRecordSchema = apiBillingRecordSchema;
 export type ImportBillingRecord = z.infer<typeof importBillingRecordSchema>;
 
+/**
+ * 备份包 KDF envelope：目标实例凭 salt+params 复算 Argon2id KEK 解密凭据密文。
+ * salt 由导出实例生成并随包携带，改备份密码会生成新 salt，旧备份包不受影响。
+ */
+export const importBackupEnvelopeSchema = z.object({
+  kdf: z.literal("argon2id"),
+  version: z.literal(1),
+  salt: z.string().trim().min(16).max(128),
+  params: z.object({
+    memoryKiB: z.number().int().positive(),
+    iterations: z.number().int().positive(),
+    parallelism: z.number().int().positive(),
+  }).strict(),
+}).strict();
+export type ImportBackupEnvelope = z.infer<typeof importBackupEnvelopeSchema>;
+
+/**
+ * 备份包内账号库凭据形状：passwordBackup/notesBackup 是备份密码 KEK 的 AES-GCM 密文
+ * （v1.nonce.ct），明文密码永不进包。subscriptionId/groupId 是源实例 ID，
+ * 恢复时按映射重绑，映射不到置空（凭据保留为独立账号）。
+ */
+export const importVaultCredentialSchema = z.object({
+  id: z.string().trim().min(1).max(64),
+  title: z.string().trim().min(1).max(120),
+  url: z.string().trim().max(2048),
+  username: z.string().trim().max(200),
+  sortOrder: z.number().int().nonnegative(),
+  subscriptionId: z.string().trim().max(64),
+  groupId: z.string().trim().max(64),
+  passwordBackup: z.string().max(4096),
+  notesBackup: z.string().max(10240),
+}).strict();
+export type ImportVaultCredential = z.infer<typeof importVaultCredentialSchema>;
+
 export const importPayloadSchema = z.object({
   source: importSourceSchema,
   // 导入 payload 是前端、Go route 与 Worker apply 共享契约；上限保护预览解析和冲突查询，不代表一次写库上限。
@@ -79,6 +115,9 @@ export const importPayloadSchema = z.object({
   // 分组与流水只允许出现在 Renewo 自导出包；Wallos/AI 导入没有这些实体。
   groups: z.array(importGroupSchema).max(IMPORT_GROUPS_LIMIT, "IMPORT_TOO_MANY_GROUPS").optional(),
   billingRecords: z.array(importBillingRecordSchema).max(IMPORT_BILLING_RECORDS_LIMIT, "IMPORT_TOO_MANY_BILLING_RECORDS").optional(),
+  // 账号库凭据段只随 Renewo 自导出/云快照出现；apply 必须携带 backupPassphrase 才能解密。
+  backupEnvelope: importBackupEnvelopeSchema.optional(),
+  vaultCredentials: z.array(importVaultCredentialSchema).max(IMPORT_VAULT_CREDENTIALS_LIMIT, "IMPORT_TOO_MANY_VAULT_CREDENTIALS").optional(),
 }).strict();
 export type ImportPayload = z.infer<typeof importPayloadSchema>;
 
@@ -95,6 +134,8 @@ export const importPreviewRequestSchema = z.object({
   skipIndexes: importSkipIndexesSchema.default([]),
   // forceReplaceIndexes 让 skip 模式下的特定条目强制替换；执行端会做与 skipIndexes 的互斥校验。
   forceReplaceIndexes: importForceReplaceIndexesSchema.default([]),
+  // 备份密码仅当包内含账号库凭据段时由前端随请求携带；preview 忽略，apply 必填。
+  backupPassphrase: z.string().max(256).optional(),
 }).strict();
 export type ImportPreviewRequest = z.infer<typeof importPreviewRequestSchema>;
 
@@ -106,6 +147,8 @@ export const importApplyRequestSchema = z.object({
   conflictMode: importConflictModeSchema,
   skipIndexes: importApplySkipIndexesSchema.default([]),
   forceReplaceIndexes: importForceReplaceIndexesSchema.default([]),
+  // 包内含账号库凭据段时 apply 必填；服务端用 GCM 认证判定密码正确性。
+  backupPassphrase: z.string().max(256).optional(),
 }).strict();
 export type ImportApplyRequest = z.infer<typeof importApplyRequestSchema>;
 
@@ -145,11 +188,17 @@ export const importPreviewPayloadSchema = z.object({
   groupsCount: z.number().int().nonnegative(),
   includesBillingRecords: z.boolean(),
   billingRecordsCount: z.number().int().nonnegative(),
+  includesVaultCredentials: z.boolean(),
+  vaultCredentialsCount: z.number().int().nonnegative(),
 }).strict();
 export const importPreviewResponseSchema = apiSuccessResponseSchema(importPreviewPayloadSchema);
 export type ImportPreviewResponse = z.infer<typeof importPreviewPayloadSchema>;
 
-export const importApplyPayloadSchema = importPreviewPayloadSchema;
+export const importApplyPayloadSchema = importPreviewPayloadSchema.extend({
+  vaultCredentialsRestored: z.number().int().nonnegative(),
+  vaultCredentialsSkipped: z.boolean(),
+  vaultCredentialsSkipReason: z.enum(["empty", "invalid"]).optional(),
+}).strict();
 export const importApplyResponseSchema = apiSuccessResponseSchema(importApplyPayloadSchema);
 export type ImportApplyResponse = z.infer<typeof importApplyPayloadSchema>;
 
@@ -204,6 +253,9 @@ export const renewletExportV1Schema = z.object({
     // 分组与续订流水是 Renewo 业务实体；旧备份缺失时按 optional 降级，不影响订阅恢复。
     groups: z.array(renewletExportGroupSchema).max(IMPORT_GROUPS_LIMIT).optional(),
     billingRecords: z.array(apiBillingRecordSchema).max(IMPORT_BILLING_RECORDS_LIMIT).optional(),
+    // 账号库凭据段：已设置备份密码的实例自动云快照/手动导出才会包含；旧包缺失时按 optional 降级。
+    backupEnvelope: importBackupEnvelopeSchema.optional(),
+    vaultCredentials: z.array(importVaultCredentialSchema).max(IMPORT_VAULT_CREDENTIALS_LIMIT).optional(),
     assets: z.array(exportAssetSchema).optional(),
   }).strict(),
 }).strict();

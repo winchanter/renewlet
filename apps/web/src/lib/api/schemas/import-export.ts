@@ -51,4 +51,6 @@ export type {
   RenewletExportV1,
   ImportGroup,
   ImportBillingRecord,
+  ImportBackupEnvelope,
+  ImportVaultCredential,
 } from "@renewlet/shared/schemas/import-export";

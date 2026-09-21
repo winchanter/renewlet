@@ -165,6 +165,9 @@
   "import.payloadContainsErrors": "Import payload contains errors",
   "import.previewFailed": "Import payload contains errors",
   "import.skipIndexInvalid": "Invalid skipped item index",
+  "import.vaultPassphraseInvalid": "Invalid backup passphrase; vault credentials were not restored",
+  "import.vaultPassphraseRequired": "This backup contains vault credentials; enter the backup passphrase",
+  "import.vaultUnsupported": "Vault credential restore is only supported in the Docker edition",
   "media.candidateItemCountInvalid": "Invalid media candidate item count",
   "media.candidateItemInvalid": "Invalid media candidate item",
   "media.candidateItemLimitInvalid": "Invalid media candidate limit",
@@ -362,6 +365,10 @@
   "url.privateOrLocalNotAllowedGeneric": "URL cannot point to private or localhost addresses",
   "validation.jsonParseFailed": "JSON parsing failed. Check the format.",
   "vault.approveCredentialRequired": "Approving a request requires selecting the specific credential to grant",
+  "vault.backupKeys.alreadySet": "Backup passphrase is already configured",
+  "vault.backupKeys.invalid": "Backup passphrase must be 8-256 characters",
+  "vault.backupKeys.notConfigured": "Backup passphrase is not configured",
+  "vault.backupKeys.wrongPassphrase": "Invalid backup passphrase",
   "vault.codeExhausted": "Access code attempts exhausted",
   "vault.codeExpired": "Access code expired",
   "vault.codeInvalid": "Invalid access code",
@@ -376,7 +383,7 @@
   "vault.publicRedeemRateLimited": "Too many attempts, please try again later",
   "vault.requestAlreadyDecided": "This request has already been decided",
   "vault.requestNotFound": "Access request not found",
+  "vault.subscriptionGroupMutex": "Credential cannot bind to both subscription and group",
   "vault.subscriptionNotFound": "Linked subscription not found",
-  "vault.subscriptionRequired": "Access codes must be bound to a subscription",
-  "vault.subscriptionGroupMutex": "Credential cannot bind to both subscription and group"
+  "vault.subscriptionRequired": "Access codes must be bound to a subscription"
 }

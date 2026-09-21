@@ -206,6 +206,8 @@ describe("ImportDataDialog", () => {
       groupsCount: payload.groups?.length ?? 0,
       includesBillingRecords: Boolean(payload.billingRecords?.length),
       billingRecordsCount: payload.billingRecords?.length ?? 0,
+      includesVaultCredentials: Boolean(payload.vaultCredentials?.length),
+      vaultCredentialsCount: payload.vaultCredentials?.length ?? 0,
     }));
     mocks.createAsset.mockResolvedValue({ url: "/api/app/assets/import_logo" });
     mocks.applyChunked.mockImplementation(async (payload) => ({
@@ -234,6 +236,8 @@ describe("ImportDataDialog", () => {
       groupsCount: payload.groups?.length ?? 0,
       includesBillingRecords: Boolean(payload.billingRecords?.length),
       billingRecordsCount: payload.billingRecords?.length ?? 0,
+      includesVaultCredentials: Boolean(payload.vaultCredentials?.length),
+      vaultCredentialsCount: payload.vaultCredentials?.length ?? 0,
     }));
   });
 

@@ -8,7 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Activity, AlertCircle, CheckCircle2, CircleHelp, Eye, Globe2, Shield, XCircle } from "lucide-react";
+import { Activity, AlertCircle, ArchiveRestore, CheckCircle2, CircleHelp, Download, Eye, Globe2, KeyRound, Shield, XCircle } from "lucide-react";
 import { useVaultAccessLogs } from "@/hooks/use-vault-p2";
 import type { VaultAccessLog, VaultLogAction } from "@/types/subscription";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -29,6 +29,11 @@ const ACTION_LABEL_KEY: Partial<Record<VaultLogAction, MessageKey>> = {
   request_approved: "vault.logs.action.request_approved",
   request_declined: "vault.logs.action.request_declined",
   request_closed: "vault.logs.action.request_closed",
+  backup_key_set: "vault.logs.action.backup_key_set",
+  backup_key_changed: "vault.logs.action.backup_key_changed",
+  backup_key_deleted: "vault.logs.action.backup_key_deleted",
+  backup_export: "vault.logs.action.backup_export",
+  credentials_restored: "vault.logs.action.credentials_restored",
 };
 
 type FilterAction = "all" | VaultLogAction;
@@ -46,6 +51,11 @@ const LOG_ACTION_ORDER: VaultLogAction[] = [
   "request_approved",
   "request_declined",
   "request_closed",
+  "backup_key_set",
+  "backup_key_changed",
+  "backup_key_deleted",
+  "backup_export",
+  "credentials_restored",
 ];
 
 const PAGE_SIZE = 50;
@@ -266,6 +276,11 @@ function actionIconFor(action: string) {
     case "request_approved": return <CheckCircle2 className="h-4 w-4 text-green" />;
     case "request_declined": return <XCircle className="h-4 w-4 text-destructive" />;
     case "request_closed": return <XCircle className="h-4 w-4 text-muted-foreground" />;
+    case "backup_key_set": return <KeyRound className="h-4 w-4 text-green" />;
+    case "backup_key_changed": return <KeyRound className="h-4 w-4 text-blue-500" />;
+    case "backup_key_deleted": return <KeyRound className="h-4 w-4 text-destructive" />;
+    case "backup_export": return <Download className="h-4 w-4 text-blue-500" />;
+    case "credentials_restored": return <ArchiveRestore className="h-4 w-4 text-green" />;
     default: return <Activity className="h-4 w-4 text-muted-foreground" />;
   }
 }

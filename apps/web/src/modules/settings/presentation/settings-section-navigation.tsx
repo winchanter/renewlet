@@ -46,9 +46,7 @@ export function createSettingsSections({
 }: {
   canManageAccessSecurity: boolean;
 }): SettingsSectionList {
-  return canManageAccessSecurity
-    ? SETTINGS_SECTIONS
-    : SETTINGS_SECTIONS.filter((section) => section.id !== "settings-access-security");
+  return SETTINGS_SECTIONS.filter((section) => (canManageAccessSecurity ? true : section.id !== "settings-access-security"));
 }
 
 /**

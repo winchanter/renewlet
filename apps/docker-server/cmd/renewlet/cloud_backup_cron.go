@@ -101,6 +101,11 @@ func runDueCloudBackups(app core.App, now time.Time) error {
 			}
 			continue
 		}
+		// 定时快照内的账号库凭据段同样是服务端静默解封写入，记一条审计日志。
+		if payload.VaultCredentialsCount > 0 {
+			writeVaultAccessLog(app, group.user.Id, vaultLogActionBackupExported, vaultLogSourceAdmin, vaultLogResultSuccess,
+				"", "", "", "", "", map[string]any{"via": "cloud_snapshot_scheduled", "credentials": payload.VaultCredentialsCount})
+		}
 		_ = withCloudBackupSnapshotPayload(userID, payload, func(payload cloudBackupSnapshotPayload) error {
 			for _, target := range group.targets {
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

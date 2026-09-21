@@ -254,6 +254,11 @@ export const vaultLogActionSchema = z.enum([
   "request_approved",
   "request_declined",
   "request_closed",
+  "backup_key_set",
+  "backup_key_changed",
+  "backup_key_deleted",
+  "backup_export",
+  "credentials_restored",
 ]);
 export type VaultLogAction = z.infer<typeof vaultLogActionSchema>;
 

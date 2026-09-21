@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CostSharingCurrencyConverter } from "@renewlet/shared/cost-sharing";
 import type { ApiBillingRecord } from "@renewlet/shared/schemas/billing-records";
+import type { ImportBackupEnvelope, ImportVaultCredential } from "@/lib/api/schemas/import-export";
 import { toast } from "@/components/ui/sonner";
 import type { Locale } from "@/i18n/locales";
 import { localizedLabel } from "@/i18n/locales";
@@ -16,6 +17,17 @@ import type { AppSettings, Subscription } from "@/types/subscription";
 
 /** 续订流水导出上限，与 shared IMPORT_BILLING_RECORDS_LIMIT 及两端备份包契约对齐。 */
 const EXPORT_BILLING_RECORDS_LIMIT = 2000;
+
+/** 账号库凭据段（Docker 面）：由导出对话框先用备份密码解锁 /api/app/vault/export 后传入。 */
+export interface ExportVaultBackupOptions {
+  backupEnvelope: ImportBackupEnvelope;
+  vaultCredentials: readonly ImportVaultCredential[];
+}
+
+export interface ExportBackupRequest {
+  includeSecrets: boolean;
+  vaultBackup?: ExportVaultBackupOptions | undefined;
+}
 
 async function loadExchangeRateSnapshotsForExport(signal: AbortSignal) {
   try {
@@ -105,7 +117,7 @@ export function useSubscriptionExport(
     }
   }, [locale]);
 
-  const exportBackup = useCallback((includeSecrets: boolean) => {
+  const exportBackup = useCallback(({ includeSecrets, vaultBackup }: ExportBackupRequest) => {
     void runExport(async (signal) => {
       // 序列化模块和轻量读取互不依赖；显式导出时并行启动，避免代码拆分产生新的请求瀑布。
       const [exportModule, subscriptions, exchangeRateSnapshots, groups] = await Promise.all([
@@ -124,17 +136,10 @@ export function useSubscriptionExport(
         exchangeRateSnapshots,
         groups,
         billingRecords,
+        ...(vaultBackup ? { vaultBackup } : {}),
       }, { signal });
     });
   }, [config, runExport, settings]);
-
-  const exportToJSON = useCallback(() => {
-    void exportBackup(false);
-  }, [exportBackup]);
-
-  const exportToJSONWithSecrets = useCallback(() => {
-    void exportBackup(true);
-  }, [exportBackup]);
 
   const exportToCSV = useCallback(() => {
     void runExport(async (signal) => {
@@ -162,5 +167,5 @@ export function useSubscriptionExport(
     timeZone,
   ]);
 
-  return { exportToJSON, exportToJSONWithSecrets, exportToCSV, exporting };
+  return { exportBackup, exportToCSV, exporting };
 }

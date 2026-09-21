@@ -166,10 +166,11 @@ type cloudBackupSnapshotManifest struct {
 }
 
 type cloudBackupSnapshotPayload struct {
-	Source   cloudBackupSnapshotSource
-	ID       string
-	Filename string
-	Manifest cloudBackupSnapshotManifest
+	Source                cloudBackupSnapshotSource
+	ID                    string
+	Filename              string
+	Manifest              cloudBackupSnapshotManifest
+	VaultCredentialsCount int
 }
 
 // cloudBackupSnapshotSource 是可重开、由调用方清理的临时快照；多 provider 上传必须各自 Open，不能共享已消费 reader。

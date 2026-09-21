@@ -188,6 +188,9 @@ export function buildFromRenewletExport(
       settings: data.data.settings,
       customConfig: prepareRenewletExportCustomConfig(data.data.customConfig, assetFiles, assets),
       exchangeRateSnapshots: data.data.exchangeRateSnapshots,
+      // 账号库凭据段（Docker 面备份）：原样透传给预览/apply，服务端用 backupPassphrase 解密后落库。
+      ...(data.data.backupEnvelope ? { backupEnvelope: data.data.backupEnvelope } : {}),
+      ...(data.data.vaultCredentials?.length ? { vaultCredentials: data.data.vaultCredentials } : {}),
     }),
     assets,
     warnings,

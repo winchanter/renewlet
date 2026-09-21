@@ -1,9 +1,13 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
+  createVaultBackupKeys,
   createVaultCredential,
+  deleteVaultBackupKeys,
   deleteVaultCredential,
+  getVaultBackupKeysStatus,
   listVaultCredentials,
   revealVaultCredentialPassword,
+  updateVaultBackupKeys,
   updateVaultCredential,
 } from "@/services/vault-service";
 import type { VaultCredentialCreateRequest, VaultCredentialUpdateRequest } from "@renewlet/shared/schemas/vault";
@@ -12,6 +16,7 @@ const VAULT_STALE_TIME_MS = 60_000;
 
 export const vaultQueryKeys = {
   all: ["vault"] as const,
+  backupKeys: ["vault", "backup-keys"] as const,
   list: (subscriptionId?: string | null, groupId?: string | null) => {
     if (subscriptionId) return ["vault", "list", "sub", subscriptionId] as const;
     if (groupId) return ["vault", "list", "group", groupId] as const;
@@ -80,5 +85,46 @@ export function useRevealVaultCredentialPassword() {
   return useMutation({
     mutationFn: ({ credentialId, signal }: { credentialId: string; signal?: AbortSignal }) =>
       revealVaultCredentialPassword(credentialId, signal),
+  });
+}
+
+// ============== 备份密码（Credential Vault 备份恢复） ==============
+
+export function invalidateVaultBackupKeys(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: vaultQueryKeys.backupKeys });
+}
+
+/** 备份密码设置状态；导出对话框每次打开都要求新鲜数据，默认 staleTime=0。 */
+export function useVaultBackupKeysStatus(enabled = true) {
+  return useQuery({
+    queryKey: vaultQueryKeys.backupKeys,
+    queryFn: ({ signal }) => getVaultBackupKeysStatus(signal),
+    enabled,
+    staleTime: 0,
+  });
+}
+
+export function useCreateVaultBackupKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (passphrase: string) => createVaultBackupKeys(passphrase),
+    onSuccess: () => invalidateVaultBackupKeys(queryClient),
+  });
+}
+
+export function useUpdateVaultBackupKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ currentPassphrase, newPassphrase }: { currentPassphrase: string; newPassphrase: string }) =>
+      updateVaultBackupKeys(currentPassphrase, newPassphrase),
+    onSuccess: () => invalidateVaultBackupKeys(queryClient),
+  });
+}
+
+export function useDeleteVaultBackupKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (passphrase: string) => deleteVaultBackupKeys(passphrase),
+    onSuccess: () => invalidateVaultBackupKeys(queryClient),
   });
 }

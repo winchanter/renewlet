@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { DeferredLogoAsset } from "@/components/import-logo-editor";
 import {
@@ -10,6 +10,7 @@ import { SETTINGS_QUERY_KEY } from "@/hooks/settings-query-key";
 import { invalidateAllSubscriptionBillingRecords, invalidateSubscriptionCollections, removeSubscriptionDetails } from "@/hooks/subscription-query-cache";
 import { subscriptionGroupQueryKeys } from "@/hooks/use-subscription-groups";
 import { invalidateUploadedAssetsQueries } from "@/hooks/use-uploaded-assets";
+import { invalidateVaultLists } from "@/hooks/use-vault";
 import { useI18n } from "@/i18n/I18nProvider";
 import { getDisplayErrorMessage } from "@/lib/display-error";
 import {
@@ -60,6 +61,10 @@ export function useImportPreviewApply({ onApplied }: UseImportPreviewApplyOption
   const [applying, setApplying] = useState(false);
   const [assetProgress, setAssetProgress] = useState<{ done: number; total: number } | null>(null);
   const [applyProgress, setApplyProgress] = useState<{ done: number; total: number } | null>(null);
+  // 账号库备份密码（Renewo 自导出包专用）：preview/apply 每次都透传；
+  // ref 镜像让 previewPrepared/handleApply 读到最新值而不必因逐键输入重建回调。
+  const [backupPassphrase, setBackupPassphraseState] = useState("");
+  const backupPassphraseRef = useRef("");
 
   const resetImportPreview = useCallback(() => {
     setPrepared(null);
@@ -72,6 +77,13 @@ export function useImportPreviewApply({ onApplied }: UseImportPreviewApplyOption
     setApplying(false);
     setAssetProgress(null);
     setApplyProgress(null);
+    setBackupPassphraseState("");
+    backupPassphraseRef.current = "";
+  }, []);
+
+  const setBackupPassphrase = useCallback((value: string) => {
+    backupPassphraseRef.current = value;
+    setBackupPassphraseState(value);
   }, []);
 
   const previewPrepared = useCallback(async (
@@ -81,7 +93,14 @@ export function useImportPreviewApply({ onApplied }: UseImportPreviewApplyOption
   ) => {
     const preparedWithAutoLogos = await resolveAutoLogosForPreparedImport(nextPrepared, signal);
     signal.throwIfAborted();
-    const result = await importExportService.preview(preparedWithAutoLogos.payload, nextConflictMode, signal);
+    const result = await importExportService.preview(
+      preparedWithAutoLogos.payload,
+      nextConflictMode,
+      signal,
+      [],
+      [],
+      backupPassphraseRef.current || undefined,
+    );
     signal.throwIfAborted();
     setPrepared(preparedWithAutoLogos);
     setPreview(result);
@@ -160,7 +179,14 @@ export function useImportPreviewApply({ onApplied }: UseImportPreviewApplyOption
           throw new ImportAssetUploadError(assetError);
         });
       const payload = parseApplyPayload(resolvedAssets.payload);
-      const result = parseApplyResult(await importExportService.applyChunked(payload, conflictMode, skipIndexList, forceReplaceIndexList, (done, total) => setApplyProgress({ done, total })));
+      const result = parseApplyResult(await importExportService.applyChunked(
+        payload,
+        conflictMode,
+        skipIndexList,
+        forceReplaceIndexList,
+        (done, total) => setApplyProgress({ done, total }),
+        backupPassphraseRef.current || undefined,
+      ));
       // 导入资产上传只影响 logo 分页缓存；按上传结果精确失效，避免无 Logo 导入刷新资产列表。
       const assetInvalidations = resolvedAssets.uploadedLogoCount > 0
         ? [invalidateUploadedAssetsQueries(queryClient, "logo")]
@@ -182,6 +208,8 @@ export function useImportPreviewApply({ onApplied }: UseImportPreviewApplyOption
         ...(payload.billingRecords?.length
           ? [invalidateAllSubscriptionBillingRecords(queryClient)]
           : []),
+        // 恢复了账号库凭据时失效账号库列表缓存，导入完成后立即可见新账号。
+        ...(result.vaultCredentialsRestored > 0 ? [invalidateVaultLists(queryClient)] : []),
         ...assetInvalidations,
         ...iconAssetInvalidations,
       ]);
@@ -190,6 +218,13 @@ export function useImportPreviewApply({ onApplied }: UseImportPreviewApplyOption
           replaces: result.summary.replaces,
           skips: result.summary.skips,
         }));
+      // 凭据段被跳过时单独提示：密码留空（用户已确认）或密码错误。
+      if (result.vaultCredentialsSkipped) {
+        const reason = result.vaultCredentialsSkipReason === "invalid"
+          ? t("import.vaultPassphraseSkippedInvalid", { count: result.vaultCredentialsCount })
+          : t("import.vaultPassphraseSkippedEmpty", { count: result.vaultCredentialsCount });
+        toast.warning(reason);
+      }
       onApplied();
     } catch (err) {
       const message = err instanceof ImportAssetUploadError
@@ -213,6 +248,8 @@ export function useImportPreviewApply({ onApplied }: UseImportPreviewApplyOption
     applying,
     assetProgress,
     applyProgress,
+    backupPassphrase,
+    setBackupPassphrase,
     setError,
     setPreviewFilter,
     resetImportPreview,

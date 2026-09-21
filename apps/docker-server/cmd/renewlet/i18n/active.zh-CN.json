@@ -165,6 +165,9 @@
   "import.payloadContainsErrors": "导入内容存在错误",
   "import.previewFailed": "导入内容存在错误",
   "import.skipIndexInvalid": "跳过项索引无效",
+  "import.vaultPassphraseInvalid": "备份密码错误，账号库凭据未恢复",
+  "import.vaultPassphraseRequired": "此备份包含账号库凭据，请输入备份密码",
+  "import.vaultUnsupported": "账号库恢复仅支持 Docker 版",
   "media.candidateItemCountInvalid": "候选解析条目数量无效",
   "media.candidateItemInvalid": "候选解析条目无效",
   "media.candidateItemLimitInvalid": "候选数量上限无效",
@@ -362,6 +365,10 @@
   "url.privateOrLocalNotAllowedGeneric": "URL 不允许指向内网或本机地址",
   "validation.jsonParseFailed": "JSON 解析失败：请检查格式是否正确",
   "vault.approveCredentialRequired": "通过申请必须指定授权的具体账号",
+  "vault.backupKeys.alreadySet": "备份密码已设置",
+  "vault.backupKeys.invalid": "备份密码长度需在 8-256 位之间",
+  "vault.backupKeys.notConfigured": "尚未设置备份密码",
+  "vault.backupKeys.wrongPassphrase": "备份密码错误",
   "vault.codeExhausted": "授权码尝试次数已用尽",
   "vault.codeExpired": "授权码已过期",
   "vault.codeInvalid": "授权码无效",
@@ -376,7 +383,7 @@
   "vault.publicRedeemRateLimited": "尝试过于频繁，请稍后再试",
   "vault.requestAlreadyDecided": "该申请已处理，无法再次决策",
   "vault.requestNotFound": "访问申请不存在",
+  "vault.subscriptionGroupMutex": "账号不能同时绑定订阅和组",
   "vault.subscriptionNotFound": "关联订阅不存在",
-  "vault.subscriptionRequired": "授权码必须绑定具体订阅",
-  "vault.subscriptionGroupMutex": "账号不能同时绑定订阅和组"
+  "vault.subscriptionRequired": "授权码必须绑定具体订阅"
 }

@@ -46,7 +46,7 @@ msgstr "https://example.com"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:45
 msgid "vault.form.groupNone"
-msgstr ""
+msgstr "No group"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:43
@@ -77,6 +77,11 @@ msgstr "Clear the saved password on save"
 #: src/i18n/descriptors/vault.ts:47
 msgid "vault.form.submitCreate"
 msgstr "Save credential"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:173
+msgid "vault.logs.action.backup_key_changed"
+msgstr "Backup passphrase changed"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:162
@@ -116,7 +121,7 @@ msgstr "Linked group"
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:44
 msgid "vault.form.groupLabel"
-msgstr ""
+msgstr "Linked group"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:84
@@ -169,6 +174,11 @@ msgid "vault.codes.createdAt"
 msgstr "Created at"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:174
+msgid "vault.logs.action.backup_key_deleted"
+msgstr "Backup passphrase removed"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:53
 msgid "vault.delete.title"
 msgstr "Delete credential"
@@ -194,7 +204,7 @@ msgid "vault.logs.loadMore"
 msgstr "Load more"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:172
+#: src/i18n/descriptors/vault.ts:177
 msgid "vault.logs.detail.reason"
 msgstr "Reason: {reason}"
 
@@ -309,6 +319,11 @@ msgid "vault.card.revealFailed"
 msgstr "Failed to read the password"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:175
+msgid "vault.logs.action.backup_export"
+msgstr "Exported vault credentials"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:77
 msgid "vault.codes.status.used"
 msgstr "Used"
@@ -372,6 +387,11 @@ msgstr "Pending"
 #: src/i18n/descriptors/vault.ts:41
 msgid "vault.form.notesPlaceholder"
 msgstr "Recovery codes and security hints are encrypted as well"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:176
+msgid "vault.logs.action.credentials_restored"
+msgstr "Restored vault credentials"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:158
@@ -474,12 +494,12 @@ msgid "vault.searchPlaceholder"
 msgstr "Search by title, username, or URL"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:182
+#: src/i18n/descriptors/vault.ts:187
 msgid "vault.logs.detailLegend.reason"
 msgstr "Specific reason when the operation failed or was denied"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:181
+#: src/i18n/descriptors/vault.ts:186
 msgid "vault.logs.detailLegend.ip"
 msgstr "Client IP address of the operator"
 
@@ -509,7 +529,7 @@ msgid "vault.codes.legacyCredentialTitle"
 msgstr "Legacy code (no credential bound, expired)"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:173
+#: src/i18n/descriptors/vault.ts:178
 msgid "vault.logs.header.time"
 msgstr "Time"
 
@@ -534,7 +554,7 @@ msgid "vault.codes.form.expireHoursLabel"
 msgstr "Validity (hours)"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:174
+#: src/i18n/descriptors/vault.ts:179
 msgid "vault.logs.header.source"
 msgstr "Source"
 
@@ -649,17 +669,17 @@ msgid "vault.form.passwordPlaceholder"
 msgstr "Leave empty to skip saving a password"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:180
+#: src/i18n/descriptors/vault.ts:185
 msgid "vault.logs.detailLegend.code"
 msgstr "Related access code ID (first 12 chars)"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:178
+#: src/i18n/descriptors/vault.ts:183
 msgid "vault.logs.detailLegend.sub"
 msgstr "Related subscription ID (first 12 chars)"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:179
+#: src/i18n/descriptors/vault.ts:184
 msgid "vault.logs.detailLegend.cred"
 msgstr "Related credential ID (first 12 chars)"
 
@@ -681,17 +701,17 @@ msgstr "Paste or enter the 16-character access code; the code itself is already 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:16
 msgid "vault.filter.grouped"
-msgstr ""
+msgstr "Group shared"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:19
 msgid "vault.card.linkedToGroup"
-msgstr ""
+msgstr "Group shared"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:46
 msgid "vault.form.groupHelp"
-msgstr ""
+msgstr "Group-shared accounts can be used by all subscriptions in the group; mutually exclusive with linking a subscription, pick only one."
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:96
@@ -699,7 +719,7 @@ msgid "vault.codes.form.credentialLabel"
 msgstr "Bind credential"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:175
+#: src/i18n/descriptors/vault.ts:180
 msgid "vault.logs.header.result"
 msgstr "Result"
 
@@ -729,6 +749,11 @@ msgid "vault.codes.redeem.failed"
 msgstr "Unlock failed"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:172
+msgid "vault.logs.action.backup_key_set"
+msgstr "Backup passphrase set"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:129
 msgid "vault.requests.noteLabel"
 msgstr "Visitor note"
@@ -754,12 +779,12 @@ msgid "vault.requests.form.noCredentialsForSubscription"
 msgstr "No grantable credentials under this subscription yet. Add a linked credential in the Vault first."
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:176
+#: src/i18n/descriptors/vault.ts:181
 msgid "vault.logs.header.detail"
 msgstr "Detail"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:177
+#: src/i18n/descriptors/vault.ts:182
 msgid "vault.logs.detailLegend.title"
 msgstr "Detail tag legend"
 

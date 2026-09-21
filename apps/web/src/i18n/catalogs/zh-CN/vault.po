@@ -79,6 +79,11 @@ msgid "vault.form.submitCreate"
 msgstr "保存账号"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:173
+msgid "vault.logs.action.backup_key_changed"
+msgstr "修改备份密码"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:162
 msgid "vault.logs.action.credential_updated"
 msgstr "修改账号"
@@ -169,6 +174,11 @@ msgid "vault.codes.createdAt"
 msgstr "创建时间"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:174
+msgid "vault.logs.action.backup_key_deleted"
+msgstr "删除备份密码"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:53
 msgid "vault.delete.title"
 msgstr "删除账号"
@@ -194,7 +204,7 @@ msgid "vault.logs.loadMore"
 msgstr "加载更多"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:172
+#: src/i18n/descriptors/vault.ts:177
 msgid "vault.logs.detail.reason"
 msgstr "原因：{reason}"
 
@@ -309,6 +319,11 @@ msgid "vault.card.revealFailed"
 msgstr "密码读取失败"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:175
+msgid "vault.logs.action.backup_export"
+msgstr "导出账号库凭据"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:77
 msgid "vault.codes.status.used"
 msgstr "已使用"
@@ -372,6 +387,11 @@ msgstr "待处理"
 #: src/i18n/descriptors/vault.ts:41
 msgid "vault.form.notesPlaceholder"
 msgstr "恢复码、安全提示等敏感信息会同样加密保存"
+
+#. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:176
+msgid "vault.logs.action.credentials_restored"
+msgstr "恢复账号库凭据"
 
 #. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:158
@@ -474,12 +494,12 @@ msgid "vault.searchPlaceholder"
 msgstr "搜索名称、用户名或网址"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:182
+#: src/i18n/descriptors/vault.ts:187
 msgid "vault.logs.detailLegend.reason"
 msgstr "操作失败或被拒绝时的具体原因"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:181
+#: src/i18n/descriptors/vault.ts:186
 msgid "vault.logs.detailLegend.ip"
 msgstr "操作者的客户端 IP 地址"
 
@@ -509,7 +529,7 @@ msgid "vault.codes.legacyCredentialTitle"
 msgstr "旧版授权码（未绑定账号，已失效）"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:173
+#: src/i18n/descriptors/vault.ts:178
 msgid "vault.logs.header.time"
 msgstr "时间"
 
@@ -534,7 +554,7 @@ msgid "vault.codes.form.expireHoursLabel"
 msgstr "有效期（小时）"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:174
+#: src/i18n/descriptors/vault.ts:179
 msgid "vault.logs.header.source"
 msgstr "来源"
 
@@ -649,17 +669,17 @@ msgid "vault.form.passwordPlaceholder"
 msgstr "留空表示不保存密码"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:180
+#: src/i18n/descriptors/vault.ts:185
 msgid "vault.logs.detailLegend.code"
 msgstr "相关授权码 ID（前 12 位）"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:178
+#: src/i18n/descriptors/vault.ts:183
 msgid "vault.logs.detailLegend.sub"
 msgstr "相关订阅 ID（前 12 位）"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:179
+#: src/i18n/descriptors/vault.ts:184
 msgid "vault.logs.detailLegend.cred"
 msgstr "相关账号 ID（前 12 位）"
 
@@ -699,7 +719,7 @@ msgid "vault.codes.form.credentialLabel"
 msgstr "绑定账号"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:175
+#: src/i18n/descriptors/vault.ts:180
 msgid "vault.logs.header.result"
 msgstr "结果"
 
@@ -729,6 +749,11 @@ msgid "vault.codes.redeem.failed"
 msgstr "解锁失败"
 
 #. js-lingui-explicit-id
+#: src/i18n/descriptors/vault.ts:172
+msgid "vault.logs.action.backup_key_set"
+msgstr "设置备份密码"
+
+#. js-lingui-explicit-id
 #: src/i18n/descriptors/vault.ts:129
 msgid "vault.requests.noteLabel"
 msgstr "访客备注"
@@ -754,12 +779,12 @@ msgid "vault.requests.form.noCredentialsForSubscription"
 msgstr "该订阅下暂无可授权的账号，请先到账号库新增关联账号。"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:176
+#: src/i18n/descriptors/vault.ts:181
 msgid "vault.logs.header.detail"
 msgstr "详情"
 
 #. js-lingui-explicit-id
-#: src/i18n/descriptors/vault.ts:177
+#: src/i18n/descriptors/vault.ts:182
 msgid "vault.logs.detailLegend.title"
 msgstr "详情标签说明"
 

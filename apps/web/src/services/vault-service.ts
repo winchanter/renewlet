@@ -2,6 +2,14 @@ import { getApiLocale } from "@/i18n/api-locale";
 import { translate } from "@/i18n/messages";
 import { apiFetch } from "@/lib/api-client";
 import { getCurrentUserId } from "@/lib/pocketbase";
+import { okResponseSchema } from "@/lib/api/schemas/common";
+import {
+  vaultBackupExportResponseSchema,
+  vaultBackupKeysStatusResponseSchema,
+  vaultImportVerifyResponseSchema,
+  type VaultBackupExportPayload,
+  type VaultBackupKeysStatusPayload,
+} from "@/lib/api/schemas/vault";
 import {
   vaultAccessCodeCreatedResponseSchema,
   vaultAccessCodePlainRevealResponseSchema,
@@ -29,6 +37,7 @@ import type {
   VaultCredentialCreateRequest,
   VaultCredentialUpdateRequest,
 } from "@renewlet/shared/schemas/vault";
+import type { ImportBackupEnvelope } from "@renewlet/shared/schemas/import-export";
 
 export type {
   VaultAccessCodeCreateRequest,
@@ -282,4 +291,78 @@ export async function listVaultAccessLogs(options: ListVaultAccessLogsOptions = 
     nextId: data.nextId ?? "",
     hasMore: !!data.hasMore,
   };
+}
+
+// ============== 备份密码（Credential Vault 备份恢复） ==============
+
+export type VaultBackupKeysStatus = VaultBackupKeysStatusPayload;
+export type VaultBackupExport = VaultBackupExportPayload;
+
+/** 查询当前用户是否已设置备份密码；未登录时按未设置处理，由调用方决定是否提示。 */
+export async function getVaultBackupKeysStatus(signal?: AbortSignal): Promise<VaultBackupKeysStatus> {
+  if (!getCurrentUserId()) return { configured: false };
+  return await apiFetch("/api/app/vault/backup-keys", vaultBackupKeysStatusResponseSchema, signal ? { signal } : undefined);
+}
+
+/** 首次设置备份密码；已设置时服务端返回 400「备份密码已设置」。 */
+export async function createVaultBackupKeys(passphrase: string, signal?: AbortSignal): Promise<VaultBackupKeysStatus> {
+  if (!getCurrentUserId()) throw new Error(translate(getApiLocale(), "auth.loginRequired"));
+  return await apiFetch("/api/app/vault/backup-keys", vaultBackupKeysStatusResponseSchema, {
+    method: "POST",
+    body: JSON.stringify({ passphrase }),
+    ...(signal ? { signal } : undefined),
+  });
+}
+
+/** 修改备份密码；旧密码错误时服务端返回 400「备份密码错误」。 */
+export async function updateVaultBackupKeys(
+  currentPassphrase: string,
+  newPassphrase: string,
+  signal?: AbortSignal,
+): Promise<VaultBackupKeysStatus> {
+  if (!getCurrentUserId()) throw new Error(translate(getApiLocale(), "auth.loginRequired"));
+  return await apiFetch("/api/app/vault/backup-keys", vaultBackupKeysStatusResponseSchema, {
+    method: "PATCH",
+    body: JSON.stringify({ currentPassphrase, newPassphrase }),
+    ...(signal ? { signal } : undefined),
+  });
+}
+
+/** 删除备份密码；需要验证旧密码，删除后备份包不再包含账号库凭据。 */
+export async function deleteVaultBackupKeys(passphrase: string, signal?: AbortSignal): Promise<void> {
+  if (!getCurrentUserId()) throw new Error(translate(getApiLocale(), "auth.loginRequired"));
+  await apiFetch("/api/app/vault/backup-keys", okResponseSchema, {
+    method: "DELETE",
+    body: JSON.stringify({ passphrase }),
+    ...(signal ? { signal } : undefined),
+  });
+}
+
+/** 用备份密码解锁账号库凭据导出；返回写入 renewlet-export data.json 的 envelope 与凭据段。 */
+export async function exportVaultBackup(passphrase: string, signal?: AbortSignal): Promise<VaultBackupExport> {
+  if (!getCurrentUserId()) throw new Error(translate(getApiLocale(), "auth.loginRequired"));
+  return await apiFetch("/api/app/vault/export", vaultBackupExportResponseSchema, {
+    method: "POST",
+    body: JSON.stringify({ passphrase }),
+    ...(signal ? { signal } : undefined),
+  });
+}
+
+/**
+ * 导入前预检备份密码：用包内 envelope 派生 KEK 试解密一条密文，不写库。
+ * 返回 false 表示密码错误（或密文无法通过认证），调用方应让用户确认是否跳过凭据恢复。
+ */
+export async function verifyImportVaultPassphrase(
+  envelope: ImportBackupEnvelope,
+  ciphertext: string,
+  passphrase: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (!getCurrentUserId()) throw new Error(translate(getApiLocale(), "auth.loginRequired"));
+  const result = await apiFetch("/api/app/vault/import/verify-passphrase", vaultImportVerifyResponseSchema, {
+    method: "POST",
+    body: JSON.stringify({ envelope, ciphertext, passphrase }),
+    ...(signal ? { signal } : undefined),
+  });
+  return result.valid;
 }

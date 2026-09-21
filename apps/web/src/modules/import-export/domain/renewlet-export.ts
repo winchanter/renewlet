@@ -1,6 +1,8 @@
 import {
   renewletExportManifestV1Schema,
   renewletExportV1Schema,
+  type ImportBackupEnvelope,
+  type ImportVaultCredential,
   type RenewletExportAsset,
   type RenewletExportGroup,
   type RenewletExportMissingAsset,
@@ -43,6 +45,9 @@ export async function exportRenewletBackup(options: {
   groups?: readonly SubscriptionGroup[];
   // 续订流水按订阅全量分页拉好后传入；与后端导出上限保持一致由采集方截断。
   billingRecords?: readonly ApiBillingRecord[];
+  // 账号库凭据段（Docker 面）：由 POST /api/app/vault/export 用备份密码解锁后传入；
+  // 凭据为空时不写入两段，避免导出无意义的空 envelope。
+  vaultBackup?: { backupEnvelope: ImportBackupEnvelope; vaultCredentials: readonly ImportVaultCredential[] };
 }, execution: {
   signal?: AbortSignal;
   onProgress?: (progress: WorkerJobProgress) => void;
@@ -153,6 +158,7 @@ export async function exportRenewletBackup(options: {
   }
 
   const exportedAt = new Date().toISOString();
+  const vaultCredentials = options.vaultBackup?.vaultCredentials ?? [];
   const data = renewletExportV1Schema.parse({
     kind: "renewlet-export",
     schemaVersion: 1,
@@ -164,6 +170,10 @@ export async function exportRenewletBackup(options: {
       exchangeRateSnapshots: [...(options.exchangeRateSnapshots ?? [])],
       ...(groups.length > 0 ? { groups } : {}),
       ...(billingRecords.length > 0 ? { billingRecords } : {}),
+      // 账号库凭据段只在 Docker 面、备份密码已设置且解锁成功后进入 data.json（data 内层契约）。
+      ...(vaultCredentials.length > 0 && options.vaultBackup
+        ? { backupEnvelope: options.vaultBackup.backupEnvelope, vaultCredentials: [...vaultCredentials] }
+        : {}),
       assets,
     },
   });

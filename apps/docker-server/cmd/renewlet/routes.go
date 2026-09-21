@@ -406,6 +406,13 @@ func registerRoutes(app core.App, router *router.Router[*core.RequestEvent]) []a
 	auth.POST("/vault/access-requests/{id}/decide", func(e *core.RequestEvent) error { return handleVaultAccessRequestDecide(app, e) })
 	// 账号库：审计日志（P2-C）
 	auth.GET("/vault/access-logs", func(e *core.RequestEvent) error { return handleVaultAccessLogsList(app, e) })
+	// 账号库备份：备份密码设置/修改/删除与手动导出；凭据密文随包离开，明文密码永不落库。
+	auth.GET("/vault/backup-keys", func(e *core.RequestEvent) error { return handleVaultBackupKeyStatus(app, e) })
+	auth.POST("/vault/backup-keys", func(e *core.RequestEvent) error { return handleVaultBackupKeySet(app, e) })
+	auth.PATCH("/vault/backup-keys", func(e *core.RequestEvent) error { return handleVaultBackupKeyChange(app, e) })
+	auth.DELETE("/vault/backup-keys", func(e *core.RequestEvent) error { return handleVaultBackupKeyDelete(app, e) })
+	auth.POST("/vault/export", func(e *core.RequestEvent) error { return handleVaultExport(app, e) })
+	auth.POST("/vault/import/verify-passphrase", func(e *core.RequestEvent) error { return handleVaultImportVerifyPassphrase(app, e) })
 	// 公开页面：申请访问 + 凭授权码解锁凭据（P2 公开入口）
 	api.POST("/api/public/status/{token}/vault/request", func(e *core.RequestEvent) error { return handleVaultAccessRequestCreatePublic(app, e) })
 	api.POST("/api/public/status/{token}/vault/redeem", func(e *core.RequestEvent) error { return handleVaultAccessCodeRedeemPublic(app, e) })

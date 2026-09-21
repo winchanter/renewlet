@@ -42,8 +42,7 @@ const mocks = vi.hoisted(() => ({
   handleTogglePublicHiddenSubscription: vi.fn(),
   handleSaveSubscription: vi.fn(),
   handleEditDialogOpenChange: vi.fn(),
-  exportToJSON: vi.fn(),
-  exportToJSONWithSecrets: vi.fn(),
+  exportBackup: vi.fn(),
   exportToCSV: vi.fn(),
   customConfig: {
     // 长分类墙复现默认内置分类数量，专门覆盖桌面 Popover 超过首屏时的滚动布局。
@@ -127,9 +126,9 @@ vi.mock("@/modules/subscriptions/application/use-subscription-crud", () => ({
 
 vi.mock("@/modules/subscriptions/application/use-subscription-export", () => ({
   useSubscriptionExport: () => ({
-    exportToJSON: mocks.exportToJSON,
-    exportToJSONWithSecrets: mocks.exportToJSONWithSecrets,
+    exportBackup: mocks.exportBackup,
     exportToCSV: mocks.exportToCSV,
+    exporting: false,
   }),
 }));
 

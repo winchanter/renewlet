@@ -11,6 +11,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,10 @@ const maxImportApplySubscriptions = 200
 // 与 shared IMPORT_GROUPS_LIMIT/IMPORT_BILLING_RECORDS_LIMIT 对齐。
 const maxImportGroups = 100
 const maxImportBillingRecords = 2000
+
+// 账号库凭据恢复上限，与 shared IMPORT_VAULT_CREDENTIALS_LIMIT 对齐。
+const maxImportVaultCredentials = 200
+
 const importWarningLowConfidenceKey = "IMPORT_WARNING_LOW_CONFIDENCE_KEY"
 const importWarningLowConfidenceNameMatched = "IMPORT_WARNING_LOW_CONFIDENCE_NAME_MATCHED"
 
@@ -38,6 +43,8 @@ type importPreviewRequest struct {
 	ConflictMode        string        `json:"conflictMode"`
 	SkipIndexes         []int         `json:"skipIndexes,omitempty"`
 	ForceReplaceIndexes []int         `json:"forceReplaceIndexes,omitempty"`
+	// BackupPassphrase 仅当包内含账号库凭据段时需要；preview 阶段忽略，apply 阶段必填。
+	BackupPassphrase string `json:"backupPassphrase,omitempty"`
 }
 
 type importApplyRequest struct {
@@ -45,6 +52,7 @@ type importApplyRequest struct {
 	ConflictMode        string        `json:"conflictMode"`
 	SkipIndexes         []int         `json:"skipIndexes,omitempty"`
 	ForceReplaceIndexes []int         `json:"forceReplaceIndexes,omitempty"`
+	BackupPassphrase    string        `json:"backupPassphrase,omitempty"`
 }
 
 type importPayload struct {
@@ -55,6 +63,24 @@ type importPayload struct {
 	ExchangeRateSnapshots []exchangeRateSnapshotDTO `json:"exchangeRateSnapshots,omitempty"`
 	Groups                []importGroup             `json:"groups,omitempty"`
 	BillingRecords        []billingRecordItem       `json:"billingRecords,omitempty"`
+	// 账号库凭据段：BackupEnvelope 携带 KDF 盐/参数，VaultCredentials 密文由备份密码 KEK 加密。
+	BackupEnvelope   *backupEnvelope         `json:"backupEnvelope,omitempty"`
+	VaultCredentials []importVaultCredential `json:"vaultCredentials,omitempty"`
+}
+
+// importVaultCredential 是恢复包内的账号库凭据形状；passwordBackup/notesBackup 为
+// 备份密码 KEK 的 AES-GCM 密文（v1.nonce.ct）。subscriptionId/groupId 是源实例 ID，
+// apply 时按恢复映射重绑，映射不到置空（凭据保留为独立账号）。
+type importVaultCredential struct {
+	ID             string `json:"id"`
+	Title          string `json:"title"`
+	URL            string `json:"url"`
+	Username       string `json:"username"`
+	SortOrder      int    `json:"sortOrder"`
+	SubscriptionID string `json:"subscriptionId"`
+	GroupID        string `json:"groupId"`
+	PasswordBackup string `json:"passwordBackup"`
+	NotesBackup    string `json:"notesBackup"`
 }
 
 // importGroup 是恢复包内的分组形状；ID 为源实例分组 ID，apply 时重建为新 ID 并映射订阅归属。
@@ -114,10 +140,18 @@ type importPreviewResponse struct {
 	GroupsCount                   int                 `json:"groupsCount"`
 	IncludesBillingRecords        bool                `json:"includesBillingRecords"`
 	BillingRecordsCount           int                 `json:"billingRecordsCount"`
+	IncludesVaultCredentials      bool                `json:"includesVaultCredentials"`
+	VaultCredentialsCount         int                 `json:"vaultCredentialsCount"`
 }
 
 type importApplyResponse struct {
 	importPreviewResponse
+	// VaultCredentialsRestored 实际恢复的账号库凭据数；包内无凭据段或跳过恢复时为 0。
+	VaultCredentialsRestored int `json:"vaultCredentialsRestored"`
+	// VaultCredentialsSkipped 凭据段是否被跳过：备份密码留空（用户确认跳过）或密码错误。
+	VaultCredentialsSkipped bool `json:"vaultCredentialsSkipped"`
+	// VaultCredentialsSkipReason 跳过原因："empty" 留空跳过 / "invalid" 密码错误跳过。
+	VaultCredentialsSkipReason string `json:"vaultCredentialsSkipReason,omitempty"`
 }
 
 type importPreviewItem struct {
@@ -226,15 +260,45 @@ func handleImportApply(app core.App, e *core.RequestEvent) error {
 	if preview.Summary.Errors > 0 {
 		return e.BadRequestError(serverText(locale, "import.payloadContainsErrors"), preview)
 	}
-	if err := applyImportPayload(app, e.Auth, body.Payload, body.ConflictMode, body.SkipIndexes, body.ForceReplaceIndexes); err != nil {
+	// 备份密码留空（用户确认跳过）或密码错误时，凭据段被跳过但其余数据照常恢复；
+	// 不再在 apply 前硬性要求密码，避免忘记密码时阻断整个导入。
+	vaultRestored, vaultSkipped, vaultSkipReason, err := applyImportPayload(app, e.Auth, body.Payload, body.ConflictMode, body.SkipIndexes, body.ForceReplaceIndexes, body.BackupPassphrase)
+	if err != nil {
 		return e.BadRequestError(serverText(locale, "import.applyFailed"), err)
 	}
-	return apiSuccessJSON(e, http.StatusOK, importApplyResponse{importPreviewResponse: preview})
+	// 仅记录恢复成功的审计日志；跳过/失败不记，避免审计噪音。
+	if vaultRestored > 0 {
+		writeVaultAccessLog(app, e.Auth.Id, vaultLogActionCredentialsRestored, vaultLogSourceAdmin, vaultLogResultSuccess,
+			"", "", "", clientIP(e.Request), e.Request.UserAgent(), map[string]any{"restored": vaultRestored})
+	}
+	return apiSuccessJSON(e, http.StatusOK, importApplyResponse{
+		importPreviewResponse:      preview,
+		VaultCredentialsRestored:   vaultRestored,
+		VaultCredentialsSkipped:    vaultSkipped,
+		VaultCredentialsSkipReason: vaultSkipReason,
+	})
 }
 
 func isImportTooLargeError(err error) bool {
 	message := err.Error()
 	return strings.Contains(message, "body too large") || strings.Contains(message, "IMPORT_TOO_MANY_SUBSCRIPTIONS")
+}
+
+// validateBackupCiphertextFormat 校验 KEK 密文形状（v1.nonce.ciphertext）；空值合法表示无密码/备注。
+func validateBackupCiphertextFormat(value string) error {
+	if value == "" {
+		return nil
+	}
+	parts := strings.Split(value, ".")
+	if len(parts) != 3 || parts[0] != "v1" {
+		return errors.New("IMPORT_VAULT_BACKUP_CIPHERTEXT_INVALID")
+	}
+	for _, part := range parts[1:] {
+		if _, err := base64.RawURLEncoding.DecodeString(part); err != nil {
+			return errors.New("IMPORT_VAULT_BACKUP_CIPHERTEXT_INVALID")
+		}
+	}
+	return nil
 }
 
 func validateImportPayload(payload importPayload, conflictMode string, skipIndexes []int, forceReplaceIndexes []int, maxSubscriptions int, _ appLocale) error {
@@ -263,6 +327,34 @@ func validateImportPayload(payload importPayload, conflictMode string, skipIndex
 	// 放行会让外部 payload 借恢复入口写入不可变流水。
 	if (len(payload.Groups) > 0 || len(payload.BillingRecords) > 0) && payload.Source != "renewlet" {
 		return errors.New("IMPORT_GROUPS_BILLING_RECORDS_SOURCE_INVALID")
+	}
+	// 账号库凭据段同样只随 Renewo 自导出恢复；envelope 与字段边界在这里前置校验，
+	// 密码正确性留给 apply 阶段的 GCM 认证（preview 不持有 passphrase）。
+	if len(payload.VaultCredentials) > maxImportVaultCredentials {
+		return errors.New("IMPORT_TOO_MANY_VAULT_CREDENTIALS")
+	}
+	if len(payload.VaultCredentials) > 0 {
+		if payload.Source != "renewlet" {
+			return errors.New("IMPORT_VAULT_CREDENTIALS_SOURCE_INVALID")
+		}
+		if _, err := validateBackupEnvelope(payload.BackupEnvelope); err != nil {
+			return err
+		}
+		for index, credential := range payload.VaultCredentials {
+			title := strings.TrimSpace(credential.Title)
+			if title == "" || len([]rune(title)) > vaultTitleMax {
+				return fmt.Errorf("vaultCredentials %d: IMPORT_VAULT_CREDENTIAL_INVALID", index+1)
+			}
+			if len([]rune(credential.URL)) > vaultURLMax || len([]rune(credential.Username)) > vaultUsernameMax {
+				return fmt.Errorf("vaultCredentials %d: IMPORT_VAULT_CREDENTIAL_INVALID", index+1)
+			}
+			if err := validateBackupCiphertextFormat(credential.PasswordBackup); err != nil {
+				return fmt.Errorf("vaultCredentials %d: %w", index+1, err)
+			}
+			if err := validateBackupCiphertextFormat(credential.NotesBackup); err != nil {
+				return fmt.Errorf("vaultCredentials %d: %w", index+1, err)
+			}
+		}
 	}
 	// skipIndexes 边界校验 + forceReplaceIndexes 边界 + 互斥校验。
 	subCount := len(payload.Subscriptions)
@@ -424,12 +516,19 @@ func previewImportPayload(app core.App, user *core.Record, payload importPayload
 		GroupsCount:                   len(payload.Groups),
 		IncludesBillingRecords:        len(payload.BillingRecords) > 0,
 		BillingRecordsCount:           len(payload.BillingRecords),
+		IncludesVaultCredentials:      len(payload.VaultCredentials) > 0,
+		VaultCredentialsCount:         len(payload.VaultCredentials),
 	}, nil
 }
 
-func applyImportPayload(app core.App, user *core.Record, payload importPayload, conflictMode string, skipIndexes []int, forceReplaceIndexes []int) error {
+// applyImportPayload 返回实际恢复的凭据数、是否跳过凭据段、跳过原因。
+// 空密码或密码错误只跳过凭据、不阻断其余数据；其他错误回滚整个事务。
+func applyImportPayload(app core.App, user *core.Record, payload importPayload, conflictMode string, skipIndexes []int, forceReplaceIndexes []int, backupPassphrase string) (int, bool, string, error) {
+	vaultRestored := 0
+	vaultSkipped := false
+	vaultSkipReason := ""
 	// 导入写入包在 PocketBase 事务内完成；任意订阅、settings 或 custom config 失败都不能留下半套迁移数据。
-	return app.RunInTransaction(func(txApp core.App) error {
+	err := app.RunInTransaction(func(txApp core.App) error {
 		rows, err := listOwnedSubscriptionRecords(txApp, user.Id)
 		if err != nil {
 			return err
@@ -503,8 +602,21 @@ func applyImportPayload(app core.App, user *core.Record, payload importPayload, 
 		if err := applyImportedBillingRecords(txApp, user, payload.BillingRecords, restoredSubscriptionIDs); err != nil {
 			return err
 		}
+		// 账号库凭据紧随其后：订阅/分组映射已就绪，逐条 KEK 解密→vault 域重加密落库；
+		// 空密码或密码错误只跳过凭据、不回滚其余数据，返回 restored/skipped 信息。
+		restored, skipped, skipReason, err := applyImportedVaultCredentials(txApp, user, payload, backupPassphrase, restoredSubscriptionIDs, groupIDMap)
+		if err != nil {
+			return err
+		}
+		vaultRestored = restored
+		vaultSkipped = skipped
+		vaultSkipReason = skipReason
 		return nil
 	})
+	if err != nil {
+		return 0, false, "", err
+	}
+	return vaultRestored, vaultSkipped, vaultSkipReason, nil
 }
 
 // mappedImportGroupID 把恢复包内的源分组 ID 翻译成目标实例分组 ID；
@@ -748,6 +860,115 @@ func billingRecordUpsertFromImport(userID string, targetSubscriptionID string, r
 		input.UsageRemainingBefore = *record.UsageRemainingBefore
 	}
 	return input
+}
+
+// applyImportedVaultCredentials 把恢复包内的账号库凭据恢复到目标实例：
+// - 备份密码留空：跳过凭据段，返回 (0, true, "empty", nil)。
+// - 密码错误（GCM 认证失败）：跳过凭据段，返回 (0, true, "invalid", nil)。
+// - 正常：逐条 KEK 解密→vault 域重加密落库，返回 (restoredCount, false, "", nil)。
+// 按 (title, username, url) 幂等 upsert；subscriptionId/groupId 按恢复映射重绑，映射不到置空。
+// 凭据段不参与订阅的 skip/replace 语义。
+func applyImportedVaultCredentials(app core.App, user *core.Record, payload importPayload, passphrase string, restoredSubscriptionIDs map[string]string, groupIDMap map[string]string) (int, bool, string, error) {
+	credentials := payload.VaultCredentials
+	if len(credentials) == 0 {
+		return 0, false, "", nil
+	}
+	// 用户未输入备份密码（已二次确认跳过）：直接返回跳过标记，不触碰 envelope。
+	if strings.TrimSpace(passphrase) == "" {
+		return 0, true, "empty", nil
+	}
+	// validateImportPayload 已保证 envelope 存在且形状合法；这里取盐复算 KEK。
+	salt, err := validateBackupEnvelope(payload.BackupEnvelope)
+	if err != nil {
+		return 0, false, "", err
+	}
+	kek := deriveBackupKEK(passphrase, salt)
+	collection, err := app.FindCollectionByNameOrId("vault_credentials")
+	if err != nil {
+		return 0, false, "", err
+	}
+	restored := 0
+	for index, credential := range credentials {
+		title := strings.TrimSpace(credential.Title)
+		username := strings.TrimSpace(credential.Username)
+		url := strings.TrimSpace(credential.URL)
+		plaintextPassword := ""
+		if credential.PasswordBackup != "" {
+			if plaintextPassword, err = decryptAESGCMWithKey(kek, credential.PasswordBackup); err != nil {
+				// 密码错误：GCM 认证失败，跳过凭据段但不回滚其余数据。
+				return 0, true, "invalid", nil
+			}
+		}
+		plaintextNotes := ""
+		if credential.NotesBackup != "" {
+			if plaintextNotes, err = decryptAESGCMWithKey(kek, credential.NotesBackup); err != nil {
+				return 0, true, "invalid", nil
+			}
+		}
+		// 幂等 upsert：
+		// 1) 优先按导出包内凭据的原 record.ID 精确匹配——自导出自导入场景 100% 命中，
+		//    避免空 TextField filter 漂移或多条重复时 FindFirst 行为不确定导致的新增。
+		// 2) 若 ID 在当前用户下不存在（跨用户导入等），fallback 到 (title, username, url) 三元组匹配。
+		// 3) 两者都没命中 → 新建记录。
+		var record *core.Record
+		var findErr error
+		if strings.TrimSpace(credential.ID) != "" {
+			record, findErr = app.FindFirstRecordByFilter(
+				"vault_credentials",
+				"user = {:user} && id = {:id}",
+				dbx.Params{"user": user.Id, "id": strings.TrimSpace(credential.ID)},
+			)
+		}
+		if record == nil && (findErr == nil || errors.Is(findErr, sql.ErrNoRows)) {
+			record, findErr = app.FindFirstRecordByFilter(
+				"vault_credentials",
+				"user = {:user} && title = {:title} && username = {:username} && url = {:url}",
+				dbx.Params{"user": user.Id, "title": title, "username": username, "url": url},
+			)
+		}
+		if findErr != nil && !errors.Is(findErr, sql.ErrNoRows) {
+			return 0, false, "", fmt.Errorf("vaultCredentials %d: %w", index+1, findErr)
+		}
+		if record == nil {
+			record = core.NewRecord(collection)
+		}
+		record.Set("user", user.Id)
+		record.Set("title", title)
+		record.Set("url", url)
+		record.Set("username", username)
+		record.Set("sortOrder", credential.SortOrder)
+		// 源 ID 映射不到目标实例时置空：凭据保留为独立账号，不写悬挂 relation。
+		record.Set("subscription", restoredSubscriptionIDs[strings.TrimSpace(credential.SubscriptionID)])
+		groupID := groupIDMap[strings.TrimSpace(credential.GroupID)]
+		// subscription 与 group 互斥（与 vault create/update 一致）；同时命中映射时订阅优先。
+		if record.GetString("subscription") != "" {
+			groupID = ""
+		}
+		record.Set("group", groupID)
+		if plaintextPassword != "" {
+			ciphertext, encErr := encryptVaultSecret(app, plaintextPassword)
+			if encErr != nil {
+				return 0, false, "", fmt.Errorf("vaultCredentials %d: %w", index+1, encErr)
+			}
+			record.Set("passwordCiphertext", ciphertext)
+		} else {
+			record.Set("passwordCiphertext", "")
+		}
+		if plaintextNotes != "" {
+			ciphertext, encErr := encryptVaultSecret(app, plaintextNotes)
+			if encErr != nil {
+				return 0, false, "", fmt.Errorf("vaultCredentials %d: %w", index+1, encErr)
+			}
+			record.Set("notesCiphertext", ciphertext)
+		} else {
+			record.Set("notesCiphertext", "")
+		}
+		if err := app.Save(record); err != nil {
+			return 0, false, "", fmt.Errorf("vaultCredentials %d: %w", index+1, err)
+		}
+		restored++
+	}
+	return restored, false, "", nil
 }
 
 func existingSubscriptionMatches(rows []*core.Record) importExistingMatches {

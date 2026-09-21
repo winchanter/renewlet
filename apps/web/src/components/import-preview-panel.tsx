@@ -83,12 +83,13 @@ export function ImportPreviewPanel({
         <SummaryBadge label={t("import.summaryWarning")} value={preview.summary.warnings} />
         <SummaryBadge label={t("import.summaryError")} value={preview.summary.errors} danger={preview.summary.errors > 0} />
       </div>
-      {preview.includesGroups || preview.includesBillingRecords ? (
+      {preview.includesGroups || preview.includesBillingRecords || preview.includesVaultCredentials ? (
         <p className="text-xs text-muted-foreground">
           {t("import.extraDataHint", {
             extras: [
               preview.includesGroups ? t("import.extraGroups", { count: preview.groupsCount }) : "",
               preview.includesBillingRecords ? t("import.extraBillingRecords", { count: preview.billingRecordsCount }) : "",
+              preview.includesVaultCredentials ? t("import.extraVaultCredentials", { count: preview.vaultCredentialsCount }) : "",
             ].filter(Boolean).join("、"),
           })}
         </p>

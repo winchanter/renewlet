@@ -36,6 +36,7 @@ type accountSecurityKeyRing struct {
 	mfaTicket        []byte
 	passkeyChallenge []byte
 	vaultData        []byte
+	backupKekWrap    []byte
 }
 
 type accountSecurityKeyFile struct {
@@ -157,12 +158,19 @@ func deriveAccountSecurityKeyRing(master []byte) (*accountSecurityKeyRing, error
 	if err != nil {
 		return nil, err
 	}
+	// backup-kek 包裹域：只用来加密「备份密码派生的 KEK」（wrappedKek），
+	// 让自动云备份能在本实例内解封 KEK，同时永不接触备份密码本身或 vault 数据域。
+	backupKekWrap, err := deriveAccountSecurityKey(prk, "backup-kek-wrap-aes-gcm")
+	if err != nil {
+		return nil, err
+	}
 	return &accountSecurityKeyRing{
 		totpSeed:         totpSeed,
 		recoveryCode:     recoveryCode,
 		mfaTicket:        mfaTicket,
 		passkeyChallenge: passkeyChallenge,
 		vaultData:        vaultData,
+		backupKekWrap:    backupKekWrap,
 	}, nil
 }
 

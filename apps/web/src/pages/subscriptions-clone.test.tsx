@@ -113,9 +113,9 @@ vi.mock("@/modules/subscriptions/application/use-subscription-crud", () => ({
 
 vi.mock("@/modules/subscriptions/application/use-subscription-export", () => ({
   useSubscriptionExport: () => ({
-    exportToJSON: vi.fn(),
-    exportToJSONWithSecrets: vi.fn(),
+    exportBackup: vi.fn(),
     exportToCSV: vi.fn(),
+    exporting: false,
   }),
 }));
 

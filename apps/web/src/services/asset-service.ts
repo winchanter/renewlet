@@ -3,7 +3,11 @@ import { okResponseSchema } from "@/lib/api/schemas/common";
 import {
   uploadImageResponseSchema,
   uploadedAssetsPageResponseSchema,
+  unreferencedAssetsResponseSchema,
+  assetCleanupResponseSchema,
   type ApiUploadImageResponse,
+  type AssetCleanupResult,
+  type UnreferencedAssets,
   type UploadedAsset,
   type UploadedAssetsPage,
   type UploadKind,
@@ -71,5 +75,27 @@ export const assetService = {
    */
   async delete(id: string): Promise<void> {
     await apiFetch(`/api/app/assets/${encodeURIComponent(id)}`, okResponseSchema, { method: "DELETE" });
+  },
+
+  /**
+   * 扫描当前用户未被任何引用的资产，返回分类计数（不在浏览器侧逐条判断引用）。
+   */
+  async unreferenced(signal?: AbortSignal): Promise<UnreferencedAssets> {
+    return await apiFetch(
+      "/api/app/assets/unreferenced",
+      unreferencedAssetsResponseSchema,
+      signal ? { signal } : undefined,
+    );
+  },
+
+  /**
+   * 批量清理未引用资产；服务端删除前会逐条重新校验引用。
+   */
+  async cleanup(signal?: AbortSignal): Promise<AssetCleanupResult> {
+    return await apiFetch(
+      "/api/app/assets/cleanup",
+      assetCleanupResponseSchema,
+      { method: "POST", ...(signal ? { signal } : {}) },
+    );
   },
 };

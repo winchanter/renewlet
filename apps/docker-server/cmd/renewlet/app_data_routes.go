@@ -64,6 +64,7 @@ type assetInUseDetails struct {
 	SubscriptionLogoCount     int64 `json:"subscriptionLogoCount"`
 	PaymentMethodIconCount    int64 `json:"paymentMethodIconCount"`
 	BillingRecordReceiptCount int64 `json:"billingRecordReceiptCount"`
+	GroupLogoCount            int64 `json:"groupLogoCount"`
 }
 
 type subscriptionWriteRequest struct {
@@ -414,6 +415,96 @@ func handleAssetDelete(app core.App, e *core.RequestEvent) error {
 	return apiEmptySuccessJSON(e, http.StatusOK)
 }
 
+type unreferencedAssetsPayload struct {
+	Total   int `json:"total"`
+	Logo    int `json:"logo"`
+	Icon    int `json:"icon"`
+	Receipt int `json:"receipt"`
+}
+
+type assetCleanupResultPayload struct {
+	Deleted int `json:"deleted"`
+}
+
+// unreferencedAssetScanBatch 控制扫描批大小：资产按 user 过滤、按 id 稳定排序分页，避免一次性拉全表。
+const unreferencedAssetScanBatch = 200
+
+// collectUnreferencedAssets 分页扫描当前用户全部资产，返回按类型分组的未引用资产 ID。
+// 引用口径与单资产删除一致（订阅/分组 logo、付款方式图标、扣费凭证）。
+func collectUnreferencedAssets(app core.App, userID string) (map[string][]string, error) {
+	collected := map[string][]string{"logo": {}, "icon": {}, "receipt": {}}
+	for offset := 0; ; offset += unreferencedAssetScanBatch {
+		rows, err := app.FindRecordsByFilter(
+			"assets", "user = {:user}", "id", unreferencedAssetScanBatch, offset, dbx.Params{"user": userID},
+		)
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			usage, err := countAssetReferences(app, userID, row.Id)
+			if err != nil {
+				return nil, err
+			}
+			if usage.UsageCount == 0 {
+				kind := row.GetString("kind")
+				collected[kind] = append(collected[kind], row.Id)
+			}
+		}
+		if len(rows) < unreferencedAssetScanBatch {
+			break
+		}
+	}
+	return collected, nil
+}
+
+// handleUnreferencedAssetsList 返回当前用户未引用资产的分类计数，供设置页清理确认框展示。
+func handleUnreferencedAssetsList(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	collected, err := collectUnreferencedAssets(app, e.Auth.Id)
+	if err != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), err)
+	}
+	payload := unreferencedAssetsPayload{
+		Logo:    len(collected["logo"]),
+		Icon:    len(collected["icon"]),
+		Receipt: len(collected["receipt"]),
+	}
+	payload.Total = payload.Logo + payload.Icon + payload.Receipt
+	return apiSuccessJSON(e, http.StatusOK, payload)
+}
+
+// handleAssetsCleanup 删除当前用户全部未引用资产；逐条在删除前重新校验引用，
+// 防止扫描与确认之间资产被重新引用（TOCTOU）。
+func handleAssetsCleanup(app core.App, e *core.RequestEvent) error {
+	locale := requestLocale(e.Request)
+	collected, err := collectUnreferencedAssets(app, e.Auth.Id)
+	if err != nil {
+		return e.InternalServerError(serverText(locale, "common.internalError"), err)
+	}
+	deleted := 0
+	for _, kind := range []string{"logo", "icon", "receipt"} {
+		for _, id := range collected[kind] {
+			record, err := app.FindRecordById("assets", id)
+			if err != nil || record.GetString("user") != e.Auth.Id {
+				// 扫描后记录已被删除或归属变化：跳过，不报错。
+				continue
+			}
+			usage, err := countAssetReferences(app, e.Auth.Id, id)
+			if err != nil {
+				return e.InternalServerError(serverText(locale, "common.internalError"), err)
+			}
+			if usage.UsageCount > 0 {
+				continue
+			}
+			if err := app.Delete(record); err != nil {
+				return e.BadRequestError(serverText(locale, "common.invalidRequestParameters"), err)
+			}
+			deleted++
+		}
+	}
+	return apiSuccessJSON(e, http.StatusOK, assetCleanupResultPayload{Deleted: deleted})
+}
+
 func countAssetReferences(app core.App, userID string, assetID string) (assetInUseDetails, error) {
 	assetURL := "/api/app/assets/" + assetID
 	subscriptionLogoCount, err := app.CountRecords("subscriptions", dbx.HashExp{"user": userID, "logo": assetURL})
@@ -428,11 +519,16 @@ func countAssetReferences(app core.App, userID string, assetID string) (assetInU
 	if err != nil {
 		return assetInUseDetails{}, err
 	}
+	groupLogoCount, err := app.CountRecords("subscription_groups", dbx.HashExp{"user": userID, "logo": assetURL})
+	if err != nil {
+		return assetInUseDetails{}, err
+	}
 	return assetInUseDetails{
-		UsageCount:                subscriptionLogoCount + paymentMethodIconCount + billingRecordReceiptCount,
+		UsageCount:                subscriptionLogoCount + paymentMethodIconCount + billingRecordReceiptCount + groupLogoCount,
 		SubscriptionLogoCount:     subscriptionLogoCount,
 		PaymentMethodIconCount:    paymentMethodIconCount,
 		BillingRecordReceiptCount: billingRecordReceiptCount,
+		GroupLogoCount:            groupLogoCount,
 	}, nil
 }
 

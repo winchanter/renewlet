@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api-client";
-import { assetInUseDetailsSchema, type AssetInUseDetails, type UploadedAsset } from "@/lib/api/schemas/media";
+import { assetInUseDetailsSchema, type AssetInUseDetails, type UnreferencedAssets, type UploadedAsset } from "@/lib/api/schemas/media";
 import { toast } from "@/components/ui/sonner";
 import {
   invalidateUploadedAssetsQueries,
@@ -25,12 +25,23 @@ interface AssetDeleteError {
   message: string;
 }
 
+export interface AssetCleanupController {
+  scanning: boolean;
+  cleaning: boolean;
+  scan: UnreferencedAssets | null;
+  error: string | null;
+  scanUnreferenced: () => Promise<UnreferencedAssets | null>;
+  cleanupUnreferenced: () => Promise<boolean>;
+  clear: () => void;
+}
+
 export interface UploadedAssetsManagerController {
   logo: UploadedAssetKindController;
   icon: UploadedAssetKindController;
   deleteError: AssetDeleteError | null;
   deletingAssetId: string | null;
   deleteAsset: (asset: UploadedAsset) => Promise<boolean>;
+  cleanup: AssetCleanupController;
 }
 
 // 设置页资产管理器只编排 UI 状态和 React Query 缓存；owner 校验、引用阻止和底层文件清理由服务端负责。
@@ -66,12 +77,66 @@ export function useUploadedAssetsManager(): UploadedAssetsManagerController {
     }
   }, [deletingAssetId, queryClient, t]);
 
+  const [scanning, setScanning] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanupScan, setCleanupScan] = useState<UnreferencedAssets | null>(null);
+  const [cleanupError, setCleanupError] = useState<string | null>(null);
+
+  const scanUnreferenced = useCallback(async () => {
+    setScanning(true);
+    setCleanupError(null);
+    try {
+      const result = await assetService.unreferenced();
+      setCleanupScan(result);
+      return result;
+    } catch (error: unknown) {
+      const message = getDisplayErrorMessage(error, t("settings.uploadedIconsCleanupFailedDescription"));
+      setCleanupError(message);
+      return null;
+    } finally {
+      setScanning(false);
+    }
+  }, [t]);
+
+  const cleanupUnreferenced = useCallback(async () => {
+    setCleaning(true);
+    setCleanupError(null);
+    try {
+      const result = await assetService.cleanup();
+      // 清理可能覆盖任意类型资产：失效全部资产查询，让管理器列表重新计数。
+      await invalidateUploadedAssetsQueries(queryClient);
+      toast.success(t("settings.uploadedIconsCleanupDone", { count: result.deleted }));
+      return true;
+    } catch (error: unknown) {
+      const message = getDisplayErrorMessage(error, t("settings.uploadedIconsCleanupFailedDescription"));
+      setCleanupError(message);
+      toast.error(t("settings.uploadedIconsCleanupFailed"), { description: message });
+      return false;
+    } finally {
+      setCleaning(false);
+    }
+  }, [queryClient, t]);
+
+  const clearCleanup = useCallback(() => {
+    setCleanupScan(null);
+    setCleanupError(null);
+  }, []);
+
   return {
     logo: uploadedAssetKindController(logo),
     icon: uploadedAssetKindController(icon),
     deleteError,
     deletingAssetId,
     deleteAsset,
+    cleanup: {
+      scanning,
+      cleaning,
+      scan: cleanupScan,
+      error: cleanupError,
+      scanUnreferenced,
+      cleanupUnreferenced,
+      clear: clearCleanup,
+    },
   };
 }
 

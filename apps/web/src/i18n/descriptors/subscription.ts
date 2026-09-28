@@ -299,6 +299,7 @@ export const messages = [
   msg({ id: "subscription.card.manualRenewalDue", message: "{date} 到期，请及时续费" }),
   msg({ id: "subscription.deleteTitle", message: "确认删除订阅" }),
   msg({ id: "subscription.deleteDescription", message: "确定要删除「{name}」订阅吗？此操作无法撤销。" }),
+  msg({ id: "subscription.deleteRetainedRecords", message: "将保留 {count} 条历史扣费记录（不会随订阅删除）。" }),
   msg({ id: "subscriptions.title", message: "订阅列表" }),
   msg({ id: "subscriptions.count", message: "共 {count} 个订阅" }),
   msg({ id: "subscriptions.filteredCount", message: "（从 {count} 个中筛选）" }),

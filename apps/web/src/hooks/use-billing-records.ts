@@ -3,6 +3,7 @@ import {
   infiniteQueryOptions,
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
   type InfiniteData,
   type QueryClient,
@@ -46,6 +47,21 @@ export function useBillingRecords(subscriptionId: string | null, enabled = true)
     records,
     total: query.data?.pages[0]?.total ?? 0,
   };
+}
+
+/**
+ * useBillingRecordCount 只取 total（limit=1）供删除确认框提示；
+ * 加载前/失败时返回 null，调用方不展示提示行。
+ */
+export function useBillingRecordCount(subscriptionId: string | null, enabled = true) {
+  const { data } = useQuery({
+    queryKey: subscriptionQueryKeys.billingRecordsCount(subscriptionId ?? ""),
+    queryFn: ({ signal }) =>
+      listBillingRecords(subscriptionId ?? "", { limit: 1, signal }).then((page) => page.total),
+    enabled: enabled && Boolean(subscriptionId),
+    staleTime: BILLING_RECORDS_STALE_TIME_MS,
+  });
+  return data ?? null;
 }
 
 /** 编辑成功先用服务端回包就地替换对应行，再把分页缓存标记为过期，让游标序与 total 在下次交互时校正。 */

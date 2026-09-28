@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import { Dialog } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { UploadedAsset, UploadKind } from "@/lib/api/schemas/media";
@@ -37,6 +38,7 @@ export function UploadedIconsSection({ id, className, controller }: UploadedIcon
   const [managerOpen, setManagerOpen] = useState(false);
   const [activeKind, setActiveKind] = useState<UploadKind>("logo");
   const [deleteTarget, setDeleteTarget] = useState<UploadedAsset | null>(null);
+  const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
   const logoTabRef = useRef<HTMLButtonElement>(null);
   const iconTabRef = useRef<HTMLButtonElement>(null);
   const isDeletingTarget = deleteTarget ? controller.deletingAssetId === deleteTarget.id : false;
@@ -55,6 +57,22 @@ export function UploadedIconsSection({ id, className, controller }: UploadedIcon
     setActiveKind(kind);
     setManagerOpen(true);
   };
+  const cleanup = controller.cleanup;
+  const handleScanAndCleanup = async () => {
+    const result = await cleanup.scanUnreferenced();
+    if (!result) {
+      // 确认框尚未打开，error 只存在 state 里：用 toast 告知用户。
+      if (cleanup.error) {
+        toast.error(t("settings.uploadedIconsCleanupFailed"), { description: cleanup.error });
+      }
+      return;
+    }
+    if (result.total === 0) {
+      toast.info(t("settings.uploadedIconsCleanupEmpty"));
+      return;
+    }
+    setCleanupDialogOpen(true);
+  };
 
   return (
     <section id={id} className={getSettingsSectionClassName(className)}>
@@ -64,10 +82,23 @@ export function UploadedIconsSection({ id, className, controller }: UploadedIcon
         help={t("settings.uploadedIconsHelp")}
         summary={summary}
         action={(
-          <Button type="button" variant="outline" size="sm" className="gap-2 border-border" onClick={() => openManager("logo")}>
-            <SlidersHorizontal className="h-4 w-4" />
-            {t("settings.uploadedIconsManage")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 border-border"
+              onClick={() => void handleScanAndCleanup()}
+              disabled={cleanup.scanning}
+            >
+              {cleanup.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {t("settings.uploadedIconsCleanup")}
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="gap-2 border-border" onClick={() => openManager("logo")}>
+              <SlidersHorizontal className="h-4 w-4" />
+              {t("settings.uploadedIconsManage")}
+            </Button>
+          </div>
         )}
       />
 
@@ -162,6 +193,53 @@ export function UploadedIconsSection({ id, className, controller }: UploadedIcon
               className="min-w-21 bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               <LoadingButtonContent loading={isDeletingTarget} loadingLabel={t("settings.uploadedIconsDeleting")}>
+                {t("common.delete")}
+              </LoadingButtonContent>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={cleanupDialogOpen} onOpenChange={(open) => {
+        // 清理进行中不允许关闭，否则丢失 pending 状态。
+        if (!open && !cleanup.cleaning) {
+          setCleanupDialogOpen(false);
+          cleanup.clear();
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("settings.uploadedIconsCleanupTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("settings.uploadedIconsCleanupDescription")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          {cleanup.scan && (
+            <div className="rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+              {t("settings.uploadedIconsCleanupBreakdown", {
+                total: cleanup.scan.total,
+                logo: cleanup.scan.logo,
+                icon: cleanup.scan.icon,
+                receipt: cleanup.scan.receipt,
+              })}
+            </div>
+          )}
+          {cleanup.error && <p className="text-xs text-destructive">{cleanup.error}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cleanup.cleaning}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cleanup.cleaning}
+              aria-busy={cleanup.cleaning ? true : undefined}
+              onClick={(event) => {
+                event.preventDefault();
+                void cleanup.cleanupUnreferenced().then((done) => {
+                  if (done) {
+                    setCleanupDialogOpen(false);
+                    cleanup.clear();
+                  }
+                });
+              }}
+              className="min-w-21 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              <LoadingButtonContent loading={cleanup.cleaning} loadingLabel={t("settings.uploadedIconsCleanupCleaning")}>
                 {t("common.delete")}
               </LoadingButtonContent>
             </AlertDialogAction>

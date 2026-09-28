@@ -1,5 +1,5 @@
-import { uploadImagePayloadSchema, uploadKindSchema, uploadedAssetsPageSchema } from "@renewlet/shared/schemas/media";
-import { countAssetReferences, deleteAssetMetadata, getAsset, listAssets, newId, nowIso } from "./db";
+import { uploadImagePayloadSchema, uploadKindSchema, uploadedAssetsPageSchema, unreferencedAssetsSchema, assetCleanupResultSchema } from "@renewlet/shared/schemas/media";
+import { countAssetReferences, deleteAssetMetadata, getAsset, listAllUserAssets, listAssets, newId, nowIso } from "./db";
 import { HttpError, ok, requestLocale, successJson } from "./http";
 import { serverText } from "./server-i18n";
 import { requireAuth } from "./auth";
@@ -127,6 +127,51 @@ export async function deleteAsset(request: Request, env: Env, id: string): Promi
   await env.ASSETS_BUCKET.delete(row.r2_key);
   await deleteAssetMetadata(env, auth.user.id, id);
   return ok();
+}
+
+/**
+ * collectUnreferencedRows 扫描当前用户全部资产，返回未被任何引用的行。
+ * 引用口径与单资产删除一致（订阅 logo、付款方式图标、扣费凭证）。
+ */
+async function collectUnreferencedRows(env: Env, userId: string): Promise<AssetRow[]> {
+  const rows = await listAllUserAssets(env, userId);
+  const unreferenced: AssetRow[] = [];
+  for (const row of rows) {
+    const usage = await countAssetReferences(env, userId, row.id);
+    if (usage.usageCount === 0) unreferenced.push(row);
+  }
+  return unreferenced;
+}
+
+/** listUnreferencedAssets 返回未引用资产分类计数，供设置页清理确认框展示。 */
+export async function listUnreferencedAssets(request: Request, env: Env): Promise<Response> {
+  const auth = await requireAuth(request, env);
+  const rows = await collectUnreferencedRows(env, auth.user.id);
+  const counts = { total: rows.length, logo: 0, icon: 0, receipt: 0 };
+  for (const row of rows) {
+    if (row.kind === "logo" || row.kind === "icon" || row.kind === "receipt") counts[row.kind]++;
+  }
+  return successJson(unreferencedAssetsSchema.parse(counts));
+}
+
+/**
+ * cleanupAssets 删除当前用户全部未引用资产；删除前逐条重新校验引用，
+ * 防止扫描与确认之间资产被重新引用（TOCTOU）。
+ */
+export async function cleanupAssets(request: Request, env: Env): Promise<Response> {
+  const auth = await requireAuth(request, env);
+  const rows = await collectUnreferencedRows(env, auth.user.id);
+  let deleted = 0;
+  for (const row of rows) {
+    const current = await getAsset(env, auth.user.id, row.id);
+    if (!current) continue;
+    const usage = await countAssetReferences(env, auth.user.id, row.id);
+    if (usage.usageCount > 0) continue;
+    await env.ASSETS_BUCKET.delete(current.r2_key);
+    await deleteAssetMetadata(env, auth.user.id, current.id);
+    deleted++;
+  }
+  return successJson(assetCleanupResultSchema.parse({ deleted }));
 }
 
 function toAssetItem(row: AssetRow) {

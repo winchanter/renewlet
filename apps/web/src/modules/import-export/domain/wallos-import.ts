@@ -235,9 +235,14 @@ function importAssetWillBeWritten(prepared: PreparedImport, writableIndexes: Rea
     // 分组整批重建，没有单条 skip 概念：payload 中存在该下标即上传。
     return Boolean(prepared.payload.groups?.[asset.target.groupIndex]);
   }
-  // 凭证只要随包记录存在就上传：前端无法预知服务端宿主映射（existing 订阅即使 action=skip，
-  // 其流水仍会挂到库内既有订阅）。真正无宿主的流水由服务端整行丢弃，凭证不会悬挂。
-  return Boolean(prepared.payload.billingRecords?.[asset.target.billingRecordIndex]);
+  // 凭证只随可写订阅上传：skip 订阅的流水要么无宿主（后端丢弃），要么已存在（upsert 保留 payload 内原始资产 ID）。
+  // 同实例恢复时原始 ID 有效，不产生孤儿；跨实例恢复时订阅为 create（writable），凭证照常上传。
+  const billingRecord = prepared.payload.billingRecords?.[asset.target.billingRecordIndex];
+  if (!billingRecord) return false;
+  const subscriptionIndex = prepared.payload.subscriptions.findIndex(
+    (sub) => sub.extra?.import?.sourceId === billingRecord.subscriptionId,
+  );
+  return subscriptionIndex !== -1 && writableIndexes.has(subscriptionIndex);
 }
 
 async function parseHeavyFileInWorker(

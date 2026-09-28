@@ -603,6 +603,22 @@ export async function listAssets(env: Env, userId: string, kind: string, page: n
   return { items: rows.results, total: totalRow?.count ?? 0 };
 }
 
+/** 未引用资产扫描批大小；按 id 稳定排序分页，扫描期间不产生写入。 */
+const UNREFERENCED_SCAN_BATCH = 200;
+
+/** listAllUserAssets 分页拉取当前用户的全部资产（不限 kind），供未引用扫描使用。 */
+export async function listAllUserAssets(env: Env, userId: string): Promise<AssetRow[]> {
+  const items: AssetRow[] = [];
+  for (let offset = 0; ; offset += UNREFERENCED_SCAN_BATCH) {
+    const rows = await env.DB.prepare(
+      `SELECT ${ASSET_COLUMNS} FROM assets WHERE user_id = ? ORDER BY id LIMIT ? OFFSET ?`,
+    ).bind(userId, UNREFERENCED_SCAN_BATCH, offset).all<AssetRow>();
+    items.push(...rows.results);
+    if (rows.results.length < UNREFERENCED_SCAN_BATCH) break;
+  }
+  return items;
+}
+
 export async function countAssetReferences(env: Env, userId: string, assetId: string): Promise<AssetInUseDetails> {
   const assetUrl = `/api/app/assets/${assetId}`;
   const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM subscriptions WHERE user_id = ? AND logo = ? LIMIT 1")
@@ -612,10 +628,12 @@ export async function countAssetReferences(env: Env, userId: string, assetId: st
   const paymentMethodIconCount = await countPaymentMethodIconReferences(env, userId, assetUrl);
   const billingRecordReceiptCount = await countBillingRecordReceiptReferences(env, userId, assetId);
   return {
+    // Worker（Cloudflare）端没有 subscription_groups 表，groupLogoCount 恒为 0。
     usageCount: subscriptionLogoCount + paymentMethodIconCount + billingRecordReceiptCount,
     subscriptionLogoCount,
     paymentMethodIconCount,
     billingRecordReceiptCount,
+    groupLogoCount: 0,
   };
 }
 

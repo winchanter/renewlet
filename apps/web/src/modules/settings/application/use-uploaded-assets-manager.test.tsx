@@ -223,7 +223,7 @@ describe("useUploadedAssetsManager", () => {
     mocks.delete.mockRejectedValue(new ApiError(
       "in use",
       409,
-      { usageCount: 2, subscriptionLogoCount: 2, paymentMethodIconCount: 0, billingRecordReceiptCount: 0 },
+      { usageCount: 2, subscriptionLogoCount: 2, paymentMethodIconCount: 0, billingRecordReceiptCount: 0, groupLogoCount: 0 },
       "ASSET_IN_USE",
     ));
     const { Wrapper, invalidateSpy } = createWrapper();
@@ -253,7 +253,7 @@ describe("useUploadedAssetsManager", () => {
     mocks.delete.mockRejectedValue(new ApiError(
       "in use",
       409,
-      { usageCount: 1, subscriptionLogoCount: 0, paymentMethodIconCount: 1, billingRecordReceiptCount: 0 },
+      { usageCount: 1, subscriptionLogoCount: 0, paymentMethodIconCount: 1, billingRecordReceiptCount: 0, groupLogoCount: 0 },
       "ASSET_IN_USE",
     ));
     const { Wrapper, invalidateSpy } = createWrapper();
@@ -280,7 +280,7 @@ describe("useUploadedAssetsManager", () => {
     mocks.delete.mockRejectedValue(new ApiError(
       "in use",
       409,
-      { usageCount: 3, subscriptionLogoCount: 2, paymentMethodIconCount: 1, billingRecordReceiptCount: 0 },
+      { usageCount: 3, subscriptionLogoCount: 2, paymentMethodIconCount: 1, billingRecordReceiptCount: 0, groupLogoCount: 0 },
       "ASSET_IN_USE",
     ));
     const { Wrapper } = createWrapper();
@@ -303,7 +303,7 @@ describe("useUploadedAssetsManager", () => {
     mocks.delete.mockRejectedValue(new ApiError(
       "in use",
       409,
-      { usageCount: 2, subscriptionLogoCount: 0, paymentMethodIconCount: 0, billingRecordReceiptCount: 2 },
+      { usageCount: 2, subscriptionLogoCount: 0, paymentMethodIconCount: 0, billingRecordReceiptCount: 2, groupLogoCount: 0 },
       "ASSET_IN_USE",
     ));
     const { Wrapper } = createWrapper();
@@ -329,7 +329,7 @@ describe("useUploadedAssetsManager", () => {
     mocks.delete.mockRejectedValue(new ApiError(
       "in use",
       409,
-      { usageCount: 3, subscriptionLogoCount: 1, paymentMethodIconCount: 0, billingRecordReceiptCount: 2 },
+      { usageCount: 3, subscriptionLogoCount: 1, paymentMethodIconCount: 0, billingRecordReceiptCount: 2, groupLogoCount: 0 },
       "ASSET_IN_USE",
     ));
     const { Wrapper } = createWrapper();

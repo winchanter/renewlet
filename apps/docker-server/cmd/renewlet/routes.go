@@ -375,6 +375,9 @@ func registerRoutes(app core.App, router *router.Router[*core.RequestEvent]) []a
 	auth.DELETE("/subscriptions/{id}", func(e *core.RequestEvent) error { return handleSubscriptionDelete(app, e) })
 	auth.GET("/assets", func(e *core.RequestEvent) error { return handleAssetsList(app, e) })
 	auth.POST("/assets", func(e *core.RequestEvent) error { return handleAssetUpload(app, e) })
+	// 未引用资产扫描与批量清理；静态路径必须先于 /assets/{id} 注册。
+	auth.GET("/assets/unreferenced", func(e *core.RequestEvent) error { return handleUnreferencedAssetsList(app, e) })
+	auth.POST("/assets/cleanup", func(e *core.RequestEvent) error { return handleAssetsCleanup(app, e) })
 	// 私有资产读取必须经过 handler 的 record.user 校验，不能直接暴露 PocketBase protected file URL。
 	auth.GET("/assets/{id}", func(e *core.RequestEvent) error { return handleAssetRead(app, e) })
 	auth.DELETE("/assets/{id}", func(e *core.RequestEvent) error { return handleAssetDelete(app, e) })

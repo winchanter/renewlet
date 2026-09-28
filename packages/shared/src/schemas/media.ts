@@ -34,7 +34,24 @@ export const assetInUseDetailsSchema = z.object({
   paymentMethodIconCount: z.number().int().nonnegative(),
   // 被扣费记录 receipt_asset_ids 引用的凭证不允许直接删除，否则记录缩略图会静默失效。
   billingRecordReceiptCount: z.number().int().nonnegative(),
+  // 分组 logo 引用（仅 Docker 运行面有分组表）。
+  groupLogoCount: z.number().int().nonnegative(),
 }).strict();
+
+/** 未引用资产扫描结果：按资产用途分类计数。 */
+export const unreferencedAssetsSchema = z.object({
+  total: z.number().int().nonnegative(),
+  logo: z.number().int().nonnegative(),
+  icon: z.number().int().nonnegative(),
+  receipt: z.number().int().nonnegative(),
+}).strict();
+export const unreferencedAssetsResponseSchema = apiSuccessResponseSchema(unreferencedAssetsSchema);
+
+/** 批量清理结果。 */
+export const assetCleanupResultSchema = z.object({
+  deleted: z.number().int().nonnegative(),
+}).strict();
+export const assetCleanupResponseSchema = apiSuccessResponseSchema(assetCleanupResultSchema);
 
 export const mediaCandidateKindSchema = uploadKindSchema;
 
@@ -194,6 +211,8 @@ export type ApiUploadImageResponse = z.infer<typeof uploadImagePayloadSchema>;
 export type UploadedAsset = z.infer<typeof uploadedAssetSchema>;
 export type UploadedAssetsPage = z.infer<typeof uploadedAssetsPageSchema>;
 export type AssetInUseDetails = z.infer<typeof assetInUseDetailsSchema>;
+export type UnreferencedAssets = z.infer<typeof unreferencedAssetsSchema>;
+export type AssetCleanupResult = z.infer<typeof assetCleanupResultSchema>;
 export type MediaCandidateKind = z.infer<typeof mediaCandidateKindSchema>;
 export type MediaCandidateMode = z.infer<typeof mediaCandidateModeSchema>;
 export type MediaCandidateSource = z.infer<typeof mediaCandidateSourceSchema>;

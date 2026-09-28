@@ -354,7 +354,21 @@ export function createUploadedAssetsManagerState(
     deleteError: null,
     deletingAssetId: null,
     deleteAsset: vi.fn<UploadedAssetsManagerController["deleteAsset"]>().mockResolvedValue(true),
+    cleanup: createCleanupControllerState(),
     ...controllerOverrides,
+  };
+}
+
+/** 清理控制器默认 fixture：空闲无扫描结果。 */
+export function createCleanupControllerState(): UploadedAssetsManagerController["cleanup"] {
+  return {
+    scanning: false,
+    cleaning: false,
+    scan: null,
+    error: null,
+    scanUnreferenced: vi.fn().mockResolvedValue(null),
+    cleanupUnreferenced: vi.fn().mockResolvedValue(true),
+    clear: vi.fn(),
   };
 }
 

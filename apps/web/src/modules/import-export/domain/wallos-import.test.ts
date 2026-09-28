@@ -674,9 +674,9 @@ describe("wallos import", () => {
     expect(resolved.uploadedLogoCount).toBe(1);
   });
 
-  it("still uploads receipts when the host subscription action is skip (existing subscription)", async () => {
-    // 冲突策略为 skip 时订阅不替换，但库内既有订阅仍是流水宿主：凭证必须照常上传重写，
-    // 流水是否落库由服务端按宿主映射最终决定。
+  it("skips receipt upload when the host subscription action is skip", async () => {
+    // skip 订阅的流水要么无宿主（后端丢弃），要么已存在（upsert 保留 payload 内原始资产 ID）；
+    // 同实例恢复时原始 ID 有效，不产生孤儿；跨实例恢复时订阅为 create，凭证照常上传。
     const payload = importPayloadSchema.parse({
       source: "renewlet",
       subscriptions: [{
@@ -697,9 +697,11 @@ describe("wallos import", () => {
       { index: 0, name: "Existing Host", source: "renewlet", sourceId: "sub_existing", existingId: "sub_existing", action: "skip", warnings: [], errors: [] },
     ]);
 
-    expect(assetMocks.create).toHaveBeenCalledTimes(1);
-    expect(assetMocks.create).toHaveBeenCalledWith(expect.any(Blob), "receipt", "receipt.png");
-    expect(resolved.payload.billingRecords?.[0]?.receiptAssetIds).toEqual(["new_receipt"]);
+    expect(assetMocks.create).not.toHaveBeenCalled();
+    // payload 保留原始资产 ID（同实例恢复时这些 ID 有效）
+    expect(resolved.payload.billingRecords?.[0]?.receiptAssetIds).toEqual(["asset_old"]);
+    expect(resolved.uploadedLogoCount).toBe(0);
+    expect(resolved.uploadedIconCount).toBe(0);
   });
 });
 

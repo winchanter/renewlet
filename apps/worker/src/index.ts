@@ -29,7 +29,7 @@ import {
   setupStatus,
 } from "./auth";
 import { readAuthSecurity, testAuthSecurityTurnstile, updateAuthSecurity } from "./auth-security";
-import { deleteAsset, listUploadedAssets, readAsset, uploadAsset } from "./assets";
+import { cleanupAssets, deleteAsset, listUnreferencedAssets, listUploadedAssets, readAsset, uploadAsset } from "./assets";
 import {
   calendarFeedIcs,
   createCalendarFeed,
@@ -327,6 +327,13 @@ const assetRoutes = newAppRouter();
 defineRoute(assetRoutes, "/", {
   GET: (context) => listUploadedAssets(context.req.raw, context.env),
   POST: (context) => uploadAsset(context.req.raw, context.env),
+});
+// 静态路径必须先于 /:id 注册，否则 /unreferenced 会被当作 id 捕获。
+defineRoute(assetRoutes, "/unreferenced", {
+  GET: (context) => listUnreferencedAssets(context.req.raw, context.env),
+});
+defineRoute(assetRoutes, "/cleanup", {
+  POST: (context) => cleanupAssets(context.req.raw, context.env),
 });
 defineRoute(assetRoutes, "/:id", {
   GET: (context) => readAsset(context.req.raw, context.env, routeParam(context, "id")),

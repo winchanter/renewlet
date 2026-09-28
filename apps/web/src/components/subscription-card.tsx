@@ -51,6 +51,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useBillingRecordCount } from '@/hooks/use-billing-records';
 import { localizedLabel } from '@/i18n/locales';
 import { SubscriptionLogo } from '@/components/subscription-logo';
 import { SubscriptionStatusBadge } from '@/components/subscription-status-badge';
@@ -202,6 +203,8 @@ function SubscriptionCardComponent({
   };
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // 删除确认框打开时才轻量拉取流水条数（limit=1 只取 total），用于提示历史记录将保留。
+  const retainedRecordsCount = useBillingRecordCount(subscription.id, showDeleteDialog);
   const today = todayDateOnlyInTimeZone(new Date(), timeZone);
   const daysUntilRenewal = daysBetweenDateOnly(today, subscription.nextBillingDate);
   const daysUntilTrialEnd = subscription.trialEndDate ? daysBetweenDateOnly(today, subscription.trialEndDate) : null;
@@ -572,6 +575,11 @@ function SubscriptionCardComponent({
           <AlertDialogDescription>
             {t("subscription.deleteDescription", { name: subscription.name })}
           </AlertDialogDescription>
+          {retainedRecordsCount !== null && retainedRecordsCount > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {t("subscription.deleteRetainedRecords", { count: retainedRecordsCount })}
+            </p>
+          )}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
